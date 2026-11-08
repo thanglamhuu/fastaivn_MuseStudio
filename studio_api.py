@@ -27,6 +27,7 @@ from fastapi import APIRouter, Depends, FastAPI, Request
 from pydantic import BaseModel, Field
 
 from muse2api.accounts.model import Account, AccountStatus
+from muse2api.accounts.pool import kind_blocks, quota_exhausted
 from muse2api.api.deps import require_admin_key
 from muse2api.api.routes.admin import parse_cookies
 from muse2api.drivers.browser.cdp import CDPSession
@@ -259,6 +260,9 @@ def _account_view(svc, acc: Account) -> dict:
     data = acc.public()
     data["max_concurrency"] = svc.pool.limit_of(acc)
     data["inflight"] = svc.pool.inflight_of(acc.id)
+    # Tài khoản bị chặn video (giới hạn ngày / theo vùng) và hết hạn mức tuần
+    data["blocked"] = kind_blocks(acc)
+    data["quota_exhausted"] = quota_exhausted(acc)
     return data
 
 

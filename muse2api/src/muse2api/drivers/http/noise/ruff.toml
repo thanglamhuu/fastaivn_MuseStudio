@@ -1,0 +1,6 @@
+# Vendored Apache-2.0 code (see NOTICE.txt). Kept as close to upstream as possible,
+# so only correctness rules apply here, not muse2api's style rules.
+extend = "../../../../../pyproject.toml"
+
+[lint]
+select = ["E9", "F"]

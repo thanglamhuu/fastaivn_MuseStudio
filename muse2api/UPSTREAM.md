@@ -25,11 +25,21 @@ tại commit `3a20b5e` ("chore: bump version to 0.4.0", v0.4.0). Thư mục `.gi
   (Chrome còn chạy thì gắn lại, Chrome chết thì mở mới); lỗi CDP khi mở tab trả về `UpstreamError` (JSON có CORS)
   thay vì lỗi 500 làm trình duyệt báo "Failed to fetch".
 
+- `errors.py` (`UpstreamKindBlocked`), `accounts/pool.py` (`block_kind`, `kind_blocks`, `quota_used_pct`,
+  `quota_exhausted`): tài khoản chạm giới hạn video trong ngày / bị chặn video theo vùng chỉ bị chặn **video**
+  (ảnh vẫn chạy) tới mốc mở lại; tài khoản hết hạn mức tuần bị bỏ qua (trừ khi mọi tài khoản đều hết);
+  khi số việc đang chạy bằng nhau thì ưu tiên tài khoản còn nhiều hạn mức hơn. Test: `tests/test_studio_kind_blocks.py`.
+- `drivers/base.py` (`VideoRequest.voice`), `api/schemas.py` (`VideoCreateRequest.voice`), `api/routes/videos.py`,
+  `drivers/browser/driver.py`: chọn giọng đọc muse.ai cho video. `core/voices.py` + `core/voices.json`: danh sách giọng.
+- `drivers/http/` (mới, thay bản stub): driver HTTP/WebSocket Noise không cần Chrome (`MUSE2API_DRIVER=http`).
+  `drivers/http/noise/` là mã Apache-2.0 của Meta (giữ LICENSE/NOTICE). Giao thức: `docs/protocol.md`.
+  Test: `tests/test_http_driver.py` (chỉ offline, chưa thử với muse.ai thật). Thêm phụ thuộc `cryptography>=42`.
+
 API riêng của MuseStudio (đăng nhập bằng trình duyệt, sửa tài khoản) nằm ngoài thư mục này,
 ở `studio_api.py` và `studio_product.py` (đọc link Shopee/TikTok) của repo gốc, nên không đụng tới code upstream.
 
 ## Cập nhật lên bản upstream mới
 
 1. Tải bản mới vào một thư mục tạm.
-2. Chép đè `src/`, rồi dán lại các khối vá ở trên (`cdp.py`, `chromium.py`, `pool.py`, `base.py`, `schemas.py`, `videos.py`, `driver.py`).
+2. Chép đè `src/`, rồi dán lại các khối vá ở trên (`cdp.py`, `chromium.py`, `pool.py`, `base.py`, `schemas.py`, `videos.py`, `driver.py`, `errors.py`) và chép lại `core/voices.*`, `drivers/http/`.
 3. Chạy `pytest` trong `muse2api/` và thử tạo 1 video trước khi commit.

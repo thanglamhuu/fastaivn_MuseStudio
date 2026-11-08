@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { StudioAccount, isAccountUsable, listStudioAccounts } from '../services/museBatchService';
+import { StudioAccount, isAccountUsable, isVideoReady, listStudioAccounts } from '../services/museBatchService';
 
 const REFRESH_MS = 10_000;
 
@@ -31,10 +31,15 @@ export const useMuseAccounts = () => {
 
   const summary = useMemo(() => {
     const usable = accounts.filter(isAccountUsable);
+    // Tài khoản đang bị chặn video / hết hạn mức tuần không nhận video mới; nếu mọi tài khoản
+    // đều vậy thì Gateway vẫn thử lại tất cả, nên khi đó tính theo toàn bộ tài khoản dùng được.
+    const ready = accounts.filter(isVideoReady);
+    const threadPool = ready.length ? ready : usable;
     return {
       usableCount: usable.length,
-      // Tổng luồng = tổng số luồng riêng của các tài khoản dùng được
-      totalThreads: usable.reduce((sum, a) => sum + a.max_concurrency, 0),
+      videoReadyCount: ready.length,
+      // Tổng luồng = tổng số luồng riêng của các tài khoản tạo được video
+      totalThreads: threadPool.reduce((sum, a) => sum + a.max_concurrency, 0),
       runningThreads: accounts.reduce((sum, a) => sum + a.inflight, 0),
     };
   }, [accounts]);

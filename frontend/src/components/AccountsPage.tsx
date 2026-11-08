@@ -29,6 +29,16 @@ const statusBadge = (acc: StudioAccount) => {
   return { text: 'Sẵn sàng', cls: 'bg-emerald-500/20 text-emerald-400' };
 };
 
+/** Đếm ngược tới mốc `untilSec` (giây unix): "05:12:09" hoặc "2 ngày 03:00:00". */
+const countdown = (untilSec: number) => {
+  const s = Math.max(0, Math.floor(untilSec - Date.now() / 1000));
+  const d = Math.floor(s / 86400);
+  const hms = [Math.floor((s % 86400) / 3600), Math.floor((s % 3600) / 60), s % 60]
+    .map((n) => String(n).padStart(2, '0'))
+    .join(':');
+  return d > 0 ? `${d} ngày ${hms}` : hms;
+};
+
 const timeAgo = (ts?: number) => {
   if (!ts) return '';
   const mins = Math.round((Date.now() / 1000 - ts) / 60);
@@ -97,6 +107,25 @@ const AccountRow: React.FC<{
         />
 
         <span className={`px-2 py-0.5 rounded-full text-[11px] ${badge.cls}`}>{badge.text}</span>
+        {Object.entries(acc.blocked || {}).map(([kind, b]) => (
+          <span
+            key={kind}
+            className={`px-2 py-0.5 rounded-full text-[11px] ${
+              b.reason === 'region' ? 'bg-red-500/20 text-red-300' : 'bg-orange-500/20 text-orange-300'
+            }`}
+            title={
+              b.reason === 'region'
+                ? 'muse.ai không cho tài khoản này tạo video ở khu vực hiện tại; vẫn tạo ảnh được.'
+                : 'Đã chạm giới hạn tạo video; tool tự chuyển video sang tài khoản khác.'
+            }
+          >
+            {b.reason === 'region' ? '🚫 Chặn' : '⏳ Giới hạn'} {kind === 'video' ? 'video' : kind} ·{' '}
+            {countdown(b.until)}
+          </span>
+        ))}
+        {acc.quota_exhausted && (
+          <span className="px-2 py-0.5 rounded-full text-[11px] bg-red-500/20 text-red-300">Hết hạn mức tuần</span>
+        )}
 
         {/* Hạn mức */}
         <div className="flex items-center gap-1.5 min-w-[130px]" title={quota?.error || quota?.plan || ''}>

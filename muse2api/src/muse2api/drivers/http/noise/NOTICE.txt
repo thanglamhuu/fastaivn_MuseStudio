@@ -1,0 +1,10 @@
+Noise protocol implementation from Meta Muse Gadget SDK.
+Copyright (c) Meta Platforms, Inc. and affiliates.
+Source: https://github.com/facebookincubator/muse-gadget-sdk
+Commit: 812c46f9fe42b69d916613a9dc702cbac5ff7b54
+Files: linux/src/musegadget/noise/*.py
+License: Apache License 2.0 (LICENSE.txt).
+
+Changes in muse2api: noise_xx.py had pure-Python X25519 / Windows CNG AES-GCM
+fallbacks that are not used here; they were removed and the `cryptography`
+package is required instead. The other files are unmodified.

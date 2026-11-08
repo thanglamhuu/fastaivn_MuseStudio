@@ -63,6 +63,8 @@ class VideoRequest:
     # [MuseStudio patch] Extra reference images (product, outfit...) attached to the same
     # muse.ai message after the first frame, so the video keeps the real product.
     reference_images: list[InputImage] = field(default_factory=list)
+    # [MuseStudio patch] muse.ai voice id for narration/dialogue; None keeps the account's.
+    voice: str | None = None
     timeout: float = 600.0
     on_progress: ProgressCallback | None = None
     cancel: asyncio.Event | None = None

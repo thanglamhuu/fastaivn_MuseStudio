@@ -1,0 +1,282 @@
+[
+ {
+  "id": "avocado_v2:vd2_r8_rep1k_a131_v068_28k_g5k",
+  "name": "Rosette nồng nàn",
+  "group": "vi_native",
+  "gender": "female",
+  "accent": "Tiếng Việt"
+ },
+ {
+  "id": "avocado_v2:vd2_r8_rep5k_3492_v068_28k_g5k",
+  "name": "Tiếng huýt sáo vui tươi",
+  "group": "vi_native",
+  "gender": "female",
+  "accent": "Tiếng Việt"
+ },
+ {
+  "id": "avocado_v2:vd2_r8_rep5k_3491_v068_28k_g5k",
+  "name": "Jetty tốt bụng",
+  "group": "vi_native",
+  "gender": "male",
+  "accent": "Tiếng Việt"
+ },
+ {
+  "id": "avocado_v2:vd2_smoky_teacup",
+  "name": "Cặp sách nghi ngờ",
+  "group": "vi_native",
+  "gender": "male",
+  "accent": "Tiếng Việt"
+ },
+ {
+  "id": "avocado_v2:vd2_r8_rep5k_3497_v068_28k_g5k",
+  "name": "Tenacious Mooring",
+  "group": "vi_native",
+  "gender": "male",
+  "accent": "Tiếng Việt"
+ },
+ {
+  "id": "avocado_v2:vd2_r8_rep5k_3494_v068_28k_g5k",
+  "name": "Zealous Harbor",
+  "group": "vi_native",
+  "gender": "male",
+  "accent": "Tiếng Việt"
+ },
+ {
+  "id": "avocado_v2:MAI_01",
+  "name": "Aria",
+  "group": "female_featured",
+  "gender": "female",
+  "accent": "Quốc tế"
+ },
+ {
+  "id": "avocado_v2:isabella",
+  "name": "Isabella — Ruy băng thư giãn",
+  "group": "female_featured",
+  "gender": "female",
+  "accent": "Anh"
+ },
+ {
+  "id": "avocado_v2:paloma",
+  "name": "Paloma — Lilting Swing",
+  "group": "female_featured",
+  "gender": "female",
+  "accent": "Anh"
+ },
+ {
+  "id": "avocado_v2:lumi",
+  "name": "Lumi — Pompom sôi nổi",
+  "group": "female_featured",
+  "gender": "female",
+  "accent": "Quốc tế"
+ },
+ {
+  "id": "avocado_v2:rumi",
+  "name": "Rumi — Bong bóng tinh nghịch",
+  "group": "female_featured",
+  "gender": "female",
+  "accent": "Mỹ"
+ },
+ {
+  "id": "avocado_v2:myrtle",
+  "name": "Myrtle — Giỏ đan thủ công",
+  "group": "female_featured",
+  "gender": "female",
+  "accent": "Mỹ"
+ },
+ {
+  "id": "avocado_v2:melody",
+  "name": "Melody — Dynamic Sparkler",
+  "group": "female_featured",
+  "gender": "female",
+  "accent": "Mỹ"
+ },
+ {
+  "id": "avocado_v2:marisol",
+  "name": "Marisol — Zippy Cork",
+  "group": "female_featured",
+  "gender": "female",
+  "accent": "Mỹ"
+ },
+ {
+  "id": "avocado_v2:lady_macbeth",
+  "name": "Lady Macbeth — Vương miện đồng",
+  "group": "female_featured",
+  "gender": "female",
+  "accent": "Scotland"
+ },
+ {
+  "id": "avocado_v2:MAI_03",
+  "name": "Helio (Smooth)",
+  "group": "male_featured",
+  "gender": "male",
+  "accent": "Quốc tế"
+ },
+ {
+  "id": "avocado_v2:magnus",
+  "name": "Magnus — Núi Boomy",
+  "group": "male_featured",
+  "gender": "male",
+  "accent": "Anh"
+ },
+ {
+  "id": "avocado_v2:ronan",
+  "name": "Ronan — Chiếc võng mềm mại",
+  "group": "male_featured",
+  "gender": "male",
+  "accent": "Mỹ"
+ },
+ {
+  "id": "avocado_v2:conor",
+  "name": "Conor — Đồng xu đánh bóng",
+  "group": "male_featured",
+  "gender": "male",
+  "accent": "Ireland"
+ },
+ {
+  "id": "avocado_v2:miles",
+  "name": "Miles — Ánh trăng dịu dàng",
+  "group": "male_featured",
+  "gender": "male",
+  "accent": "Mỹ"
+ },
+ {
+  "id": "avocado_v2:casper",
+  "name": "Casper — Kèn trumpet tự tin",
+  "group": "male_featured",
+  "gender": "male",
+  "accent": "Mỹ"
+ },
+ {
+  "id": "avocado_v2:chip",
+  "name": "Chip — Warm Pebble",
+  "group": "male_featured",
+  "gender": "male",
+  "accent": "Mỹ"
+ },
+ {
+  "id": "avocado_v2:briggs",
+  "name": "Briggs — Lửa trại bập bùng",
+  "group": "male_featured",
+  "gender": "male",
+  "accent": "Mỹ"
+ },
+ {
+  "id": "avocado_v2:bud",
+  "name": "Bud — Si-rô hàng xóm",
+  "group": "male_featured",
+  "gender": "male",
+  "accent": "Mỹ"
+ },
+ {
+  "id": "avocado_v2:okeyo",
+  "name": "Okeyo — Mận lôi cuốn",
+  "group": "male_featured",
+  "gender": "male",
+  "accent": "Quốc tế"
+ },
+ {
+  "id": "avocado_v2:vincent",
+  "name": "Vincent — Khối gạch cộc cằn",
+  "group": "male_featured",
+  "gender": "male",
+  "accent": "Mỹ"
+ },
+ {
+  "id": "avocado_v2:hubert",
+  "name": "Hubert — Tiếng đá sột sạt",
+  "group": "male_featured",
+  "gender": "male",
+  "accent": "New York"
+ },
+ {
+  "id": "avocado_v2:atlas",
+  "name": "Atlas — Cúp bóng",
+  "group": "male_featured",
+  "gender": "male",
+  "accent": "Úc"
+ },
+ {
+  "id": "avocado_v2:TruthTeller",
+  "name": "TruthTeller — Hải đăng trí tuệ",
+  "group": "male_featured",
+  "gender": "male",
+  "accent": "Mỹ"
+ },
+ {
+  "id": "avocado_v2:vd_cackling_cauldron",
+  "name": "Vạc cười khúc khích",
+  "group": "character_special",
+  "gender": "female",
+  "accent": "Mỹ"
+ },
+ {
+  "id": "avocado_v2:vd_raspy_cypress",
+  "name": "Chổi hào nhoáng",
+  "group": "character_special",
+  "gender": "female",
+  "accent": "Anh"
+ },
+ {
+  "id": "avocado_v2:vd_sinister_chalice",
+  "name": "Nến ủ rũ",
+  "group": "character_special",
+  "gender": "male",
+  "accent": "Quốc tế"
+ },
+ {
+  "id": "avocado_v2:ElvenWizard",
+  "name": "Ngôi sao huyền ảo",
+  "group": "character_special",
+  "gender": "neutral",
+  "accent": "Mỹ"
+ },
+ {
+  "id": "avocado_v2:vd2_bright_thistle",
+  "name": "Candid Thistle",
+  "group": "asian",
+  "gender": "female",
+  "accent": "Tiếng Hàn"
+ },
+ {
+  "id": "avocado_v2:vd2_r82_rep1k_0182_v068_28k_g5k",
+  "name": "Chuông tinh nghịch",
+  "group": "asian",
+  "gender": "female",
+  "accent": "Tiếng Hàn"
+ },
+ {
+  "id": "avocado_v2:vd2_r82_rep5k_1159_v068_28k_g5k",
+  "name": "Hòn sỏi bối rối",
+  "group": "asian",
+  "gender": "male",
+  "accent": "Tiếng Hàn"
+ },
+ {
+  "id": "avocado_v2:vd2_brittle_fan",
+  "name": "Bình hoa tinh tường",
+  "group": "asian",
+  "gender": "female",
+  "accent": "Tiếng Trung"
+ },
+ {
+  "id": "avocado_v2:vd2_exacting_pillar",
+  "name": "Cột trụ suy xét",
+  "group": "asian",
+  "gender": "male",
+  "accent": "Tiếng Trung"
+ },
+ {
+  "id": "avocado_v2:vd2_sparkling_kite",
+  "name": "Sparkling Kite",
+  "group": "asian",
+  "gender": "female",
+  "accent": "Giọng Thái"
+ },
+ {
+  "id": "avocado_v2:vd2_r8_rep1k_0184_v068_28k_g5k",
+  "name": "Áo khoác yên tâm",
+  "group": "asian",
+  "gender": "male",
+  "accent": "Giọng Thái"
+ }
+]

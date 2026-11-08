@@ -11,6 +11,14 @@ export interface MuseConfig {
   useTwoStepKeyframe: boolean;
   chainEndFrame: boolean; // Tự động lấy frame cuối cảnh trước làm frame đầu cảnh sau
   cameraMotion: string; // '' = không ép góc máy
+  /** Giọng đọc muse.ai dùng cho mọi cảnh ('' = giọng mặc định của tài khoản) */
+  voice: string;
+  /** Tên dự án = tên thư mục con trong thư mục xuất file */
+  projectName: string;
+  /** Tự chép mỗi video xong vào thư mục dự án */
+  autoExport: boolean;
+  /** Xong cả lô thì tự ghép các cảnh thành 1 video */
+  autoMerge: boolean;
 }
 
 export const DEFAULT_MUSE_CONFIG: MuseConfig = {
@@ -20,6 +28,10 @@ export const DEFAULT_MUSE_CONFIG: MuseConfig = {
   useTwoStepKeyframe: false,
   chainEndFrame: false,
   cameraMotion: '',
+  voice: '',
+  projectName: 'MuseStudio',
+  autoExport: true,
+  autoMerge: false,
 };
 
 export interface ReferenceImage {
@@ -53,6 +65,18 @@ export interface BatchSceneItem {
   /** Thời điểm bắt đầu / kết thúc cảnh (ms) để hiện thời gian chạy */
   startedAt?: number;
   finishedAt?: number;
+  /** File đã chép vào thư mục dự án (không bị Gateway dọn sau 14 ngày) */
+  exportedPath?: string;
+  /** Các bản tạo trước của cảnh này (mới nhất ở cuối) khi bấm "Tạo lại" */
+  history?: { videoUrl: string; exportedPath?: string; at: number }[];
+}
+
+/** Video ghép từ các cảnh đã xong */
+export interface MergedVideo {
+  url: string;
+  path: string;
+  at: number;
+  sceneCount: number;
 }
 
 /** Dạng task trả về từ GET /admin/tasks (muse2api services/tasks.py). */
@@ -184,6 +208,10 @@ export interface AccountQuota {
 export interface StudioAccount extends GatewayAccount {
   max_concurrency: number;
   inflight: number;
+  /** Loại media đang bị chặn: { video: { until: giây unix, reason: 'limit' | 'region' } } */
+  blocked?: Record<string, { until: number; reason: string | null }>;
+  /** Hạn mức tuần đã dùng hết (theo lần kiểm tra gần nhất) */
+  quota_exhausted?: boolean;
   meta: { quota?: AccountQuota; renewed_at?: number; logged_in_at?: number; [k: string]: unknown };
 }
 
@@ -202,6 +230,10 @@ export interface LoginJob {
 }
 
 export const isAccountUsable = (a: GatewayAccount) => a.enabled && a.status !== 'invalid';
+
+/** Tạo được video ngay lúc này: dùng được, không bị chặn video, chưa hết hạn mức tuần. */
+export const isVideoReady = (a: StudioAccount) =>
+  isAccountUsable(a) && !a.quota_exhausted && !((a.blocked?.video?.until ?? 0) * 1000 > Date.now());
 
 export const listStudioAccounts = async (): Promise<StudioAccountsResponse> => {
   const res = await gatewayFetch('/studio/accounts');
@@ -285,6 +317,62 @@ export const deleteMuseAccount = async (accountId: string): Promise<void> => {
   const res = await gatewayFetch(`/admin/accounts/${encodeURIComponent(accountId)}`, { method: 'DELETE' });
   if (!res.ok) throw new Error(await readError(res));
 };
+
+// ---------------------------------------------------------------------------
+// File, giọng đọc, trạng thái (studio_media.py)
+// ---------------------------------------------------------------------------
+
+export interface MuseVoice {
+  id: string;
+  name: string;
+  gender: string;
+  group: string;
+  group_label: string;
+}
+
+const jsonOrThrow = async <T,>(res: Response): Promise<T> => {
+  if (!res.ok) throw new Error(await readError(res));
+  return res.json();
+};
+
+export const getStudioSettings = () =>
+  gatewayFetch('/studio/settings').then((r) => jsonOrThrow<{ output_dir: string; ffmpeg: string | null }>(r));
+
+export const listMuseVoices = () =>
+  gatewayFetch('/studio/voices').then((r) => jsonOrThrow<{ data: MuseVoice[] }>(r)).then((d) => d.data);
+
+/** Chép video vào <thư mục xuất>/<dự án>/<filename>.mp4. Trả về đường dẫn file. */
+export const exportVideo = (videoUrl: string, project: string, filename: string) =>
+  gatewayFetch('/studio/export', {
+    method: 'POST',
+    body: JSON.stringify({ media: videoUrl, project, filename }),
+  }).then((r) => jsonOrThrow<{ path: string; folder: string }>(r));
+
+/** Ghép các video (theo thứ tự) thành 1 file bằng FFmpeg. */
+export const mergeVideos = (videoUrls: string[], project: string, filename: string) =>
+  gatewayFetch('/studio/merge', {
+    method: 'POST',
+    body: JSON.stringify({ media: videoUrls, project, filename }),
+  })
+    .then((r) => jsonOrThrow<{ path: string; folder: string; url: string }>(r))
+    .then((d) => ({ ...d, url: absoluteGatewayUrl(d.url) }));
+
+export const openProjectFolder = (project?: string) =>
+  gatewayFetch('/studio/open-folder', { method: 'POST', body: JSON.stringify({ project }) }).then((r) =>
+    jsonOrThrow<{ folder: string }>(r)
+  );
+
+export const loadServerState = async <T,>(key: string): Promise<{ savedAt: number; value: T } | null> => {
+  const res = await gatewayFetch(`/studio/state/${encodeURIComponent(key)}`);
+  if (res.status === 404) return null;
+  return jsonOrThrow(res);
+};
+
+export const saveServerState = (key: string, value: unknown, savedAt: number) =>
+  gatewayFetch(`/studio/state/${encodeURIComponent(key)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ savedAt, value }),
+  }).then((r) => jsonOrThrow(r));
 
 // ---------------------------------------------------------------------------
 // Task
@@ -472,6 +560,8 @@ export const createMuseVideoTask = async (
       image: firstFrameDataUrl,
       // Ảnh sản phẩm / trang phục gửi kèm cùng tin nhắn (tối đa 3)
       reference_images: referenceImages.slice(0, 3),
+      // Một giọng cố định cho cả lô để các cảnh không bị đổi giọng
+      voice: config.voice || undefined,
     }),
   });
   if (!res.ok) throw new Error(`Không thể tạo task video: ${await readError(res)}`);

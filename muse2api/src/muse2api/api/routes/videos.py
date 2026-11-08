@@ -49,6 +49,7 @@ async def create_video(body: VideoCreateRequest, request: Request,
         req = VideoRequest(prompt=body.prompt, model=spec.id, size=body.size,
                            duration=body.duration or body.seconds, first_frame=first_frame,
                            reference_images=refs, on_account=on_account,
+                           voice=body.voice or None,
                            timeout=svc.settings.video_timeout, on_progress=progress)
         result = await svc.gateway.generate_video(req)
         name = svc.media.save(result.data, result.mime, prefix="vid")

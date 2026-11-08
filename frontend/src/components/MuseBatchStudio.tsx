@@ -1,13 +1,20 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BatchSceneItem,
   DEFAULT_MUSE_CONFIG,
+  MergedVideo,
   MuseConfig,
   MuseTaskStoppedError,
+  MuseVoice,
   ReferenceImage,
   buildLockedPrompt,
   createAndPollMuseVideo,
+  exportVideo,
   generateMuseKeyframe,
+  getStudioSettings,
+  listMuseVoices,
+  mergeVideos,
+  openProjectFolder,
   orderedReferenceRoles,
   pollMuseVideoTask,
 } from '../services/museBatchService';
@@ -46,6 +53,8 @@ interface BatchTiming {
   finishedAt: number | null;
 }
 
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
 /** Bỏ ảnh keyframe (data URL nặng) trước khi lưu danh sách cảnh vào localStorage. */
 const serializeScenes = (scenes: BatchSceneItem[]) => scenes.map(({ keyframeUrl, ...rest }) => rest);
 
@@ -60,14 +69,31 @@ export const MuseBatchStudio: React.FC<{
   const [config, setConfig] = usePersistentState<MuseConfig>('config.v1', DEFAULT_MUSE_CONFIG, {
     merge: (stored, fallback) => ({ ...fallback, ...stored }),
   });
-  const [batchPromptText, setBatchPromptText] = usePersistentState('prompts.v1', DEFAULT_PROMPTS);
-  const [references, setReferences] = usePersistentState<ReferenceImage[]>('references.v1', []);
+  // `server: true`: lưu thêm một bản trên Gateway, vì ảnh tham chiếu lớn có thể vượt ~5MB localStorage
+  const [batchPromptText, setBatchPromptText] = usePersistentState('prompts.v1', DEFAULT_PROMPTS, {
+    server: true,
+  });
+  const [references, setReferences] = usePersistentState<ReferenceImage[]>('references.v1', [], {
+    server: true,
+  });
   const [scenes, setScenes] = usePersistentState<BatchSceneItem[]>('scenes.v1', [], {
     serialize: serializeScenes,
+    server: true,
   });
   const [product, setProduct] = usePersistentState<ProductInfo>('product.v1', EMPTY_PRODUCT, {
     merge: (stored, fallback) => ({ ...fallback, ...stored }),
+    server: true,
   });
+  const [merged, setMerged] = usePersistentState<MergedVideo | null>('merged.v1', null);
+  // Đọc danh sách cảnh mới nhất bên trong các luồng đang chạy (nối End-frame cần cảnh liền trước)
+  const scenesRef = useRef(scenes);
+  scenesRef.current = scenes;
+  const configRef = useRef(config);
+  configRef.current = config;
+  const [voices, setVoices] = useState<MuseVoice[]>([]);
+  const [outputDir, setOutputDir] = useState('');
+  const [ffmpegOk, setFfmpegOk] = useState(true);
+  const [mergeState, setMergeState] = useState('');
   // Đọc sản phẩm mới nhất bên trong các luồng đang chạy
   const productRef = useRef(product);
   productRef.current = product;
@@ -80,8 +106,29 @@ export const MuseBatchStudio: React.FC<{
   const [runningCount, setRunningCount] = useState(0);
   const [historyKey, setHistoryKey] = useState(0);
   const [downloadState, setDownloadState] = useState('');
+  /** Dừng hẳn: hủy cả các task đang render trên Gateway */
   const stopSignalRef = useRef(false);
+  /** Dừng mềm: không nhận cảnh mới, các cảnh đang render vẫn chạy nốt */
+  const softStopRef = useRef(false);
+  const [softStopping, setSoftStopping] = useState(false);
   const resumedRef = useRef(false);
+  const autoMergedFor = useRef<number | null>(null);
+
+  useEffect(() => {
+    listMuseVoices().then(setVoices).catch(() => setVoices([]));
+    getStudioSettings()
+      .then((st) => {
+        setOutputDir(st.output_dir);
+        setFfmpegOk(!!st.ffmpeg);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  const voiceGroups = useMemo(() => {
+    const m = new Map<string, MuseVoice[]>();
+    voices.forEach((v) => m.set(v.group_label, [...(m.get(v.group_label) || []), v]));
+    return [...m.entries()];
+  }, [voices]);
 
   const isBusy = runningCount > 0;
   /** Số luồng thực tế: tự động = tổng luồng của các tài khoản dùng được; nối End-frame = 1 */
@@ -93,8 +140,11 @@ export const MuseBatchStudio: React.FC<{
     return cfg.concurrency === 0 ? cap : Math.min(cfg.concurrency, cap);
   };
 
-  const updateScene = (id: string, patch: Partial<BatchSceneItem>) =>
+  const updateScene = (id: string, patch: Partial<BatchSceneItem>) => {
+    // Cập nhật ref ngay để luồng kế tiếp (nối End-frame) thấy cảnh trước đã xong mà không chờ render
+    scenesRef.current = scenesRef.current.map((s) => (s.id === id ? { ...s, ...patch } : s));
     setScenes((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  };
 
   /** Bọc một công việc chạy nền để đếm số cảnh đang chạy (điều khiển nút Dừng / Bắt đầu). */
   const track = async <T,>(job: () => Promise<T>): Promise<T> => {
@@ -146,26 +196,48 @@ export const MuseBatchStudio: React.FC<{
   const reopenTiming = () =>
     setTiming((t) => (t.startedAt ? { ...t, finishedAt: null } : { startedAt: Date.now(), finishedAt: null }));
 
+  /** Chép video của cảnh vào <thư mục xuất>/<dự án>/Canh_XX.mp4 (Gateway tự dọn data/media sau 14 ngày). */
+  const exportScene = async (sceneId: string, videoUrl: string, index: number) => {
+    try {
+      const res = await exportVideo(videoUrl, configRef.current.projectName, `Canh_${pad2(index)}`);
+      updateScene(sceneId, { exportedPath: res.path });
+    } catch (err: any) {
+      updateScene(sceneId, { error: `Video đã xong nhưng lưu file thất bại: ${err.message}` });
+    }
+  };
+
   /**
-   * Chạy trọn 1 cảnh. `chainFromVideoUrl` = video cảnh trước (khi bật nối End-frame).
-   * Trả về URL video, hoặc null nếu thất bại.
+   * Chạy trọn 1 cảnh. Khi bật nối End-frame, frame mở đầu lấy từ video của cảnh LIỀN TRƯỚC
+   * (theo số thứ tự) nếu cảnh đó đã xong. Trả về URL video, hoặc null nếu thất bại.
    */
   const processScene = async (
     scene: BatchSceneItem,
     cfg: MuseConfig,
-    refs: ReferenceImage[],
-    chainFromVideoUrl: string | null
+    refs: ReferenceImage[]
   ): Promise<string | null> => {
     if (stopSignalRef.current) return null;
+    const current = scenesRef.current.find((s) => s.id === scene.id) ?? scene;
+    // Tạo lại một cảnh đã có video: giữ bản cũ trong lịch sử của cảnh
+    const history = current.videoUrl
+      ? [
+          ...(current.history ?? []),
+          { videoUrl: current.videoUrl, exportedPath: current.exportedPath, at: current.finishedAt ?? Date.now() },
+        ].slice(-10)
+      : current.history;
     updateScene(scene.id, {
       status: 'queued',
       error: undefined,
       progress: undefined,
       videoUrl: undefined,
+      exportedPath: undefined,
       accountId: undefined,
       startedAt: Date.now(),
       finishedAt: undefined,
+      history,
     });
+    const prevScene = scenesRef.current.find((s) => s.index === scene.index - 1);
+    const chainFromVideoUrl =
+      cfg.chainEndFrame && prevScene?.status === 'completed' ? prevScene.videoUrl ?? null : null;
 
     try {
       // Ảnh gửi cho muse.ai theo thứ tự: nhân vật -> sản phẩm -> trang phục.
@@ -217,6 +289,7 @@ export const MuseBatchStudio: React.FC<{
 
       updateScene(scene.id, { status: 'completed', videoUrl, progress: 100, finishedAt: Date.now() });
       setHistoryKey((k) => k + 1);
+      if (cfg.autoExport) await exportScene(scene.id, videoUrl, scene.index);
       return videoUrl;
     } catch (err) {
       markFailure(scene.id, err);
@@ -240,8 +313,9 @@ export const MuseBatchStudio: React.FC<{
       track(async () => {
         try {
           const videoUrl = await pollMuseVideoTask(scene.videoTaskId!, pollOptions(scene.id));
-          updateScene(scene.id, { status: 'completed', videoUrl, progress: 100 });
+          updateScene(scene.id, { status: 'completed', videoUrl, progress: 100, finishedAt: Date.now() });
           setHistoryKey((k) => k + 1);
+          if (configRef.current.autoExport) await exportScene(scene.id, videoUrl, scene.index);
         } catch (err) {
           markFailure(scene.id, err);
         }
@@ -279,6 +353,9 @@ export const MuseBatchStudio: React.FC<{
     }
 
     stopSignalRef.current = false;
+    softStopRef.current = false;
+    setSoftStopping(false);
+    setMerged(null);
     const cfg = config;
     const refs = references;
     const initialScenes: BatchSceneItem[] = lines.map((line, idx) => ({
@@ -288,40 +365,46 @@ export const MuseBatchStudio: React.FC<{
       status: 'queued',
     }));
     setScenes(initialScenes);
+    scenesRef.current = initialScenes;
     setTiming({ startedAt: Date.now(), finishedAt: null });
+    await runQueue(initialScenes, cfg, refs);
+  };
 
-    await track(async () => {
-      const queue = [...initialScenes];
-      let lastCompletedVideoUrl: string | null = null;
-      // Nối End-frame cần cảnh trước xong mới chạy cảnh sau, nên ép 1 luồng
-      const effectiveConcurrency = threadsFor(cfg);
-      const workers = Array.from({ length: effectiveConcurrency }, async () => {
-        while (queue.length > 0 && !stopSignalRef.current) {
+  /** Chạy một danh sách cảnh theo thứ tự với số luồng hiện tại. */
+  const runQueue = (list: BatchSceneItem[], cfg: MuseConfig, refs: ReferenceImage[]) =>
+    track(async () => {
+      // Nối End-frame cần cảnh trước xong mới chạy cảnh sau, nên ép 1 luồng và chạy theo thứ tự
+      const queue = [...list].sort((a, b) => a.index - b.index);
+      const workers = Array.from({ length: threadsFor(cfg) }, async () => {
+        while (queue.length > 0 && !stopSignalRef.current && !softStopRef.current) {
           const nextScene = queue.shift();
           if (!nextScene) break;
-          const url = await processScene(nextScene, cfg, refs, lastCompletedVideoUrl);
-          if (url) lastCompletedVideoUrl = url;
+          await processScene(nextScene, cfg, refs);
         }
       });
       await Promise.all(workers);
 
-      if (stopSignalRef.current) {
+      if (stopSignalRef.current || softStopRef.current) {
         // Các cảnh chưa kịp chạy: đánh dấu rõ ràng thay vì treo ở "Đang chờ luồng"
+        const left = new Set(queue.map((s) => s.id));
         setScenes((prev) =>
-          prev.map((s) => (s.status === 'queued' ? { ...s, status: 'failed', error: '⏹ Đã dừng trước khi chạy' } : s))
+          prev.map((s) =>
+            left.has(s.id) || (stopSignalRef.current && s.status === 'queued')
+              ? { ...s, status: 'failed', error: '⏸ Đã dừng trước khi chạy' }
+              : s
+          )
         );
       }
+      softStopRef.current = false;
+      setSoftStopping(false);
     });
-  };
 
   const handleRetryScene = (scene: BatchSceneItem) => {
     if (references.length === 0) return alert('Cần ít nhất 1 ảnh tham chiếu để chạy lại!');
     stopSignalRef.current = false;
-    // Khi nối End-frame: lấy video của cảnh liền trước (nếu đã xong)
-    const prev = scenes.find((s) => s.index === scene.index - 1);
-    const chainFrom = config.chainEndFrame && prev?.status === 'completed' ? prev.videoUrl ?? null : null;
+    softStopRef.current = false;
     reopenTiming();
-    track(() => processScene(scene, config, references, chainFrom));
+    track(() => processScene(scene, config, references));
   };
 
   const failedScenes = scenes.filter((s) => s.status === 'failed');
@@ -330,20 +413,44 @@ export const MuseBatchStudio: React.FC<{
   const handleRetryAllFailed = () => {
     if (references.length === 0) return alert('Cần ít nhất 1 ảnh tham chiếu để chạy lại!');
     stopSignalRef.current = false;
-    const cfg = config;
-    const refs = references;
-    const queue = [...failedScenes];
+    softStopRef.current = false;
     reopenTiming();
-    track(async () => {
-      const workers = Array.from({ length: threadsFor(cfg) }, async () => {
-        while (queue.length > 0 && !stopSignalRef.current) {
-          const scene = queue.shift()!;
-          await processScene(scene, cfg, refs, null);
-        }
-      });
-      await Promise.all(workers);
-    });
+    // Khi nối End-frame, cảnh lỗi được chạy lại theo thứ tự và vẫn nối từ cảnh liền trước
+    runQueue(failedScenes, config, references);
   };
+
+  const handleMerge = async () => {
+    const done = scenesRef.current
+      .filter((s) => s.status === 'completed' && s.videoUrl)
+      .sort((a, b) => a.index - b.index);
+    if (done.length < 2) return alert('Cần ít nhất 2 cảnh đã xong để ghép.');
+    setMergeState(`Đang ghép ${done.length} cảnh...`);
+    try {
+      const name = `${configRef.current.projectName || 'MuseStudio'}_full`;
+      const res = await mergeVideos(
+        done.map((s) => s.videoUrl!),
+        configRef.current.projectName,
+        name
+      );
+      setMerged({ url: res.url, path: res.path, at: Date.now(), sceneCount: done.length });
+      setMergeState('');
+    } catch (err: any) {
+      setMergeState(`❌ Ghép thất bại: ${err.message}`);
+    }
+  };
+
+  // Tự ghép khi cả lô xong hết (mỗi lô chỉ ghép 1 lần)
+  useEffect(() => {
+    if (!config.autoMerge || !ffmpegOk || !timing.finishedAt || !timing.startedAt) return;
+    if (autoMergedFor.current === timing.finishedAt) return;
+    if (scenes.length < 2 || !scenes.every((s) => s.status === 'completed' && s.videoUrl)) return;
+    autoMergedFor.current = timing.finishedAt;
+    void handleMerge();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timing.finishedAt, config.autoMerge, ffmpegOk]);
+
+  const openFolder = () =>
+    openProjectFolder(config.projectName).catch((err) => alert(`Không mở được thư mục: ${err.message}`));
 
   const handleDownloadAll = async () => {
     setDownloadState(`Đang tải 0/${completedScenes.length}...`);
@@ -547,6 +654,64 @@ export const MuseBatchStudio: React.FC<{
                 </p>
               </div>
 
+              <div>
+                <label className="block text-[11px] text-slate-400 mb-1">Giọng đọc Muse (dùng cho mọi cảnh)</label>
+                <select
+                  value={config.voice}
+                  onChange={(e) => setConfig({ ...config, voice: e.target.value })}
+                  className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-xs"
+                >
+                  <option value="">Giữ giọng mặc định của tài khoản</option>
+                  {voiceGroups.map(([group, list]) => (
+                    <optgroup key={group} label={group}>
+                      {list.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.name} · {v.gender === 'female' ? 'Nữ' : v.gender === 'male' ? 'Nam' : v.gender}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Khóa 1 giọng cho cả lô để cảnh sau không bị đổi giọng (nam ↔ nữ) so với cảnh trước.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[11px] text-slate-400">Tên dự án (thư mục lưu video)</label>
+                <input
+                  value={config.projectName}
+                  onChange={(e) => setConfig({ ...config, projectName: e.target.value })}
+                  placeholder="MuseStudio"
+                  className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-xs"
+                />
+                {outputDir && (
+                  <button onClick={openFolder} className="text-[10px] text-indigo-300 hover:underline break-all text-left">
+                    📂 {outputDir}\{config.projectName || 'MuseStudio'}
+                  </button>
+                )}
+                <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={config.autoExport}
+                    onChange={(e) => setConfig({ ...config, autoExport: e.target.checked })}
+                    className="accent-indigo-500"
+                  />
+                  Tự lưu mỗi video xong vào thư mục dự án
+                </label>
+                <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={config.autoMerge}
+                    disabled={!ffmpegOk}
+                    onChange={(e) => setConfig({ ...config, autoMerge: e.target.checked })}
+                    className="accent-indigo-500"
+                  />
+                  Xong cả lô thì tự ghép các cảnh thành 1 video
+                  {!ffmpegOk && <span className="text-amber-400">(chưa tìm thấy FFmpeg)</span>}
+                </label>
+              </div>
+
               <div className="flex gap-2 pt-2">
                 <button
                   onClick={handleStartBatch}
@@ -556,15 +721,29 @@ export const MuseBatchStudio: React.FC<{
                   {isBusy ? `⏳ Đang chạy (${runningCount})...` : '🚀 Bắt đầu Tạo Hàng Loạt'}
                 </button>
                 {isBusy && (
-                  <button
-                    onClick={() => {
-                      // Vòng polling thấy cờ này trong <0.5s, gọi hủy task trên Gateway rồi thoát
-                      stopSignalRef.current = true;
-                    }}
-                    className="px-4 py-3 bg-red-600 hover:bg-red-500 rounded-xl font-bold text-xs"
-                  >
-                    Dừng
-                  </button>
+                  <>
+                    <button
+                      onClick={() => {
+                        softStopRef.current = true;
+                        setSoftStopping(true);
+                      }}
+                      disabled={softStopping}
+                      title="Không nhận cảnh mới; các cảnh đang render vẫn chạy nốt"
+                      className="px-3 py-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-60 rounded-xl font-bold text-xs"
+                    >
+                      {softStopping ? 'Đang chờ cảnh dở...' : '⏸ Dừng sau cảnh đang chạy'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        // Vòng polling thấy cờ này trong <0.5s, gọi hủy task trên Gateway rồi thoát
+                        stopSignalRef.current = true;
+                      }}
+                      title="Hủy luôn các cảnh muse.ai đang render"
+                      className="px-3 py-3 bg-red-600 hover:bg-red-500 rounded-xl font-bold text-xs"
+                    >
+                      ⏹ Dừng hẳn
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -617,6 +796,20 @@ export const MuseBatchStudio: React.FC<{
               >
                 ⬇ Tải tất cả ({completedScenes.length})
               </button>
+              <button
+                onClick={handleMerge}
+                disabled={completedScenes.length < 2 || !ffmpegOk || mergeState.startsWith('Đang')}
+                title={ffmpegOk ? 'Ghép các cảnh đã xong (theo thứ tự) thành 1 video' : 'Chưa tìm thấy FFmpeg'}
+                className="px-2.5 py-1 bg-fuchsia-700 hover:bg-fuchsia-600 disabled:bg-slate-700 rounded-lg text-xs font-semibold"
+              >
+                🎞 Ghép {completedScenes.length} cảnh
+              </button>
+              <button
+                onClick={openFolder}
+                className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs text-slate-300"
+              >
+                📂 Thư mục
+              </button>
               {scenes.length > 0 && !isBusy && (
                 <button
                   onClick={() => {
@@ -631,6 +824,17 @@ export const MuseBatchStudio: React.FC<{
             </div>
           </div>
           {downloadState && <p className="text-xs text-slate-300 mb-3">{downloadState}</p>}
+          {mergeState && <p className="text-xs text-slate-300 mb-3">{mergeState}</p>}
+          {merged && (
+            <div className="mb-4 bg-fuchsia-950/40 border border-fuchsia-800 rounded-xl p-3 flex flex-col md:flex-row gap-3">
+              <video src={merged.url} controls className="w-full md:w-64 h-40 bg-black rounded-lg object-contain" />
+              <div className="text-xs space-y-1">
+                <p className="font-bold text-fuchsia-200">🎞 Video hoàn chỉnh ({merged.sceneCount} cảnh)</p>
+                <p className="text-slate-300 break-all">{merged.path}</p>
+                <p className="text-slate-500">{new Date(merged.at).toLocaleString('vi-VN')}</p>
+              </div>
+            </div>
+          )}
 
           {scenes.length === 0 ? (
             <div className="flex-1 border border-dashed border-slate-800 rounded-xl flex items-center justify-center text-slate-500 text-sm p-12 text-center">
@@ -655,7 +859,17 @@ export const MuseBatchStudio: React.FC<{
                         {scene.status === 'failed' && '❌ Thất bại'}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-300 line-clamp-2">{scene.rawPrompt}</p>
+                    {ACTIVE_STATUSES.includes(scene.status) ? (
+                      <p className="text-xs text-slate-300 line-clamp-2">{scene.rawPrompt}</p>
+                    ) : (
+                      <textarea
+                        rows={2}
+                        value={scene.rawPrompt}
+                        onChange={(e) => updateScene(scene.id, { rawPrompt: e.target.value })}
+                        title="Sửa prompt rồi bấm Chạy lại / Tạo lại cho riêng cảnh này"
+                        className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-lg p-1.5 text-xs text-slate-200 focus:outline-none"
+                      />
+                    )}
                     {(scene.accountId || scene.startedAt) && (
                       <div className="flex flex-wrap gap-x-3 text-[11px] text-slate-500">
                         {scene.accountId && <span>👤 {accountLabel(scene.accountId)}</span>}
@@ -691,12 +905,51 @@ export const MuseBatchStudio: React.FC<{
                     </div>
                   )}
 
+                  {scene.exportedPath && (
+                    <p className="text-[10px] text-slate-500 break-all" title="Đã lưu vào thư mục dự án">
+                      💾 {scene.exportedPath}
+                    </p>
+                  )}
+                  {scene.status === 'completed' && scene.videoUrl && !scene.exportedPath && (
+                    <button
+                      onClick={() => exportScene(scene.id, scene.videoUrl!, scene.index)}
+                      className="w-full py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-[11px]"
+                    >
+                      💾 Lưu vào thư mục dự án
+                    </button>
+                  )}
+                  {(scene.history?.length ?? 0) > 0 && (
+                    <details className="text-[11px] text-slate-400">
+                      <summary className="cursor-pointer">Bản tạo trước ({scene.history!.length})</summary>
+                      <div className="flex flex-wrap gap-2 mt-1.5">
+                        {scene.history!
+                          .slice()
+                          .reverse()
+                          .map((h) => (
+                            <div key={h.at} className="space-y-0.5">
+                              <video src={h.videoUrl} controls className="w-32 h-20 bg-black rounded object-contain" />
+                              <div className="text-[10px]">{new Date(h.at).toLocaleString('vi-VN')}</div>
+                            </div>
+                          ))}
+                      </div>
+                    </details>
+                  )}
                   {scene.status === 'failed' && (
                     <button
                       onClick={() => handleRetryScene(scene)}
                       className="w-full py-1.5 bg-amber-600/20 hover:bg-amber-600/40 text-amber-300 rounded-lg text-xs font-medium"
                     >
                       ↻ Chạy lại cảnh #{scene.index}
+                    </button>
+                  )}
+                  {scene.status === 'completed' && (
+                    <button
+                      onClick={() => handleRetryScene(scene)}
+                      disabled={isBusy && config.chainEndFrame}
+                      title="Tạo lại cảnh này (bản cũ được giữ trong 'Bản tạo trước')"
+                      className="w-full py-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 rounded-lg text-[11px]"
+                    >
+                      ↻ Tạo lại cảnh #{scene.index}
                     </button>
                   )}
                 </div>

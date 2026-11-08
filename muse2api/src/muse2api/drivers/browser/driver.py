@@ -900,6 +900,9 @@ class BrowserDriver(MuseDriver):
     async def generate_video(self, account: Account, req: VideoRequest) -> MediaResult:
         prompt = self._media_prompt(req.prompt, "video", req.size, req.duration)
         images = ([req.first_frame] if req.first_frame else []) + list(req.reference_images)
+        if req.voice:
+            # [MuseStudio patch] the web UI has no per-message voice control; ask in the prompt.
+            prompt += f"\n(Voice for narration and dialogue: {req.voice})"
         return await self._generate(account, prompt, images[:4], "video", req.timeout,
                                     req.on_progress, req.cancel)
 

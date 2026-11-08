@@ -12,6 +12,8 @@ MuseStudio/
 ├── studio_settings.py                 # Cổng + API key dùng chung; luôn nạp muse2api nhúng trong repo
 ├── studio_api.py                      # API /studio: đăng nhập muse.ai bằng Chrome, luồng theo tài khoản
 ├── studio_product.py                  # API /studio/product: đọc link Shopee/TikTok (tên, giá, mô tả, ảnh)
+├── studio_media.py                    # API /studio: lưu trạng thái, xuất file, ghép video (FFmpeg), giọng đọc
+├── tests/                             # Test cho studio_media.py (python -m pytest tests)
 ├── gateway_server.py                  # Gateway cho môi trường dev (run_dev.bat)
 ├── app_launcher.py                    # Launcher .EXE: chạy muse2api + phục vụ giao diện React + cửa sổ desktop
 ├── build_exe.bat                      # Build React và đóng gói ra dist/MuseVideoStudio.exe
@@ -60,6 +62,23 @@ hoặc cookie hỏng được bỏ qua. Chế độ "Số luồng chạy: Tự �
    và viết từng cảnh) ➔ kịch bản tự đổ vào danh sách prompt.
 4. **Bắt đầu Tạo Hàng Loạt**: mỗi video gửi kèm ảnh nhân vật + ảnh sản phẩm + ảnh trang phục, prompt ghi rõ ảnh nào là gì
    và tên/ngoại hình sản phẩm để muse.ai không tự đổi sang sản phẩm khác.
+
+## 4. Lưu file, ghép video, giọng đọc, dừng / chạy lại
+
+- **Lưu tiến trình**: danh sách cảnh, prompt, ảnh tham chiếu và sản phẩm được lưu ở localStorage **và** trên Gateway
+  (`data/studio/state/`), nên ảnh lớn không bị mất khi localStorage đầy (~5MB). Tải lại trang thì các cảnh đang render
+  được chờ tiếp.
+- **Tự lưu video**: mỗi cảnh xong được chép vào `Downloads\MuseStudio\<Tên dự án>\Canh_01.mp4`
+  (đổi bằng `MUSE2API_STUDIO_OUTPUT_DIR`). Bản trong `data/media` của Gateway bị tự dọn sau 14 ngày.
+- **Ghép video**: nút **🎞 Ghép N cảnh** (hoặc tick "Xong cả lô thì tự ghép") ghép các cảnh đã xong theo thứ tự thành
+  `<Tên dự án>_full.mp4` bằng FFmpeg (tìm `ffmpeg.exe` cạnh app, trong PATH, hoặc `MUSE2API_FFMPEG_PATH`).
+- **Giọng đọc**: chọn 1 giọng muse.ai cho cả lô để các cảnh không bị đổi giọng.
+- **Dừng**: "⏸ Dừng sau cảnh đang chạy" không nhận cảnh mới nhưng để cảnh đang render chạy nốt; "⏹ Dừng hẳn" hủy luôn.
+- **Sửa từng cảnh**: sửa prompt ngay trên thẻ cảnh rồi bấm **Chạy lại / Tạo lại**; bản cũ giữ trong "Bản tạo trước".
+- **Nối End-frame**: luôn lấy khung cuối của cảnh **liền trước** (kể cả khi chạy lại cảnh lỗi).
+- **Tài khoản**: tài khoản chạm giới hạn video trong ngày / bị chặn video theo vùng hiện huy hiệu đếm ngược và tự được
+  bỏ qua khi tạo video; tài khoản hết hạn mức tuần cũng bị bỏ qua. Việc mới ưu tiên tài khoản ít việc và còn nhiều hạn mức.
+- **Driver không cần Chrome (thử nghiệm)**: đặt `MUSE2API_DRIVER=http` trước khi chạy Gateway. Chưa kiểm chứng với muse.ai thật.
 
 ---
 

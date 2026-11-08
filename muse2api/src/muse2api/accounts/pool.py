@@ -18,7 +18,13 @@ from collections.abc import AsyncIterator, Iterable
 from contextlib import asynccontextmanager
 from typing import Protocol
 
-from ..errors import NoAccountAvailable, UpstreamAuthError, UpstreamQuotaError, UpstreamTimeout
+from ..errors import (
+    NoAccountAvailable,
+    UpstreamAuthError,
+    UpstreamKindBlocked,
+    UpstreamQuotaError,
+    UpstreamTimeout,
+)
 from .model import Account, AccountStatus
 from .store import AccountStore
 
@@ -28,6 +34,66 @@ WAKE_BLOCK_KIND = "video"
 WAKE_BLOCK_SECONDS = 600
 """How long an account whose VM wake was not confirmed is skipped for video: a video
 on a VM that is not RUNNING stalls for minutes."""
+
+
+# [MuseStudio patch] kind blocks from UpstreamKindBlocked + quota-aware scheduling.
+KIND_BLOCK_DEFAULT_SECONDS = 24 * 3600
+"""How long ``UpstreamKindBlocked`` blocks a kind when upstream gave no reset time."""
+
+QUOTA_SNAPSHOT_MAX_AGE = 12 * 3600
+"""A quota snapshot older than this says nothing reliable about the account any more."""
+
+
+def block_kind(acc: Account, kind: str, until: float | None = None, reason: str = "limit") -> float:
+    """Block ``kind`` on ``acc`` until ``until`` (default 24h). Never shortens a longer block."""
+    now = time.time()
+    until = until if until and until > now else now + KIND_BLOCK_DEFAULT_SECONDS
+    blocks = {k: t for k, t in (acc.meta.get("kind_blocked_until") or {}).items() if t > now}
+    if blocks.get(kind, 0.0) < until:
+        blocks[kind] = until
+        reasons = dict(acc.meta.get("kind_block_reason") or {})
+        reasons[kind] = reason
+        acc.meta["kind_block_reason"] = reasons
+    acc.meta["kind_blocked_until"] = blocks
+    return blocks[kind]
+
+
+def quota_used_pct(acc: Account, now: float | None = None) -> float | None:
+    """Weekly usage percentage from the last fresh quota snapshot, or None if unknown."""
+    q = acc.meta.get("quota")
+    if not isinstance(q, dict):
+        return None
+    now = now or time.time()
+    checked = q.get("checked_at") or q.get("fetched_at") or 0
+    if not checked or now - float(checked) > QUOTA_SNAPSHOT_MAX_AGE:
+        return None
+    pct = q.get("weekly_used_pct")
+    try:
+        return None if pct is None else float(pct)
+    except (TypeError, ValueError):
+        return None
+
+
+def _has_extra(q: dict) -> bool:
+    bal = q.get("topup_balance")
+    if isinstance(bal, (int, float)):
+        return bal > 0
+    extra = str(q.get("extra_left") or "").strip()
+    return bool(extra) and not extra.lstrip("$€£ ").startswith("0")
+
+
+def quota_exhausted(acc: Account, now: float | None = None) -> bool:
+    """True when a fresh snapshot shows the weekly quota used up and no top-up left."""
+    pct = quota_used_pct(acc, now)
+    return pct is not None and pct >= 100 and not _has_extra(acc.meta.get("quota") or {})
+
+
+def kind_blocks(acc: Account, now: float | None = None) -> dict[str, dict]:
+    """Active blocks as ``{kind: {"until": ts, "reason": str|None}}`` for the UI."""
+    now = now or time.time()
+    reasons = acc.meta.get("kind_block_reason") or {}
+    return {k: {"until": t, "reason": reasons.get(k)}
+            for k, t in (acc.meta.get("kind_blocked_until") or {}).items() if t > now}
 
 
 def _kind_blocked_until(acc: Account, kind: str) -> float:
@@ -187,14 +253,15 @@ class AccountPool:
         return self._inflight.get(account_id, 0)
 
     def _kind_blocked(self, kind: str | None, now: float) -> set[str]:
-        """Ids of accounts still blocked for ``kind`` (see ``note_wake``). Empty when
-        every usable account is blocked: a block must never make the kind unusable
-        altogether, so then everyone gets tried again."""
-        if kind is None:
-            return set()
+        """Ids of accounts to skip: blocked for ``kind`` (see ``note_wake`` /
+        ``block_kind``) or [MuseStudio patch] with the weekly quota used up. Empty when
+        that would skip every usable account: a soft block must never make the pool
+        unusable altogether, so then everyone gets tried again."""
         usable = [a for a in self._accounts.values()
                   if a.enabled and a.status != AccountStatus.INVALID]
-        blocked = {a.id for a in usable if _kind_blocked_until(a, kind) > now}
+        blocked = {a.id for a in usable
+                   if (kind is not None and _kind_blocked_until(a, kind) > now)
+                   or quota_exhausted(a, now)}
         return set() if len(blocked) == len(usable) else blocked
 
     def _candidates(
@@ -240,6 +307,10 @@ class AccountPool:
                         # so long and short videos could pile up on one account.
                         least = min(self._inflight[a.id] for a in free)
                         free = [a for a in free if self._inflight[a.id] == least]
+                        # [MuseStudio patch] then the one with the most weekly quota left
+                        now = time.time()
+                        lowest = min(quota_used_pct(a, now) or 0.0 for a in free)
+                        free = [a for a in free if (quota_used_pct(a, now) or 0.0) == lowest]
                     acc = self.strategy.choose(free, hint)
                     self._inflight[acc.id] += 1
                     acc.last_used_at = time.time()
@@ -275,7 +346,11 @@ class AccountPool:
             return
         acc.fail_count += 1
         acc.last_error = str(error)[:500]
-        if isinstance(error, UpstreamAuthError):
+        if isinstance(error, UpstreamKindBlocked):  # [MuseStudio patch]
+            until = block_kind(acc, error.kind, error.until, error.reason)
+            log.warning("account %s: %s blocked until %s (%s)", acc.id, error.kind,
+                        time.strftime("%Y-%m-%d %H:%M", time.localtime(until)), error.reason)
+        elif isinstance(error, UpstreamAuthError):
             acc.status = AccountStatus.INVALID
             log.warning("account %s marked invalid: %s", acc.id, error)
         elif isinstance(error, UpstreamQuotaError):

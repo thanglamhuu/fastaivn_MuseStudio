@@ -59,6 +59,8 @@ class VideoCreateRequest(_Lenient):
     input_reference: str | None = None
     # [MuseStudio patch] up to 3 more reference images (product, outfit...)
     reference_images: list[str] = Field(default_factory=list, max_length=3)
+    # [MuseStudio patch] muse.ai voice id (GET /studio/voices) so every scene keeps one voice
+    voice: str | None = Field(default=None, max_length=200)
 
 
 class AccountCreate(BaseModel):

@@ -77,6 +77,24 @@ class UpstreamQuotaError(UpstreamError):
     code = "upstream_quota_exhausted"
 
 
+class UpstreamKindBlocked(UpstreamError):
+    """[MuseStudio patch] The account cannot produce one kind of media for a while
+    (muse.ai's daily video limit, or video not offered in the account's region) but is
+    otherwise fine. The pool blocks only that ``kind`` on the account until ``until``
+    (unix seconds; default 24h from now) and fails over to another account."""
+
+    status_code = 429
+    code = "upstream_kind_blocked"
+
+    def __init__(self, message: str = "", *, kind: str = "video", until: float | None = None,
+                 reason: str = "limit", code: str | None = None) -> None:
+        super().__init__(message, code=code)
+        self.kind = kind
+        self.until = until
+        self.reason = reason
+        """``limit`` (daily/weekly cap, lifts at ``until``) or ``region`` (not offered)."""
+
+
 class UpstreamTimeout(UpstreamError):
     status_code = 504
     code = "upstream_timeout"
