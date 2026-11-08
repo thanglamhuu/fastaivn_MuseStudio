@@ -12,6 +12,8 @@ from fastapi.responses import FileResponse
 
 from fastapi.middleware.cors import CORSMiddleware
 
+from studio_settings import HOST, PORT, apply_gateway_env
+
 def get_resource_path(relative_path: str) -> Path:
     if hasattr(sys, "_MEIPASS"):
         return Path(sys._MEIPASS) / relative_path
@@ -38,17 +40,11 @@ def detect_windows_chromium() -> str:
 APP_DATA_DIR = Path(os.getenv("APPDATA", Path.home())) / "MuseVideoStudio"
 APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-HOST = "127.0.0.1"
-PORT = 18610
-
 detected_browser = detect_windows_chromium()
 if detected_browser:
     os.environ.setdefault("MUSE2API_CHROMIUM_PATH", detected_browser)
 
-os.environ.setdefault("MUSE2API_HOST", HOST)
-os.environ.setdefault("MUSE2API_PORT", str(PORT))
-os.environ.setdefault("MUSE2API_DRIVER", "browser")
-os.environ.setdefault("MUSE2API_API_KEY", "m2a_secret_key")
+apply_gateway_env()
 os.environ.setdefault("MUSE2API_DATA_DIR", str(APP_DATA_DIR))
 
 # Khởi tạo FastAPI app từ muse2api.app
@@ -57,6 +53,11 @@ try:
     muse_fastapi_app = create_app()
 except ImportError:
     from muse2api.main import app as muse_fastapi_app
+
+# API riêng của MuseStudio: đăng nhập bằng trình duyệt, số luồng theo tài khoản
+from studio_api import router as studio_router
+
+muse_fastapi_app.include_router(studio_router)
 
 # Thêm đoạn cấu hình này ngay sau khi khởi tạo muse_fastapi_app
 muse_fastapi_app.add_middleware(
@@ -104,6 +105,8 @@ def launch_desktop_window():
     app_url = f"http://{HOST}:{PORT}"
     try:
         import webview
+        # Cho phép nút "Tải video" / "Tải tất cả" lưu file trong cửa sổ desktop
+        webview.settings["ALLOW_DOWNLOADS"] = True
         webview.create_window(
             title="Muse AI Video Batch Studio",
             url=app_url,

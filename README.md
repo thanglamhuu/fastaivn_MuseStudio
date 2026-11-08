@@ -7,49 +7,46 @@ Bộ công cụ tạo video AI hàng loạt (Batch Image-to-Video & Reference-to
 ## 1. Cấu trúc thư mục dự án
 
 ```text
-MuseVideoStudio/
-├── README.md                          # Hướng dẫn cài đặt, lấy Cookie và đóng gói .EXE
-├── app_launcher.py                    # Launcher hợp nhất: chạy ngầm muse2api + nhúng giao diện React + mở cửa sổ Desktop
-├── build_exe.bat                      # Script 1-Click tự động tải muse2api, build React và xuất ra file MuseVideoStudio.exe
-├── run_dev.bat                        # Script khởi chạy nhanh môi trường Dev (Backend + Frontend)
-├── requirements.txt                   # Các gói Python cần thiết cho bộ khởi chạy và đóng gói
-└── frontend/                          # Mã nguồn giao diện ReactJS + TypeScript + Vite + Tailwind CSS
-    ├── index.html
-    ├── package.json
-    ├── tsconfig.json
-    ├── vite.config.ts
-    ├── tailwind.config.js
-    ├── postcss.config.js
-    ├── electron/
-    │   └── main.cjs                   # Cấu hình Electron Sidecar (tùy chọn)
+MuseStudio/
+├── README.md
+├── studio_settings.py                 # Cổng + API key dùng chung; luôn nạp muse2api nhúng trong repo
+├── studio_api.py                      # API /studio: đăng nhập muse.ai bằng Chrome, luồng theo tài khoản
+├── gateway_server.py                  # Gateway cho môi trường dev (run_dev.bat)
+├── app_launcher.py                    # Launcher .EXE: chạy muse2api + phục vụ giao diện React + cửa sổ desktop
+├── build_exe.bat                      # Build React và đóng gói ra dist/MuseVideoStudio.exe
+├── run_dev.bat                        # Chạy Gateway + Vite dev server
+├── requirements.txt
+├── muse2api/                          # Gateway muse2api nhúng sẵn, có bản vá Windows (xem muse2api/UPSTREAM.md)
+└── frontend/                          # ReactJS + TypeScript + Vite + Tailwind CSS
+    ├── .env.example                   # VITE_GATEWAY_URL / VITE_MUSE_API_KEY (khớp studio_settings.py)
     └── src/
-        ├── main.tsx
-        ├── App.tsx                    # Khung ứng dụng chính (Chuyển đổi Batch Mode / Single Studio Mode)
-        ├── index.css
-        ├── types/
-        │   └── videoStudio.ts         # Định nghĩa kiểu dữ liệu TypeScript toàn hệ thống
-        ├── utils/
-        │   └── videoFrameExtractor.ts # Công cụ cắt Frame cuối (End-frame) để nối cảnh liên tiếp
-        ├── services/
-        │   ├── museBatchService.ts    # Xử lý bóc tách Cookie muse.ai, tạo Keyframe 2 bước & Polling Video
-        │   └── videoAiService.ts      # Bộ biên dịch khóa Nhân vật/Trang phục/Sản phẩm & Muse Hosting API
+        ├── App.tsx                    # Khung ứng dụng + chỉ báo kết nối Gateway
+        ├── config/appConfig.ts        # Địa chỉ Gateway + API key phía frontend (1 chỗ duy nhất)
+        ├── hooks/usePersistentState.ts# Lưu cấu hình / prompt / ảnh tham chiếu / lô hiện tại vào localStorage
+        ├── services/museBatchService.ts # Mọi lời gọi Gateway: tài khoản, keyframe, video, task
+        ├── utils/videoFrameExtractor.ts # Cắt frame cuối để nối cảnh
+        ├── utils/download.ts          # Tải 1 video / tải tất cả
         └── components/
-            ├── MuseBatchStudio.tsx    # Giao diện chạy hàng loạt bằng Cookie muse.ai (1, 2, 4 luồng)
-            └── CharacterVideoStudio.tsx # Giao diện tạo từng cảnh chi tiết
+            ├── MuseBatchStudio.tsx    # Màn hình chính: chạy hàng loạt, chạy lại cảnh lỗi, tải tất cả
+            ├── AccountsPage.tsx       # Dàn tài khoản: đăng nhập bằng Chrome, dán cookie, luồng, hạn mức
+            └── VideoHistory.tsx       # Lịch sử video đọc từ GET /admin/tasks của Gateway
 ```
 
 ---
 
-## 2. Hướng dẫn lấy Cookie chuẩn từ `muse.ai`
+## 2. Thêm tài khoản muse.ai
 
-Vì các cookie xác thực của `muse.ai` (`hatch_sess`, `hatch_vml`, `hatch_native_auth_device`, `hatch_gw`) được gắn cờ bảo mật `httpOnly`, bạn lấy theo các bước sau:
+Vào tab **👥 Dàn tài khoản Muse**:
 
-1. Mở trình duyệt Chrome/Edge, truy cập **https://muse.ai/** và đăng nhập tài khoản.
-2. Nhấn phím **F12** để mở Developer Tools -> Chọn tab **Network (Mạng)**.
-3. Nhấn **F5** để tải lại trang, chọn dòng request đầu tiên gửi tới `muse.ai`.
-4. Kéo xuống mục **Request Headers**, tìm dòng **`cookie:`**.
-5. Copy toàn bộ chuỗi giá trị của dòng `cookie:` (có chứa `hatch_sess=...; hatch_vml=...`) và dán vào ô **Nạp Cookie** trong phần mềm.
-   - *Mẹo chạy đa luồng:* Bạn có thể dán nhiều tài khoản (mỗi tài khoản 1 dòng) để hệ thống tự động chia tải khi chạy 2 hoặc 4 luồng song song.
+- **+ Thêm tài khoản (đăng nhập)**: app mở một cửa sổ Chrome riêng (profile trắng). Đăng nhập muse.ai như bình thường;
+  khi đăng nhập xong app tự lấy cookie, lưu tài khoản và đóng cửa sổ. Nút **Đăng nhập** trên từng tài khoản dùng để
+  đăng nhập lại khi cookie hết hạn.
+- **Cookie** / **+ Thêm nhiều TK (cookie)**: dán dòng `cookie:` lấy từ F12 ➔ Network (chứa `hatch_sess=...;
+  hatch_native_auth_device=...`). Nhiều tài khoản thì mỗi dòng một tài khoản, dạng `tên | cookie`.
+- **Số luồng** của từng tài khoản = số video tài khoản đó tạo cùng lúc (tối đa = `MUSE2API_ACCOUNT_MAX_CONCURRENCY`, mặc định 4).
+
+Khi chạy hàng loạt, Gateway tự **xoay tua**: mỗi video được giao cho tài khoản đang rảnh lâu nhất; tài khoản hết hạn mức
+hoặc cookie hỏng được bỏ qua. Chế độ "Số luồng chạy: Tự động" = tổng luồng của các tài khoản dùng được.
 
 ---
 
@@ -64,7 +61,7 @@ Vì các cookie xác thực của `muse.ai` (`hatch_sess`, `hatch_vml`, `hatch_n
 
 1. Nhấp đúp vào file **`build_exe.bat`**.
 2. Script sẽ tự động:
-   - Clone `muse2api` từ GitHub (nếu chưa có trong thư mục).
+   - Kiểm tra thư mục `muse2api/` (đã nhúng sẵn, không clone lại vì bản gốc thiếu bản vá Windows).
    - Chạy `npm install` và `npm run build` trong thư mục `frontend/`.
    - Cài đặt `pywebview`, `pyinstaller`, `fastapi`, `uvicorn`.
    - Đóng gói tất cả thành file thực thi duy nhất tại: **`dist/MuseVideoStudio.exe`**.

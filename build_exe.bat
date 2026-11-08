@@ -4,13 +4,14 @@ echo ===================================================
 echo   DONG GOI MUSE AI VIDEO BATCH STUDIO (.EXE)
 echo ===================================================
 
-:: 1. Kiem tra va tai muse2api neu chua co
-if not exist "muse2api" (
-    echo [1/5] Dang tai ma nguon muse2api tu GitHub...
-    git clone https://github.com/www222fff/muse2api.git
-) else (
-    echo [1/5] Thu muc muse2api da san sang.
+:: 1. Kiem tra muse2api (da nhung san trong repo, kem ban va Windows)
+if not exist "muse2api\src\muse2api" (
+    echo [LOI] Khong tim thay thu muc muse2api. Thu muc nay nam trong repo, KHONG clone lai tu GitHub
+    echo       vi ban goc thieu cac ban va Windows ^(cdp.py, chromium.py^).
+    pause
+    exit /b 1
 )
+echo [1/5] Thu muc muse2api da san sang.
 
 :: 2. Build giao dien ReactJS Vite
 echo [2/5] Dang build giao dien ReactJS Vite...
@@ -41,6 +42,7 @@ echo [5/5] Dang dong goi thanh file MuseVideoStudio.exe...
 pyinstaller --noconfirm --clean ^
     --name "MuseVideoStudio" ^
     --onefile ^
+    --paths "muse2api/src" ^
     --noconsole ^
     --add-data "frontend/dist;frontend_dist" ^
     --collect-all muse2api ^

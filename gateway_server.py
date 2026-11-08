@@ -1,20 +1,20 @@
-# I:\AiFast\MUSE\srcs\MuseVideoStudio\gateway_server.py
-import os
+# Gateway cho môi trường dev (run_dev.bat). Bản đóng gói dùng app_launcher.py.
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 
-# Đặt biến môi trường mặc định
-os.environ.setdefault("MUSE2API_HOST", "127.0.0.1")
-os.environ.setdefault("MUSE2API_PORT", "18610")
-os.environ.setdefault("MUSE2API_DRIVER", "browser")
-os.environ.setdefault("MUSE2API_API_KEY", "m2a_secret_key")
+from studio_settings import HOST, PORT, apply_gateway_env
 
-from muse2api.app import create_app
+apply_gateway_env()
 
-# Khởi tạo app FastAPI từ thư viện
+from muse2api.app import create_app  # noqa: E402  (phải import sau khi đặt env)
+
 app = create_app()
 
-# Bật CORS Middleware toàn diện để nhận mọi request OPTIONS/POST từ React
+from studio_api import router as studio_router  # noqa: E402
+
+app.include_router(studio_router)
+
+# Bật CORS để Vite dev server (http://localhost:5173) gọi được Gateway
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,4 +24,4 @@ app.add_middleware(
 )
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=18610, log_level="info")
+    uvicorn.run(app, host=HOST, port=PORT, log_level="info")

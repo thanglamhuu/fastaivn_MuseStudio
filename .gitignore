@@ -15,9 +15,12 @@ user_data/
 browser_profile/
 
 # ========================================================
-# 2. LOCAL GATEWAY (Tự động tải qua run_dev.bat / build_exe.bat)
+# 2. LOCAL GATEWAY
 # ========================================================
-# Bỏ qua thư mục muse2api vì bên trong đã có .git riêng từ GitHub
+# muse2api/ đã được nhúng (vendored) vào repo kèm bản vá Windows -> KHÔNG ignore.
+# File tạm chứa tài khoản/cookie:
+tmpacc*
+*.k
 
 # ========================================================
 # 3. PYTHON & ĐÓNG GÓI PYINSTALLER (.EXE)

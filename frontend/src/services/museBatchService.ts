@@ -1,15 +1,26 @@
 // frontend/src/services/museBatchService.ts
+// Toàn bộ lời gọi tới Local Gateway (muse2api). Địa chỉ + API key lấy từ config/appConfig.ts.
+import { GATEWAY_URL, MUSE_API_KEY } from '../config/appConfig';
 import { AspectRatio, ShotDuration } from '../types/videoStudio';
 
 export interface MuseConfig {
-  gatewayUrl: string;
-  apiKey: string;
   aspectRatio: AspectRatio;
   duration: ShotDuration;
-  concurrency: 1 | 2 | 4;
+  /** 0 = tự động theo tổng luồng của các tài khoản dùng được */
+  concurrency: 0 | 1 | 2 | 4 | 8;
   useTwoStepKeyframe: boolean;
   chainEndFrame: boolean; // Tự động lấy frame cuối cảnh trước làm frame đầu cảnh sau
+  cameraMotion: string; // '' = không ép góc máy
 }
+
+export const DEFAULT_MUSE_CONFIG: MuseConfig = {
+  aspectRatio: '9:16',
+  duration: 8,
+  concurrency: 0,
+  useTwoStepKeyframe: false,
+  chainEndFrame: false,
+  cameraMotion: '',
+};
 
 export interface ReferenceImage {
   id: string;
@@ -18,21 +29,84 @@ export interface ReferenceImage {
   name: string;
 }
 
+export type SceneStatus =
+  | 'idle'
+  | 'queued'
+  | 'generating_keyframe'
+  | 'rendering_video'
+  | 'completed'
+  | 'failed';
+
 export interface BatchSceneItem {
   id: string;
   index: number;
   rawPrompt: string;
-  status: 'idle' | 'queued' | 'generating_keyframe' | 'rendering_video' | 'completed' | 'failed';
+  status: SceneStatus;
   keyframeUrl?: string;
   videoTaskId?: string;
+  /** URL media của Gateway (http://127.0.0.1:18610/v1/media/...), còn dùng được sau khi tải lại trang. */
   videoUrl?: string;
   progress?: number;
   error?: string;
 }
 
-/**
- * 1. Bóc tách chuỗi Cookie thô copy từ F12 Network của muse.ai
- */
+/** Dạng task trả về từ GET /admin/tasks (muse2api services/tasks.py). */
+export interface GatewayTask {
+  id: string;
+  kind: 'video' | 'image' | string;
+  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
+  progress: number;
+  created_at: number;
+  updated_at: number;
+  request: { model?: string; prompt?: string; size?: string; duration?: number; has_first_frame?: boolean };
+  result: { url?: string; mime?: string; width?: number; height?: number } | null;
+  error: { message?: string; code?: string } | null;
+}
+
+/** Dạng tài khoản trả về từ GET /admin/accounts (cookie đã bị che). */
+export interface GatewayAccount {
+  id: string;
+  label: string;
+  enabled: boolean;
+  status: 'active' | 'cooling' | 'invalid';
+  cookies: Record<string, string>;
+  created_at: number;
+  last_used_at: number;
+  cooldown_until: number;
+  last_error: string | null;
+  success_count: number;
+  fail_count: number;
+}
+
+// ---------------------------------------------------------------------------
+// Hạ tầng gọi Gateway
+// ---------------------------------------------------------------------------
+
+const gatewayFetch = (path: string, init: RequestInit = {}): Promise<Response> => {
+  const headers = new Headers(init.headers);
+  headers.set('Authorization', `Bearer ${MUSE_API_KEY}`);
+  if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  return fetch(`${GATEWAY_URL}${path}`, { ...init, headers });
+};
+
+const readError = async (res: Response): Promise<string> => {
+  const text = await res.text().catch(() => '');
+  try {
+    const data = JSON.parse(text);
+    return data.error?.message || data.detail || text || res.statusText;
+  } catch {
+    return text || res.statusText;
+  }
+};
+
+/** Chuẩn hóa URL media: đường dẫn tương đối của Gateway thành URL tuyệt đối. */
+const absoluteGatewayUrl = (url: string) => (url.startsWith('/') ? `${GATEWAY_URL}${url}` : url);
+
+// ---------------------------------------------------------------------------
+// Tài khoản cookie
+// ---------------------------------------------------------------------------
+
+/** Bóc tách chuỗi Cookie thô copy từ F12 Network của muse.ai ("nhãn | cookie" hoặc chỉ cookie). */
 export const parseMuseCookieString = (rawLine: string, defaultLabel: string) => {
   let label = defaultLabel;
   let cookiePart = rawLine.trim();
@@ -62,141 +136,166 @@ export const parseMuseCookieString = (rawLine: string, defaultLabel: string) => 
   return { label, cookies };
 };
 
-/**
- * 2. Nạp danh sách Cookie của người dùng vào Local Gateway (qua Vite Proxy)
- */
-export const importMuseCookieAccount = async (
-  config: MuseConfig,
-  rawCookieText: string
-): Promise<{ importedCount: number }> => {
+/** Nạp danh sách Cookie (mỗi dòng 1 tài khoản) vào bể tài khoản của Gateway. */
+export const importMuseCookieAccount = async (rawCookieText: string): Promise<{ importedCount: number }> => {
   const lines = rawCookieText
     .split('\n')
     .map((l) => l.trim())
     .filter(Boolean);
 
-  let importedCount = 0;
-  const baseUrl = config.gatewayUrl ? config.gatewayUrl.replace(/\/$/, '') : '';
+  // Nhãn mặc định có ngày giờ để các lần nạp khác nhau không trùng tên "muse_acc_1"
+  const now = new Date();
+  const stamp = `${String(now.getDate()).padStart(2, '0')}${String(now.getMonth() + 1).padStart(2, '0')}_${String(
+    now.getHours()
+  ).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
 
+  let importedCount = 0;
   for (let i = 0; i < lines.length; i++) {
-    const parsed = parseMuseCookieString(lines[i], `muse_acc_${i + 1}`);
-    const res = await fetch(`${baseUrl}/admin/accounts`, {
+    const parsed = parseMuseCookieString(lines[i], `muse_${stamp}_${i + 1}`);
+    const res = await gatewayFetch('/admin/accounts', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.apiKey}`,
-      },
       body: JSON.stringify(parsed),
     });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Lỗi nạp tài khoản ${parsed.label}: ${errText}`);
-    }
+    if (!res.ok) throw new Error(`Lỗi nạp tài khoản ${parsed.label}: ${await readError(res)}`);
     importedCount++;
   }
-
   return { importedCount };
 };
 
-/**
- * 3. Kiểm tra trạng thái danh sách tài khoản Cookie đang có trong Gateway
- */
-export const fetchMuseAccountsStatus = async (config: MuseConfig) => {
-  const baseUrl = config.gatewayUrl ? config.gatewayUrl.replace(/\/$/, '') : '';
-  const res = await fetch(`${baseUrl}/admin/accounts`, {
-    headers: {
-      Authorization: `Bearer ${config.apiKey}`,
-    },
-  });
-  if (!res.ok) throw new Error('Không kết nối được với Local Gateway (kiểm tra lại Python Gateway Server)');
+// ---------------------------------------------------------------------------
+// API riêng của MuseStudio (studio_api.py): đăng nhập bằng trình duyệt, luồng theo tài khoản
+// ---------------------------------------------------------------------------
+
+export interface AccountQuota {
+  checked_at?: number;
+  plan?: string | null;
+  weekly_used_pct?: number | null;
+  resets_at?: string | null;
+  extra_left?: string | number | null;
+  found?: boolean;
+  error?: string;
+}
+
+export interface StudioAccount extends GatewayAccount {
+  max_concurrency: number;
+  inflight: number;
+  meta: { quota?: AccountQuota; renewed_at?: number; logged_in_at?: number; [k: string]: unknown };
+}
+
+export interface StudioAccountsResponse {
+  data: StudioAccount[];
+  max_concurrency_per_account: number;
+}
+
+export interface LoginJob {
+  id: string;
+  account_id: string | null;
+  label: string;
+  status: 'starting' | 'waiting' | 'verifying' | 'succeeded' | 'failed' | 'cancelled';
+  message: string;
+  result_account_id: string | null;
+}
+
+export const isAccountUsable = (a: GatewayAccount) => a.enabled && a.status !== 'invalid';
+
+export const listStudioAccounts = async (): Promise<StudioAccountsResponse> => {
+  const res = await gatewayFetch('/studio/accounts');
+  if (!res.ok) {
+    if (res.status === 404) {
+      throw new Error('Gateway chưa có API /studio — hãy khởi động lại gateway_server.py (run_dev.bat).');
+    }
+    throw new Error(await readError(res));
+  }
   return res.json();
 };
 
-/**
- * 4. Bộ khóa Prompt (Identity + Outfit + Product Lock)
- */
-export const buildLockedPrompt = (userPrompt: string, refs: ReferenceImage[]): string => {
-  const locks: string[] = [];
-  if (refs.some((r) => r.role === 'character')) {
-    locks.push('[IDENTITY LOCK: Keep exact facial features, bone structure, skin tone, and hair from character reference]');
-  }
-  if (refs.some((r) => r.role === 'outfit')) {
-    locks.push('[OUTFIT LOCK: Maintain 100% identical clothing design, color palette, and fabric texture]');
-  }
-  if (refs.some((r) => r.role === 'product')) {
-    locks.push('[PRODUCT LOCK: Zero warping, preserve exact product geometry, proportions, and surface details]');
-  }
-  return `${locks.join(' ')} ${userPrompt.trim()}`;
+export const updateStudioAccount = async (
+  accountId: string,
+  patch: { label?: string; enabled?: boolean; max_concurrency?: number; cookies?: string }
+): Promise<StudioAccount> => {
+  const res = await gatewayFetch(`/studio/accounts/${encodeURIComponent(accountId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw new Error(await readError(res));
+  return (await res.json()).account;
 };
 
-/**
- * 5. Tạo ảnh Keyframe kết hợp Nhân vật + Trang phục + Sản phẩm qua muse-image
- */
-export const generateMuseKeyframe = async (
-  config: MuseConfig,
-  prompt: string,
-  refs: ReferenceImage[]
-): Promise<string> => {
-  const baseUrl = config.gatewayUrl ? config.gatewayUrl.replace(/\/$/, '') : '';
-  const res = await fetch(`${baseUrl}/v1/images/generations`, {
+/** Mở cửa sổ Chrome để đăng nhập. Có `accountId` = đăng nhập lại cho tài khoản đó. */
+export const startBrowserLogin = async (opts: { accountId?: string; label?: string }): Promise<LoginJob> => {
+  const res = await gatewayFetch('/studio/login', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'muse-image',
-      prompt: buildLockedPrompt(prompt, refs),
-      size: config.aspectRatio,
-      image: refs.slice(0, 4).map((r) => r.dataUrl),
-      // Lấy base64 thay vì URL: URL media của Gateway là 127.0.0.1, khi gửi lại làm
-      // first-frame cho /v1/videos sẽ bị lớp chặn SSRF của muse2api từ chối.
-      response_format: 'b64_json',
-    }),
+    body: JSON.stringify({ account_id: opts.accountId ?? null, label: opts.label ?? '' }),
   });
+  if (!res.ok) throw new Error(await readError(res));
+  return res.json();
+};
 
-  if (!res.ok) {
-    const errText = await res.text().catch(() => res.statusText);
-    throw new Error(`Lỗi tạo Keyframe: ${errText}`);
-  }
+export const getBrowserLogin = async (jobId: string): Promise<LoginJob> => {
+  const res = await gatewayFetch(`/studio/login/${encodeURIComponent(jobId)}`);
+  if (!res.ok) throw new Error(await readError(res));
+  return res.json();
+};
+
+export const cancelBrowserLogin = async (jobId: string): Promise<void> => {
+  await gatewayFetch(`/studio/login/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' });
+};
+
+/** Kiểm tra phiên: gọi /api/session của muse.ai để làm mới cookie. */
+export const renewMuseAccount = async (accountId: string): Promise<{ ok: boolean; error?: string }> => {
+  const res = await gatewayFetch(`/admin/accounts/${encodeURIComponent(accountId)}/renew`, { method: 'POST' });
+  if (!res.ok) throw new Error(await readError(res));
+  return res.json();
+};
+
+/** Đọc hạn mức (Settings -> Usage) của tài khoản; mất vài chục giây. */
+export const checkMuseQuota = async (accountId: string): Promise<AccountQuota> => {
+  const res = await gatewayFetch(`/admin/accounts/${encodeURIComponent(accountId)}/quota?refresh=true`);
+  if (!res.ok) throw new Error(await readError(res));
+  return (await res.json()).quota;
+};
+
+export const listMuseAccounts = async (): Promise<GatewayAccount[]> => {
+  const res = await gatewayFetch('/admin/accounts');
+  if (!res.ok) throw new Error('Không kết nối được với Local Gateway (kiểm tra lại Python Gateway Server)');
   const data = await res.json();
-  const b64 = data.data?.[0]?.b64_json || data.result?.b64_json;
-  if (typeof b64 === 'string' && b64) {
-    return b64.startsWith('data:') ? b64 : `data:image/png;base64,${b64}`;
-  }
-
-  const rawUrl: string | undefined = data.data?.[0]?.url || data.url || data.result?.url;
-  if (!rawUrl) throw new Error('Không tìm thấy dữ liệu ảnh Keyframe trả về.');
-  if (rawUrl.startsWith('data:')) return rawUrl;
-  // Phòng hờ Gateway vẫn trả URL: tải về và chuyển thành data URL.
-  const absoluteUrl = rawUrl.startsWith('/') ? `${baseUrl}${rawUrl}` : rawUrl;
-  return fetchAsDataUrl(absoluteUrl);
+  return data.data ?? [];
 };
 
-/** Tải một ảnh (thường là media nội bộ của Gateway) và chuyển thành data URL. */
-const fetchAsDataUrl = async (url: string): Promise<string> => {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Không tải được ảnh Keyframe (${res.status})`);
-  const blob = await res.blob();
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error('Không đọc được ảnh Keyframe'));
-    reader.readAsDataURL(blob);
+/** Đưa tài khoản đang "cooling"/"invalid" về "active" để thử lại. */
+export const resetMuseAccount = async (accountId: string): Promise<void> => {
+  const res = await gatewayFetch(`/admin/accounts/${encodeURIComponent(accountId)}/reset`, { method: 'POST' });
+  if (!res.ok) throw new Error(await readError(res));
+};
+
+export const setMuseAccountEnabled = async (accountId: string, enabled: boolean): Promise<void> => {
+  const res = await gatewayFetch(`/admin/accounts/${encodeURIComponent(accountId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ enabled }),
   });
+  if (!res.ok) throw new Error(await readError(res));
 };
 
-/**
- * Hủy một task đang chạy trên Gateway (POST /admin/tasks/{id}/cancel).
- * Admin key mặc định trùng api_key khi chưa cấu hình MUSE2API_ADMIN_KEY.
- */
-export const cancelMuseTask = async (config: MuseConfig, taskId: string): Promise<boolean> => {
-  const baseUrl = config.gatewayUrl ? config.gatewayUrl.replace(/\/$/, '') : '';
+export const deleteMuseAccount = async (accountId: string): Promise<void> => {
+  const res = await gatewayFetch(`/admin/accounts/${encodeURIComponent(accountId)}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(await readError(res));
+};
+
+// ---------------------------------------------------------------------------
+// Task
+// ---------------------------------------------------------------------------
+
+export const listGatewayTasks = async (limit = 200): Promise<GatewayTask[]> => {
+  const res = await gatewayFetch(`/admin/tasks?limit=${limit}`);
+  if (!res.ok) throw new Error(await readError(res));
+  const data = await res.json();
+  return data.data ?? [];
+};
+
+/** Hủy một task đang chạy trên Gateway (admin key mặc định trùng api key). */
+export const cancelMuseTask = async (taskId: string): Promise<boolean> => {
   try {
-    const res = await fetch(`${baseUrl}/admin/tasks/${encodeURIComponent(taskId)}/cancel`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${config.apiKey}` },
-    });
+    const res = await gatewayFetch(`/admin/tasks/${encodeURIComponent(taskId)}/cancel`, { method: 'POST' });
     if (!res.ok) return false;
     const data = await res.json();
     return Boolean(data.cancelled);
@@ -212,125 +311,79 @@ export class MuseTaskStoppedError extends Error {
   }
 }
 
-/**
- * Hàm phụ trợ: Quét mọi cấu trúc JSON trả về từ muse2api để lấy URL hoặc base64 video
- */
-const extractVideoUrlFromPayload = (payload: any): string | null => {
-  if (!payload) return null;
-  if (typeof payload === 'string') {
-    if (
-      payload.startsWith('http') ||
-      payload.startsWith('data:video') ||
-      payload.startsWith('/v1/') ||
-      payload.startsWith('/files/')
-    ) {
-      return payload;
-    }
-    return null;
-  }
+// ---------------------------------------------------------------------------
+// Prompt
+// ---------------------------------------------------------------------------
 
-  // Kiểm tra các trường phổ biến nhất
-  const directCandidates = [
-    payload.video_url,
-    payload.url,
-    payload.content_url,
-    payload.download_url,
-    payload.file_url,
-    payload.result?.video_url,
-    payload.result?.url,
-    payload.result?.content_url,
-    payload.result?.download_url,
-    typeof payload.result === 'string' ? payload.result : null,
-    payload.output?.video_url,
-    payload.output?.url,
-    payload.video?.url,
-    payload.data?.[0]?.video_url,
-    payload.data?.[0]?.url,
-  ];
+const LOCK_TAGS = {
+  character:
+    '[IDENTITY LOCK: Keep exact facial features, bone structure, skin tone, and hair from character reference]',
+  outfit: '[OUTFIT LOCK: Maintain 100% identical clothing design, color palette, and fabric texture]',
+  product: '[PRODUCT LOCK: Zero warping, preserve exact product geometry, proportions, and surface details]',
+} as const;
 
-  for (const candidate of directCandidates) {
-    if (typeof candidate === 'string' && candidate.trim().length > 0) {
-      return candidate.trim();
-    }
-  }
-
-  // Kiểm tra trường base64 nếu có
-  const b64Candidate =
-    payload.b64_json || payload.result?.b64_json || payload.data?.[0]?.b64_json;
-  if (typeof b64Candidate === 'string' && b64Candidate.trim().length > 0) {
-    return b64Candidate.startsWith('data:')
-      ? b64Candidate
-      : `data:video/mp4;base64,${b64Candidate}`;
-  }
-
-  // Quét đệ quy mọi chuỗi chứa .mp4 hoặc đường dẫn video
-  const visited = new Set<any>();
-  const deepScan = (obj: any): string | null => {
-    if (!obj || typeof obj !== 'object' || visited.has(obj)) return null;
-    visited.add(obj);
-    for (const [k, v] of Object.entries(obj)) {
-      if (typeof v === 'string') {
-        const s = v.trim();
-        if (
-          s.includes('.mp4') ||
-          s.startsWith('data:video/') ||
-          s.includes('/v1/videos/') ||
-          (k.toLowerCase().includes('url') && (s.startsWith('http') || s.startsWith('/')))
-        ) {
-          return s;
-        }
-      } else if (typeof v === 'object') {
-        const found = deepScan(v);
-        if (found) return found;
-      }
-    }
-    return null;
-  };
-
-  return deepScan(payload);
+/** Bộ khóa Prompt (Identity + Outfit + Product Lock) và góc máy tùy chọn. */
+export const buildLockedPrompt = (userPrompt: string, refs: ReferenceImage[], cameraMotion = ''): string => {
+  const parts: string[] = [];
+  (['character', 'outfit', 'product'] as const).forEach((role) => {
+    if (refs.some((r) => r.role === role)) parts.push(LOCK_TAGS[role]);
+  });
+  if (cameraMotion) parts.push(`[CAMERA: ${cameraMotion}, steady cinematic movement]`);
+  parts.push(userPrompt.trim());
+  return parts.join(' ');
 };
 
-/**
- * Hàm phụ trợ: Tải stream video từ Gateway có kèm Bearer Token và chuyển sang Blob URL
- */
-const fetchGatewayVideoAsBlobUrl = async (
-  endpointUrl: string,
-  apiKey: string
-): Promise<string | null> => {
-  try {
-    const res = await fetch(endpointUrl, {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-      },
-    });
-    if (!res.ok) return null;
+/** Bỏ các thẻ [..] ở đầu prompt đã khóa để hiển thị lại prompt gốc của người dùng. */
+export const stripPromptLocks = (prompt: string): string =>
+  prompt.replace(/^(\s*\[[^\]]*\])+\s*/, '').trim();
 
-    const contentType = res.headers.get('content-type') || '';
-    if (contentType.includes('application/json')) {
-      const jsonData = await res.json();
-      const nestedUrl = extractVideoUrlFromPayload(jsonData);
-      if (nestedUrl && nestedUrl !== endpointUrl) {
-        if (nestedUrl.startsWith('http') && !nestedUrl.includes('127.0.0.1') && !nestedUrl.includes('localhost')) {
-          return nestedUrl;
-        }
-      }
-      return null;
-    }
+// ---------------------------------------------------------------------------
+// Tạo ảnh Keyframe & Video
+// ---------------------------------------------------------------------------
 
-    const blob = await res.blob();
-    if (blob.size === 0) return null;
-    const mp4Blob = blob.type.includes('video')
-      ? blob
-      : new Blob([blob], { type: 'video/mp4' });
-    return URL.createObjectURL(mp4Blob);
-  } catch {
-    return null;
+const blobToDataUrl = (blob: Blob): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error('Không đọc được dữ liệu ảnh'));
+    reader.readAsDataURL(blob);
+  });
+
+/** Tạo ảnh Keyframe kết hợp Nhân vật + Trang phục + Sản phẩm qua muse-image. Trả về data URL. */
+export const generateMuseKeyframe = async (
+  config: MuseConfig,
+  prompt: string,
+  refs: ReferenceImage[]
+): Promise<string> => {
+  const res = await gatewayFetch('/v1/images/generations', {
+    method: 'POST',
+    body: JSON.stringify({
+      model: 'muse-image',
+      prompt: buildLockedPrompt(prompt, refs),
+      size: config.aspectRatio,
+      image: refs.slice(0, 4).map((r) => r.dataUrl),
+      // Lấy base64 thay vì URL: URL media của Gateway là 127.0.0.1, khi gửi lại làm
+      // first-frame cho /v1/videos sẽ bị lớp chặn SSRF của muse2api từ chối.
+      response_format: 'b64_json',
+    }),
+  });
+
+  if (!res.ok) throw new Error(`Lỗi tạo Keyframe: ${await readError(res)}`);
+  const data = await res.json();
+  const b64 = data.data?.[0]?.b64_json || data.result?.b64_json;
+  if (typeof b64 === 'string' && b64) {
+    return b64.startsWith('data:') ? b64 : `data:image/png;base64,${b64}`;
   }
+
+  const rawUrl: string | undefined = data.data?.[0]?.url || data.url || data.result?.url;
+  if (!rawUrl) throw new Error('Không tìm thấy dữ liệu ảnh Keyframe trả về.');
+  if (rawUrl.startsWith('data:')) return rawUrl;
+  // Phòng hờ Gateway vẫn trả URL: tải về và chuyển thành data URL.
+  const imgRes = await fetch(absoluteGatewayUrl(rawUrl));
+  if (!imgRes.ok) throw new Error(`Không tải được ảnh Keyframe (${imgRes.status})`);
+  return blobToDataUrl(await imgRes.blob());
 };
 
-/**
- * 6. Khởi tạo Task Video (muse-video) và Polling đến khi có file .MP4
- */
 export interface PollOptions {
   /** Trả true để dừng: task trên Gateway sẽ bị hủy và hàm ném MuseTaskStoppedError. */
   shouldStop?: () => boolean;
@@ -353,22 +406,14 @@ const sleepUnlessStopped = async (ms: number, shouldStop?: () => boolean) => {
   }
 };
 
-export const createAndPollMuseVideo = async (
+/** Khởi tạo task video (muse-video). Trả về task id. */
+export const createMuseVideoTask = async (
   config: MuseConfig,
   prompt: string,
-  firstFrameDataUrl: string,
-  onTaskIdCreated?: (taskId: string) => void,
-  options: PollOptions = {}
+  firstFrameDataUrl: string
 ): Promise<string> => {
-  const { shouldStop, onProgress } = options;
-  const baseUrl = config.gatewayUrl ? config.gatewayUrl.replace(/\/$/, '') : '';
-  if (shouldStop?.()) throw new MuseTaskStoppedError();
-  const createRes = await fetch(`${baseUrl}/v1/videos`, {
+  const res = await gatewayFetch('/v1/videos', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.apiKey}`,
-    },
     body: JSON.stringify({
       model: 'muse-video',
       prompt,
@@ -377,44 +422,35 @@ export const createAndPollMuseVideo = async (
       image: firstFrameDataUrl,
     }),
   });
-
-  if (!createRes.ok) {
-    const err = await createRes.text();
-    throw new Error(`Không thể tạo task video: ${err}`);
-  }
-
-  const taskData = await createRes.json();
+  if (!res.ok) throw new Error(`Không thể tạo task video: ${await readError(res)}`);
+  const taskData = await res.json();
   const taskId = taskData.id || taskData.task_id;
-  if (onTaskIdCreated && taskId) onTaskIdCreated(taskId);
+  if (!taskId) throw new Error(`Gateway không trả về task id. Payload: ${JSON.stringify(taskData)}`);
+  return taskId;
+};
 
-  // Trường hợp trả về trực tiếp kết quả ngay trong lệnh POST
-  const immediateUrl = extractVideoUrlFromPayload(taskData);
-  if (immediateUrl && !taskId) {
-    return immediateUrl;
-  }
-
-  if (!taskId) {
-    throw new Error(`Gateway không trả về task id. Payload: ${JSON.stringify(taskData)}`);
-  }
-
+/**
+ * Chờ một task video tới khi xong. Trả về URL media của Gateway.
+ * Dùng được cả cho task vừa tạo lẫn task đang chạy dở trước khi tải lại trang.
+ */
+export const pollMuseVideoTask = async (taskId: string, options: PollOptions = {}): Promise<string> => {
+  const { shouldStop, onProgress } = options;
   const stopAndCancel = async (): Promise<never> => {
-    await cancelMuseTask(config, taskId);
+    await cancelMuseTask(taskId);
     throw new MuseTaskStoppedError();
   };
 
   const deadline = Date.now() + POLL_SAFETY_DEADLINE_MS;
   let consecutive404 = 0;
+  let first = true;
   while (Date.now() < deadline) {
-    await sleepUnlessStopped(POLL_INTERVAL_MS, shouldStop);
+    if (!first) await sleepUnlessStopped(POLL_INTERVAL_MS, shouldStop);
+    first = false;
     if (shouldStop?.()) await stopAndCancel();
 
     let pollRes: Response;
     try {
-      pollRes = await fetch(`${baseUrl}/v1/videos/${taskId}`, {
-        headers: {
-          Authorization: `Bearer ${config.apiKey}`,
-        },
-      });
+      pollRes = await gatewayFetch(`/v1/videos/${encodeURIComponent(taskId)}`);
     } catch {
       continue; // Gateway tạm thời không phản hồi, thử lại vòng sau
     }
@@ -428,62 +464,42 @@ export const createAndPollMuseVideo = async (
     }
     consecutive404 = 0;
     if (!pollRes.ok) continue;
+
     const statusData = await pollRes.json();
-    const currentStatus = (statusData.status || statusData.state || '').toLowerCase();
+    const status = String(statusData.status || '').toLowerCase();
     if (typeof statusData.progress === 'number') onProgress?.(statusData.progress);
 
-    if (
-      currentStatus === 'completed' ||
-      currentStatus === 'succeeded' ||
-      currentStatus === 'success' ||
-      currentStatus === 'done'
-    ) {
-      console.log('[Muse2API] Task hoàn tất, dữ liệu trả về:', statusData);
-
-      // Bước A: Thử bóc tách URL trực tiếp từ payload JSON của task
-      const extractedUrl = extractVideoUrlFromPayload(statusData);
-      if (extractedUrl) {
-        // Nếu là đường dẫn nội bộ của Gateway (/v1/...), tải qua Bearer Token thành Blob URL
-        if (
-          extractedUrl.startsWith('/') ||
-          extractedUrl.includes('127.0.0.1') ||
-          extractedUrl.includes('localhost')
-        ) {
-          const normalizedEndpoint = extractedUrl.startsWith('/')
-            ? `${baseUrl}${extractedUrl}`
-            : extractedUrl;
-          const blobUrl = await fetchGatewayVideoAsBlobUrl(normalizedEndpoint, config.apiKey);
-          if (blobUrl) return blobUrl;
-        }
-        return extractedUrl;
-      }
-
-      // Bước B: Chuẩn OpenAI Video API trên muse2api trả file MP4 tại /v1/videos/{taskId}/content
-      const contentEndpoint = `${baseUrl}/v1/videos/${taskId}/content`;
-      const contentBlobUrl = await fetchGatewayVideoAsBlobUrl(contentEndpoint, config.apiKey);
-      if (contentBlobUrl) {
-        return contentBlobUrl;
-      }
-
-      throw new Error(
-        `Task hoàn tất nhưng không lấy được stream video. Payload: ${JSON.stringify(statusData)}`
-      );
+    if (status === 'succeeded' || status === 'completed') {
+      const url: string | undefined = statusData.result?.url;
+      if (!url) throw new Error(`Task hoàn tất nhưng không có URL video. Payload: ${JSON.stringify(statusData)}`);
+      return absoluteGatewayUrl(url);
     }
-
-    if (currentStatus === 'cancelled') {
+    if (status === 'cancelled') {
       throw shouldStop?.() ? new MuseTaskStoppedError() : new Error('Task đã bị hủy trên Gateway.');
     }
-
-    if (currentStatus === 'failed' || currentStatus === 'error') {
-      const errMsg =
+    if (status === 'failed' || status === 'error') {
+      throw new Error(
         statusData.error?.message ||
-        (typeof statusData.error === 'string' ? statusData.error : null) ||
-        statusData.message ||
-        'Muse AI báo lỗi trong lúc render video.';
-      throw new Error(errMsg);
+          (typeof statusData.error === 'string' ? statusData.error : null) ||
+          'Muse AI báo lỗi trong lúc render video.'
+      );
     }
   }
 
-  await cancelMuseTask(config, taskId);
+  await cancelMuseTask(taskId);
   throw new Error('Quá thời gian chờ (Timeout) khi render video trên Muse.ai');
+};
+
+/** Tạo task video rồi chờ tới khi có file .MP4. */
+export const createAndPollMuseVideo = async (
+  config: MuseConfig,
+  prompt: string,
+  firstFrameDataUrl: string,
+  onTaskIdCreated?: (taskId: string) => void,
+  options: PollOptions = {}
+): Promise<string> => {
+  if (options.shouldStop?.()) throw new MuseTaskStoppedError();
+  const taskId = await createMuseVideoTask(config, prompt, firstFrameDataUrl);
+  onTaskIdCreated?.(taskId);
+  return pollMuseVideoTask(taskId, options);
 };

@@ -174,6 +174,18 @@ class AccountPool:
         }
 
     # ---- scheduling ----
+    # [MuseStudio patch] Per-account thread limit set from the studio UI in
+    # meta["max_concurrency"]; never above the global limit (= browser tabs per account).
+    def limit_of(self, acc: Account) -> int:
+        try:
+            own = int(acc.meta.get("max_concurrency") or self.max_concurrency)
+        except (TypeError, ValueError):
+            own = self.max_concurrency
+        return max(1, min(own, self.max_concurrency))
+
+    def inflight_of(self, account_id: str) -> int:
+        return self._inflight.get(account_id, 0)
+
     def _kind_blocked(self, kind: str | None, now: float) -> set[str]:
         """Ids of accounts still blocked for ``kind`` (see ``note_wake``). Empty when
         every usable account is blocked: a block must never make the kind unusable
@@ -199,7 +211,7 @@ class AccountPool:
             if not acc.is_available(now):  # cooling down
                 back_at = acc.cooldown_until if back_at is None else min(back_at, acc.cooldown_until)
                 continue
-            if self._inflight[acc.id] >= self.max_concurrency:
+            if self._inflight[acc.id] >= self.limit_of(acc):
                 busy = True
                 continue
             free.append(acc)
