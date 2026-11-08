@@ -10,7 +10,7 @@ accounts.json
 *.sqlite
 *.sqlite3
 *.db
-data/
+/data/
 user_data/
 browser_profile/
 

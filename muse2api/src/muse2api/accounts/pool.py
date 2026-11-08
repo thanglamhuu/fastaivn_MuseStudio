@@ -233,6 +233,13 @@ class AccountPool:
             while True:
                 free, busy, back_at = self._candidates(exclude, kind)
                 if free:
+                    if hint is None:
+                        # [MuseStudio patch] Spread work evenly: among free accounts pick
+                        # those running the fewest requests right now, then let the
+                        # strategy (LRU) break ties. LRU alone only looks at start times,
+                        # so long and short videos could pile up on one account.
+                        least = min(self._inflight[a.id] for a in free)
+                        free = [a for a in free if self._inflight[a.id] == least]
                     acc = self.strategy.choose(free, hint)
                     self._inflight[acc.id] += 1
                     acc.last_used_at = time.time()

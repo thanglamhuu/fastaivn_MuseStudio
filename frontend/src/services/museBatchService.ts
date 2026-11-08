@@ -48,6 +48,11 @@ export interface BatchSceneItem {
   videoUrl?: string;
   progress?: number;
   error?: string;
+  /** Tài khoản muse đang/đã render cảnh này (Gateway báo về) */
+  accountId?: string;
+  /** Thời điểm bắt đầu / kết thúc cảnh (ms) để hiện thời gian chạy */
+  startedAt?: number;
+  finishedAt?: number;
 }
 
 /** Dạng task trả về từ GET /admin/tasks (muse2api services/tasks.py). */
@@ -323,11 +328,53 @@ const LOCK_TAGS = {
 } as const;
 
 /** Bộ khóa Prompt (Identity + Outfit + Product Lock) và góc máy tùy chọn. */
-export const buildLockedPrompt = (userPrompt: string, refs: ReferenceImage[], cameraMotion = ''): string => {
+export interface ProductContext {
+  name?: string;
+  visual?: string;
+}
+
+const ROLE_LABEL: Record<ReferenceImage['role'], string> = {
+  character: 'the character (face, hair, body)',
+  outfit: 'the outfit the character wears',
+  product: 'the exact product being sold',
+};
+
+/** Thứ tự ảnh gửi cho muse.ai: ảnh frame đầu (nếu là ảnh tham chiếu) rồi tới các ảnh còn lại. */
+export const orderedReferenceRoles = (refs: ReferenceImage[]): ReferenceImage['role'][] =>
+  (['character', 'product', 'outfit'] as const).filter((role) => refs.some((r) => r.role === role));
+
+/**
+ * Bộ khóa Prompt: nói rõ từng ảnh đính kèm là gì, khóa nhân vật/trang phục/sản phẩm,
+ * gắn tên + ngoại hình sản phẩm thật để muse.ai không tự đổi sang sản phẩm khác.
+ * `imageRoles` = vai trò của từng ảnh theo đúng thứ tự gửi đi (ảnh 1, ảnh 2...).
+ */
+export const buildLockedPrompt = (
+  userPrompt: string,
+  refs: ReferenceImage[],
+  cameraMotion = '',
+  product: ProductContext = {},
+  imageRoles: (ReferenceImage['role'] | 'keyframe')[] = []
+): string => {
   const parts: string[] = [];
+  if (imageRoles.length > 0) {
+    const desc = imageRoles
+      .map((role, i) =>
+        role === 'keyframe'
+          ? `image ${i + 1} = the opening frame of this shot`
+          : `image ${i + 1} = ${ROLE_LABEL[role]}`
+      )
+      .join('; ');
+    parts.push(`[ATTACHED IMAGES: ${desc}]`);
+  }
   (['character', 'outfit', 'product'] as const).forEach((role) => {
     if (refs.some((r) => r.role === role)) parts.push(LOCK_TAGS[role]);
   });
+  if (product.name || product.visual) {
+    const what = [product.name, product.visual].filter(Boolean).join(' — ');
+    parts.push(
+      `[PRODUCT: ${what}. The product in the video must be exactly this item as shown in the product image; never replace it with a different product.]`
+    );
+  }
   if (cameraMotion) parts.push(`[CAMERA: ${cameraMotion}, steady cinematic movement]`);
   parts.push(userPrompt.trim());
   return parts.join(' ');
@@ -389,6 +436,8 @@ export interface PollOptions {
   shouldStop?: () => boolean;
   /** Tiến độ 0-100 do Gateway báo về. */
   onProgress?: (progress: number) => void;
+  /** Tài khoản muse mà Gateway giao task này cho */
+  onAccount?: (accountId: string) => void;
 }
 
 const POLL_INTERVAL_MS = 5000;
@@ -410,7 +459,8 @@ const sleepUnlessStopped = async (ms: number, shouldStop?: () => boolean) => {
 export const createMuseVideoTask = async (
   config: MuseConfig,
   prompt: string,
-  firstFrameDataUrl: string
+  firstFrameDataUrl: string,
+  referenceImages: string[] = []
 ): Promise<string> => {
   const res = await gatewayFetch('/v1/videos', {
     method: 'POST',
@@ -420,6 +470,8 @@ export const createMuseVideoTask = async (
       size: config.aspectRatio,
       duration: config.duration,
       image: firstFrameDataUrl,
+      // Ảnh sản phẩm / trang phục gửi kèm cùng tin nhắn (tối đa 3)
+      reference_images: referenceImages.slice(0, 3),
     }),
   });
   if (!res.ok) throw new Error(`Không thể tạo task video: ${await readError(res)}`);
@@ -434,7 +486,8 @@ export const createMuseVideoTask = async (
  * Dùng được cả cho task vừa tạo lẫn task đang chạy dở trước khi tải lại trang.
  */
 export const pollMuseVideoTask = async (taskId: string, options: PollOptions = {}): Promise<string> => {
-  const { shouldStop, onProgress } = options;
+  const { shouldStop, onProgress, onAccount } = options;
+  let lastAccount = '';
   const stopAndCancel = async (): Promise<never> => {
     await cancelMuseTask(taskId);
     throw new MuseTaskStoppedError();
@@ -468,6 +521,10 @@ export const pollMuseVideoTask = async (taskId: string, options: PollOptions = {
     const statusData = await pollRes.json();
     const status = String(statusData.status || '').toLowerCase();
     if (typeof statusData.progress === 'number') onProgress?.(statusData.progress);
+    if (statusData.account_id && statusData.account_id !== lastAccount) {
+      lastAccount = statusData.account_id;
+      onAccount?.(lastAccount);
+    }
 
     if (status === 'succeeded' || status === 'completed') {
       const url: string | undefined = statusData.result?.url;
@@ -496,10 +553,11 @@ export const createAndPollMuseVideo = async (
   prompt: string,
   firstFrameDataUrl: string,
   onTaskIdCreated?: (taskId: string) => void,
-  options: PollOptions = {}
+  options: PollOptions = {},
+  referenceImages: string[] = []
 ): Promise<string> => {
   if (options.shouldStop?.()) throw new MuseTaskStoppedError();
-  const taskId = await createMuseVideoTask(config, prompt, firstFrameDataUrl);
+  const taskId = await createMuseVideoTask(config, prompt, firstFrameDataUrl, referenceImages);
   onTaskIdCreated?.(taskId);
   return pollMuseVideoTask(taskId, options);
 };

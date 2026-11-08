@@ -2,7 +2,7 @@
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 
-from studio_settings import HOST, PORT, apply_gateway_env
+from studio_settings import HOST, PORT, apply_gateway_env, cleanup_stale_driver_chrome
 
 apply_gateway_env()
 
@@ -13,6 +13,9 @@ app = create_app()
 from studio_api import router as studio_router  # noqa: E402
 
 app.include_router(studio_router)
+from studio_product import router as product_router  # noqa: E402
+
+app.include_router(product_router)
 
 # Bật CORS để Vite dev server (http://localhost:5173) gọi được Gateway
 app.add_middleware(
@@ -24,4 +27,5 @@ app.add_middleware(
 )
 
 if __name__ == "__main__":
+    cleanup_stale_driver_chrome()  # Chrome ngầm còn sót từ lần chạy trước
     uvicorn.run(app, host=HOST, port=PORT, log_level="info")

@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse
 
 from fastapi.middleware.cors import CORSMiddleware
 
-from studio_settings import HOST, PORT, apply_gateway_env
+from studio_settings import HOST, PORT, apply_gateway_env, cleanup_stale_driver_chrome
 
 def get_resource_path(relative_path: str) -> Path:
     if hasattr(sys, "_MEIPASS"):
@@ -58,6 +58,9 @@ except ImportError:
 from studio_api import router as studio_router
 
 muse_fastapi_app.include_router(studio_router)
+from studio_product import router as product_router
+
+muse_fastapi_app.include_router(product_router)
 
 # Thêm đoạn cấu hình này ngay sau khi khởi tạo muse_fastapi_app
 muse_fastapi_app.add_middleware(
@@ -122,6 +125,7 @@ def launch_desktop_window():
             proc.wait()
 
 if __name__ == "__main__":
+    cleanup_stale_driver_chrome()  # Chrome ngầm còn sót từ lần chạy trước
     server_thread = threading.Thread(target=start_backend_server, daemon=True)
     server_thread.start()
 

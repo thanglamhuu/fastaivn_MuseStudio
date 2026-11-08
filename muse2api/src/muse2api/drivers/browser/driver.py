@@ -153,7 +153,41 @@ class BrowserDriver(MuseDriver):
         if self._chromium:
             await self._chromium.stop()
 
+    async def _ensure_browser(self) -> None:
+        """[MuseStudio patch] Self-heal a dropped browser-level CDP connection.
+
+        The browser websocket can drop while Chromium keeps running (seen on Windows after
+        hours of use); without this every later request failed with "cdp connection
+        closed" until the gateway was restarted. Reattach when Chromium still answers on
+        its DevTools port, otherwise start a new Chromium and forget tabs/contexts that
+        lived in the old one."""
+        if self._browser is not None and not self._browser.closed:
+            return
+        if not hasattr(self, "_reconnect_lock"):
+            self._reconnect_lock = asyncio.Lock()
+        async with self._reconnect_lock:
+            if self._browser is not None and not self._browser.closed:
+                return
+            if self._chromium is None:
+                raise UpstreamError("browser driver is not started")
+            log.warning("browser CDP connection lost; reconnecting")
+            ws_url = await self._chromium.browser_ws_url()
+            restarted = ws_url is None
+            if restarted:
+                ws_url = await self._chromium.start()
+            self._browser = await CDPSession.connect(ws_url)
+            if restarted:
+                async with self._tab_cond:
+                    for tabs in self._tabs.values():
+                        for t in tabs:
+                            t.stale = True
+                    self._contexts.clear()
+                    self._tab_cond.notify_all()
+            log.info("browser CDP connection restored (%s)", "new Chromium" if restarted else "reattached")
+
     async def health(self) -> dict[str, Any]:
+        with contextlib.suppress(Exception):
+            await self._ensure_browser()
         ok = self._browser is not None and not self._browser.closed
         tabs = [t for ts in self._tabs.values() for t in ts]
         return {"driver": self.name, "ok": ok, "tabs": len(tabs),
@@ -167,6 +201,10 @@ class BrowserDriver(MuseDriver):
         tab beats reusing (and so wiping) a tab that holds another conversation.
         Pair every call with ``_checkin``."""
         limit = max(1, self.settings.account_max_concurrency)
+        try:
+            await self._ensure_browser()
+        except (CDPError, OSError, RuntimeError) as exc:
+            raise UpstreamError(f"browser unavailable: {exc}") from exc
         dead: list[_Tab] = []
         async with self._tab_cond:
             while True:
@@ -196,6 +234,9 @@ class BrowserDriver(MuseDriver):
             return tab
         try:
             tab = await self._open_tab(account)
+        except CDPError as exc:
+            # [MuseStudio patch] a JSON error (with CORS) instead of an unhandled 500
+            raise UpstreamError(f"browser error while opening a tab: {exc}") from exc
         finally:
             async with self._tab_cond:
                 self._opening[account.id] -= 1
@@ -858,8 +899,8 @@ class BrowserDriver(MuseDriver):
 
     async def generate_video(self, account: Account, req: VideoRequest) -> MediaResult:
         prompt = self._media_prompt(req.prompt, "video", req.size, req.duration)
-        images = [req.first_frame] if req.first_frame else []
-        return await self._generate(account, prompt, images, "video", req.timeout,
+        images = ([req.first_frame] if req.first_frame else []) + list(req.reference_images)
+        return await self._generate(account, prompt, images[:4], "video", req.timeout,
                                     req.on_progress, req.cancel)
 
     # ------------------------------------------------------------ session

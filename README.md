@@ -11,6 +11,7 @@ MuseStudio/
 ├── README.md
 ├── studio_settings.py                 # Cổng + API key dùng chung; luôn nạp muse2api nhúng trong repo
 ├── studio_api.py                      # API /studio: đăng nhập muse.ai bằng Chrome, luồng theo tài khoản
+├── studio_product.py                  # API /studio/product: đọc link Shopee/TikTok (tên, giá, mô tả, ảnh)
 ├── gateway_server.py                  # Gateway cho môi trường dev (run_dev.bat)
 ├── app_launcher.py                    # Launcher .EXE: chạy muse2api + phục vụ giao diện React + cửa sổ desktop
 ├── build_exe.bat                      # Build React và đóng gói ra dist/MuseVideoStudio.exe
@@ -28,6 +29,7 @@ MuseStudio/
         ├── utils/download.ts          # Tải 1 video / tải tất cả
         └── components/
             ├── MuseBatchStudio.tsx    # Màn hình chính: chạy hàng loạt, chạy lại cảnh lỗi, tải tất cả
+            ├── ProductScriptPanel.tsx # Sản phẩm từ link / tự nhập + 44 mẫu kịch bản, AI viết kịch bản chia cảnh
             ├── AccountsPage.tsx       # Dàn tài khoản: đăng nhập bằng Chrome, dán cookie, luồng, hạn mức
             └── VideoHistory.tsx       # Lịch sử video đọc từ GET /admin/tasks của Gateway
 ```
@@ -48,16 +50,27 @@ Vào tab **👥 Dàn tài khoản Muse**:
 Khi chạy hàng loạt, Gateway tự **xoay tua**: mỗi video được giao cho tài khoản đang rảnh lâu nhất; tài khoản hết hạn mức
 hoặc cookie hỏng được bỏ qua. Chế độ "Số luồng chạy: Tự động" = tổng luồng của các tài khoản dùng được.
 
+## 3. Tạo video từ sản phẩm
+
+1. Khối **0. Sản phẩm & Kịch bản**: dán link Shopee / TikTok Shop rồi bấm **Phân tích** (app mở một cửa sổ Chrome ẩn
+   để đọc trang). Shopee/TikTok đòi đăng nhập thì bấm **Đăng nhập Shopee/TikTok (1 lần)**, đăng nhập rồi đóng cửa sổ;
+   các lần sau dùng lại phiên đó. Không có link thì tự gõ tên + tải ảnh sản phẩm ở khối 2.
+2. Rê chuột lên ảnh sản phẩm ➔ **Dùng làm ảnh SP** (ảnh đầu tiên được chọn sẵn).
+3. Chọn **mẫu kịch bản**, tổng thời lượng, có/không lời thoại ➔ **AI viết kịch bản** (muse-chat xem ảnh sản phẩm thật
+   và viết từng cảnh) ➔ kịch bản tự đổ vào danh sách prompt.
+4. **Bắt đầu Tạo Hàng Loạt**: mỗi video gửi kèm ảnh nhân vật + ảnh sản phẩm + ảnh trang phục, prompt ghi rõ ảnh nào là gì
+   và tên/ngoại hình sản phẩm để muse.ai không tự đổi sang sản phẩm khác.
+
 ---
 
-## 3. Cách chạy ở chế độ Phát triển (Development)
+## 5. Cách chạy ở chế độ Phát triển (Development)
 
 1. Đảm bảo máy đã cài đặt **Node.js (18+)**, **Python (3.10+)**, **Git** và trình duyệt **Google Chrome**.
 2. Nhấp đúp vào file **`run_dev.bat`** (hoặc chạy lần lượt lệnh cài đặt trong đó).
 
 ---
 
-## 4. Cách đóng gói thành 1 file `.EXE` duy nhất (Chạy không cần Python)
+## 6. Cách đóng gói thành 1 file `.EXE` duy nhất (Chạy không cần Python)
 
 1. Nhấp đúp vào file **`build_exe.bat`**.
 2. Script sẽ tự động:

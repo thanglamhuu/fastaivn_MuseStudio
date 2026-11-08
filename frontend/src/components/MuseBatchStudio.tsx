@@ -8,8 +8,11 @@ import {
   buildLockedPrompt,
   createAndPollMuseVideo,
   generateMuseKeyframe,
+  orderedReferenceRoles,
   pollMuseVideoTask,
 } from '../services/museBatchService';
+import { EMPTY_PRODUCT, ProductInfo } from '../services/productService';
+import { ProductScriptPanel } from './ProductScriptPanel';
 import { usePersistentState } from '../hooks/usePersistentState';
 import { extractLastFrameAsDataUrl } from '../utils/videoFrameExtractor';
 import { downloadAll, downloadFile } from '../utils/download';
@@ -28,6 +31,20 @@ const CAMERA_OPTIONS = [
 
 const ACTIVE_STATUSES: BatchSceneItem['status'][] = ['queued', 'generating_keyframe', 'rendering_video'];
 const STOPPED_MESSAGE = '⏹ Đã dừng và hủy task trên Gateway';
+
+/** 75 -> "1:15", 3725 -> "1:02:05" */
+const formatDuration = (ms: number) => {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const sec = String(total % 60).padStart(2, '0');
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`;
+};
+
+interface BatchTiming {
+  startedAt: number | null;
+  finishedAt: number | null;
+}
 
 /** Bỏ ảnh keyframe (data URL nặng) trước khi lưu danh sách cảnh vào localStorage. */
 const serializeScenes = (scenes: BatchSceneItem[]) => scenes.map(({ keyframeUrl, ...rest }) => rest);
@@ -48,7 +65,18 @@ export const MuseBatchStudio: React.FC<{
   const [scenes, setScenes] = usePersistentState<BatchSceneItem[]>('scenes.v1', [], {
     serialize: serializeScenes,
   });
+  const [product, setProduct] = usePersistentState<ProductInfo>('product.v1', EMPTY_PRODUCT, {
+    merge: (stored, fallback) => ({ ...fallback, ...stored }),
+  });
+  // Đọc sản phẩm mới nhất bên trong các luồng đang chạy
+  const productRef = useRef(product);
+  productRef.current = product;
 
+  const [timing, setTiming] = usePersistentState<BatchTiming>('batchTiming.v1', {
+    startedAt: null,
+    finishedAt: null,
+  });
+  const [now, setNow] = useState(Date.now());
   const [runningCount, setRunningCount] = useState(0);
   const [historyKey, setHistoryKey] = useState(0);
   const [downloadState, setDownloadState] = useState('');
@@ -80,6 +108,7 @@ export const MuseBatchStudio: React.FC<{
 
   const markFailure = (sceneId: string, err: any) => {
     updateScene(sceneId, {
+      finishedAt: Date.now(),
       status: 'failed',
       error: err instanceof MuseTaskStoppedError ? STOPPED_MESSAGE : err?.message || String(err),
     });
@@ -89,7 +118,33 @@ export const MuseBatchStudio: React.FC<{
   const pollOptions = (sceneId: string) => ({
     shouldStop: () => stopSignalRef.current,
     onProgress: (progress: number) => updateScene(sceneId, { progress }),
+    onAccount: (accountId: string) => updateScene(sceneId, { accountId }),
   });
+
+  const accountLabel = (id?: string) => {
+    if (!id) return '';
+    const acc = accounts.find((a) => a.id === id);
+    return acc?.label || id;
+  };
+
+  // Đồng hồ: chạy lại mỗi giây khi lô đang chạy
+  const hasActiveScene = scenes.some((s) => ACTIVE_STATUSES.includes(s.status));
+  useEffect(() => {
+    if (!isBusy && !hasActiveScene) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [isBusy, hasActiveScene]);
+
+  // Lô kết thúc khi không còn cảnh nào đang chạy / chờ
+  useEffect(() => {
+    if (timing.startedAt && !timing.finishedAt && !isBusy && !hasActiveScene) {
+      setTiming((t) => ({ ...t, finishedAt: Date.now() }));
+    }
+  }, [isBusy, hasActiveScene, timing.startedAt, timing.finishedAt, setTiming]);
+
+  /** Chạy lại cảnh lỗi sau khi lô đã xong: đồng hồ chạy tiếp từ mốc bắt đầu cũ */
+  const reopenTiming = () =>
+    setTiming((t) => (t.startedAt ? { ...t, finishedAt: null } : { startedAt: Date.now(), finishedAt: null }));
 
   /**
    * Chạy trọn 1 cảnh. `chainFromVideoUrl` = video cảnh trước (khi bật nối End-frame).
@@ -102,34 +157,65 @@ export const MuseBatchStudio: React.FC<{
     chainFromVideoUrl: string | null
   ): Promise<string | null> => {
     if (stopSignalRef.current) return null;
-    updateScene(scene.id, { status: 'queued', error: undefined, progress: undefined, videoUrl: undefined });
+    updateScene(scene.id, {
+      status: 'queued',
+      error: undefined,
+      progress: undefined,
+      videoUrl: undefined,
+      accountId: undefined,
+      startedAt: Date.now(),
+      finishedAt: undefined,
+    });
 
     try {
-      let inputFrameUrl = refs.find((r) => r.role === 'character')?.dataUrl || refs[0].dataUrl;
+      // Ảnh gửi cho muse.ai theo thứ tự: nhân vật -> sản phẩm -> trang phục.
+      // Ảnh đầu là frame mở đầu; các ảnh sau gửi kèm làm tham chiếu (trước đây chỉ gửi
+      // ảnh nhân vật nên muse.ai không thấy sản phẩm thật và tự bịa ra sản phẩm khác).
+      const roles = orderedReferenceRoles(refs);
+      const urlOf = (role: ReferenceImage['role']) => refs.find((r) => r.role === role)!.dataUrl;
+      let inputFrameUrl = urlOf(roles[0]);
+      let imageRoles: (ReferenceImage['role'] | 'keyframe')[] = [...roles];
+      let extraRefs = roles.slice(1).map(urlOf);
 
+      let generatedFrame: string | null = null;
       if (cfg.chainEndFrame && chainFromVideoUrl) {
         try {
-          inputFrameUrl = await extractLastFrameAsDataUrl(chainFromVideoUrl);
+          generatedFrame = await extractLastFrameAsDataUrl(chainFromVideoUrl);
         } catch {
           // Fallback về ảnh tham chiếu gốc nếu không trích xuất được frame
         }
       } else if (cfg.useTwoStepKeyframe && refs.length > 1) {
         updateScene(scene.id, { status: 'generating_keyframe' });
-        inputFrameUrl = await generateMuseKeyframe(cfg, scene.rawPrompt, refs);
-        updateScene(scene.id, { keyframeUrl: inputFrameUrl });
+        generatedFrame = await generateMuseKeyframe(cfg, scene.rawPrompt, refs);
+        updateScene(scene.id, { keyframeUrl: generatedFrame });
+      }
+      if (generatedFrame) {
+        // Frame mở đầu là ảnh ghép/frame cuối; vẫn gửi kèm ảnh gốc (tối đa 3) để giữ đúng chi tiết
+        inputFrameUrl = generatedFrame;
+        const keep = roles.slice(0, 3);
+        imageRoles = ['keyframe', ...keep];
+        extraRefs = keep.map(urlOf);
       }
 
       updateScene(scene.id, { status: 'rendering_video' });
-      const lockedPrompt = buildLockedPrompt(scene.rawPrompt, refs, cfg.cameraMotion);
+      const prod = productRef.current;
+      const lockedPrompt = buildLockedPrompt(
+        scene.rawPrompt,
+        refs,
+        cfg.cameraMotion,
+        { name: prod.name, visual: prod.visual },
+        imageRoles
+      );
       const videoUrl = await createAndPollMuseVideo(
         cfg,
         lockedPrompt,
         inputFrameUrl,
         (taskId) => updateScene(scene.id, { videoTaskId: taskId }),
-        pollOptions(scene.id)
+        pollOptions(scene.id),
+        extraRefs
       );
 
-      updateScene(scene.id, { status: 'completed', videoUrl, progress: 100 });
+      updateScene(scene.id, { status: 'completed', videoUrl, progress: 100, finishedAt: Date.now() });
       setHistoryKey((k) => k + 1);
       return videoUrl;
     } catch (err) {
@@ -202,6 +288,7 @@ export const MuseBatchStudio: React.FC<{
       status: 'queued',
     }));
     setScenes(initialScenes);
+    setTiming({ startedAt: Date.now(), finishedAt: null });
 
     await track(async () => {
       const queue = [...initialScenes];
@@ -233,6 +320,7 @@ export const MuseBatchStudio: React.FC<{
     // Khi nối End-frame: lấy video của cảnh liền trước (nếu đã xong)
     const prev = scenes.find((s) => s.index === scene.index - 1);
     const chainFrom = config.chainEndFrame && prev?.status === 'completed' ? prev.videoUrl ?? null : null;
+    reopenTiming();
     track(() => processScene(scene, config, references, chainFrom));
   };
 
@@ -245,6 +333,7 @@ export const MuseBatchStudio: React.FC<{
     const cfg = config;
     const refs = references;
     const queue = [...failedScenes];
+    reopenTiming();
     track(async () => {
       const workers = Array.from({ length: threadsFor(cfg) }, async () => {
         while (queue.length > 0 && !stopSignalRef.current) {
@@ -288,6 +377,20 @@ export const MuseBatchStudio: React.FC<{
                 {usableCount === 0 ? 'Đăng nhập tài khoản ➔' : 'Quản lý tài khoản ➔'}
               </button>
             </div>
+
+            <ProductScriptPanel
+              product={product}
+              setProduct={setProduct}
+              references={references}
+              secondsPerScene={config.duration}
+              onUseImage={(dataUrl, role, name) =>
+                setReferences((prev) => [
+                  ...prev.filter((r) => r.role !== role),
+                  { id: `${role}_${Date.now()}`, role, dataUrl, name },
+                ])
+              }
+              onApplyScenes={(lines) => setBatchPromptText(lines.join('\n'))}
+            />
 
             {/* Khối 2: Ảnh tham chiếu */}
             <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
@@ -483,6 +586,19 @@ export const MuseBatchStudio: React.FC<{
               <h2 className="text-base font-bold text-white">
                 Lô hiện tại ({completedScenes.length}/{scenes.length} hoàn tất)
               </h2>
+              {timing.startedAt && (
+                <span
+                  className={`px-2.5 py-1 rounded-lg text-xs font-mono font-semibold ${
+                    timing.finishedAt ? 'bg-emerald-500/15 text-emerald-300' : 'bg-sky-500/15 text-sky-300'
+                  }`}
+                  title={`Bắt đầu lúc ${new Date(timing.startedAt).toLocaleTimeString()}${
+                    timing.finishedAt ? ` · xong lúc ${new Date(timing.finishedAt).toLocaleTimeString()}` : ''
+                  }`}
+                >
+                  ⏱ {formatDuration((timing.finishedAt ?? now) - timing.startedAt)}
+                  {timing.finishedAt ? ' · xong' : ''}
+                </span>
+              )}
             </div>
             <div className="flex flex-wrap gap-2">
               {failedScenes.length > 0 && (
@@ -503,7 +619,10 @@ export const MuseBatchStudio: React.FC<{
               </button>
               {scenes.length > 0 && !isBusy && (
                 <button
-                  onClick={() => setScenes([])}
+                  onClick={() => {
+                    setScenes([]);
+                    setTiming({ startedAt: null, finishedAt: null });
+                  }}
                   className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs text-slate-300"
                 >
                   Xóa danh sách
@@ -537,6 +656,14 @@ export const MuseBatchStudio: React.FC<{
                       </span>
                     </div>
                     <p className="text-xs text-slate-300 line-clamp-2">{scene.rawPrompt}</p>
+                    {(scene.accountId || scene.startedAt) && (
+                      <div className="flex flex-wrap gap-x-3 text-[11px] text-slate-500">
+                        {scene.accountId && <span>👤 {accountLabel(scene.accountId)}</span>}
+                        {scene.startedAt && scene.status !== 'queued' && (
+                          <span>⏱ {formatDuration((scene.finishedAt ?? now) - scene.startedAt)}</span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {scene.videoUrl ? (

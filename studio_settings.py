@@ -27,3 +27,33 @@ def apply_gateway_env() -> None:
     os.environ.setdefault("MUSE2API_PORT", str(PORT))
     os.environ.setdefault("MUSE2API_DRIVER", "browser")
     os.environ.setdefault("MUSE2API_API_KEY", API_KEY)
+
+
+def cleanup_stale_driver_chrome() -> None:
+    """Đóng các Chrome ngầm còn sót từ lần chạy Gateway trước và xóa profile tạm của chúng.
+
+    Bản vá Windows trong muse2api tạo một profile tạm mới (cdp_*) cho mỗi lần khởi động; khi
+    cửa sổ Gateway bị tắt ngang, Chrome cũ không được đóng nên vừa chiếm RAM vừa để lại hàng
+    trăm MB profile. Gọi hàm này TRƯỚC khi Gateway mới khởi động.
+    """
+    import shutil
+    import subprocess
+    import tempfile
+
+    base = Path(os.getenv("LOCALAPPDATA", tempfile.gettempdir())) / "MuseVideoStudio" / "profiles"
+    if os.name == "nt":
+        needle = str(base).replace("'", "''")
+        script = (
+            "Get-CimInstance Win32_Process | Where-Object { "
+            "($_.Name -eq 'chrome.exe' -or $_.Name -eq 'msedge.exe') -and "
+            f"$_.CommandLine -like '*--user-data-dir={needle}\cdp_*' }} | "
+            "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
+        )
+        try:
+            subprocess.run(["powershell", "-NoProfile", "-Command", script], timeout=30,
+                           capture_output=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        except (OSError, subprocess.SubprocessError):
+            pass
+    if base.is_dir():
+        for child in base.glob("cdp_*"):
+            shutil.rmtree(child, ignore_errors=True)

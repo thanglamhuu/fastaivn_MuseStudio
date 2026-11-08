@@ -60,9 +60,14 @@ class VideoRequest:
     size: str | None = None
     duration: int | None = None
     first_frame: InputImage | None = None
+    # [MuseStudio patch] Extra reference images (product, outfit...) attached to the same
+    # muse.ai message after the first frame, so the video keeps the real product.
+    reference_images: list[InputImage] = field(default_factory=list)
     timeout: float = 600.0
     on_progress: ProgressCallback | None = None
     cancel: asyncio.Event | None = None
+    # [MuseStudio patch] called with the account id each time the gateway leases one
+    on_account: Callable[[str], None] | None = None
 
 
 @dataclass

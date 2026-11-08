@@ -80,4 +80,9 @@ class Gateway:
         return await self._run(lambda acc: self.driver.generate_image(acc, req))
 
     async def generate_video(self, req: VideoRequest) -> MediaResult:
-        return await self._run(lambda acc: self.driver.generate_video(acc, req), kind="video")
+        def run(acc: Account) -> Awaitable[MediaResult]:
+            if req.on_account:  # [MuseStudio patch] lets the task show which account renders it
+                req.on_account(acc.id)
+            return self.driver.generate_video(acc, req)
+
+        return await self._run(run, kind="video")

@@ -32,3 +32,13 @@ async def test_rotation_respects_per_account_limit(tmp_path):
         await pool.acquire()
     await pool.release(held[0])
     assert (await pool.acquire()).id == held[0].id
+
+
+async def test_least_busy_account_wins_over_lru(tmp_path):
+    pool = await _pool(tmp_path, {"a": None, "b": None})
+    held = [await pool.acquire() for _ in range(3)]  # a=2, b=1 (or the reverse)
+    busy_id = max({"a", "b"}, key=pool.inflight_of)
+    idle_id = ({"a", "b"} - {busy_id}).pop()
+    await pool.release(next(h for h in held if h.id == idle_id))  # idle account now runs 0
+    pool.get(idle_id).last_used_at = 9e12  # LRU alone would now pick the busy account
+    assert (await pool.acquire()).id == idle_id

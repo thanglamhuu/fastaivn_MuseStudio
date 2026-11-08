@@ -24,6 +24,7 @@ def _task_view(task: Task) -> dict:
         "model": task.request.get("model"),
         "result": task.result,
         "error": task.error,
+        "account_id": task.request.get("account_id"),  # [MuseStudio patch]
     }
 
 
@@ -35,11 +36,19 @@ async def create_video(body: VideoCreateRequest, request: Request,
     request.state.model = body.model or spec.id
     frame_ref = body.image or body.input_reference
     first_frame = InputImage(*(await load_image_ref(frame_ref))) if frame_ref else None
+    refs = [InputImage(*(await load_image_ref(r))) for r in body.reference_images]
     base = public_base(request)
+
+    holder: dict = {}
+
+    def on_account(account_id: str) -> None:
+        if task_ref := holder.get("task"):
+            task_ref.request["account_id"] = account_id
 
     async def runner(progress) -> dict:
         req = VideoRequest(prompt=body.prompt, model=spec.id, size=body.size,
                            duration=body.duration or body.seconds, first_frame=first_frame,
+                           reference_images=refs, on_account=on_account,
                            timeout=svc.settings.video_timeout, on_progress=progress)
         result = await svc.gateway.generate_video(req)
         name = svc.media.save(result.data, result.mime, prefix="vid")
@@ -47,8 +56,10 @@ async def create_video(body: VideoCreateRequest, request: Request,
                 "width": result.width, "height": result.height}
 
     request_meta = {"model": spec.id, "prompt": body.prompt, "size": body.size,
-                    "duration": body.duration or body.seconds, "has_first_frame": bool(first_frame)}
+                    "duration": body.duration or body.seconds, "has_first_frame": bool(first_frame),
+                    "reference_images": len(refs)}
     task = svc.tasks.submit("video", request_meta, runner)
+    holder["task"] = task
     request.state.task_id = task.id
     return _task_view(task)
 
