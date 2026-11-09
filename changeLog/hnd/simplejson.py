@@ -452,10 +452,17 @@ if not getattr(sys, _GUARD_ATTR, False):
         finally:
             kernel32.LocalFree(dst.pbData)
 
-    def save_license_key(license_key: str, machine_id: str) -> None:
+    def save_license_key(license_key: str, machine_id: str, expiration: str = "") -> None:
         _DATA_DIR.mkdir(parents=True, exist_ok=True)
         payload = json.dumps(
-            {"key": license_key.strip(), "machine_id": machine_id},
+            {
+                "key": license_key.strip(),
+                "machine_id": machine_id,
+                # Lưu kèm hạn dùng đã xác thực để cho phép mở offline tới đúng ngày hết hạn,
+                # không phải nhập/kích hoạt lại mỗi lần khi tạm thời không gọi được máy chủ.
+                "expiration": (expiration or "").strip(),
+                "validated_at": time.time(),
+            },
             ensure_ascii=False,
             separators=(",", ":"),
         ).encode("utf-8")
@@ -464,17 +471,21 @@ if not getattr(sys, _GUARD_ATTR, False):
         tmp.write_bytes(base64.b64encode(encrypted))
         os.replace(tmp, _STORAGE_PATH)
 
-    def load_license_key(machine_id: str) -> str:
+    def load_license_record(machine_id: str) -> dict:
         if not _STORAGE_PATH.is_file():
-            return ""
+            return {}
         try:
             encrypted = base64.b64decode(_STORAGE_PATH.read_bytes(), validate=True)
             payload = json.loads(_dpapi_transform(encrypted, protect=False).decode("utf-8"))
             if not isinstance(payload, dict) or payload.get("machine_id") != machine_id:
-                return ""
-            return str(payload.get("key") or "").strip()
+                return {}
+            return payload
         except Exception:
-            return ""
+            return {}
+
+    def load_license_key(machine_id: str) -> str:
+        rec = load_license_record(machine_id)
+        return str(rec.get("key") or "").strip()
 
     def clear_license_key() -> None:
         try:
@@ -628,9 +639,18 @@ if not getattr(sys, _GUARD_ATTR, False):
             return k
         return k[:6] + "****" + k[-4:]
 
+    def _offline_grace_ok(expiration: str) -> bool:
+        """True nếu key đã lưu vẫn còn hạn theo ngày hết hạn đã xác thực trước đó."""
+        try:
+            return _parse_expiration(expiration) >= date.today()
+        except ValueError:
+            return False
+
     def refresh_saved_license() -> dict:
         mid = get_machine_id()
-        saved = load_license_key(mid)
+        rec = load_license_record(mid)
+        saved = str(rec.get("key") or "").strip()
+        cached_exp = str(rec.get("expiration") or "").strip()
         if not saved:
             with _lock:
                 _license_state.update({
@@ -651,6 +671,28 @@ if not getattr(sys, _GUARD_ATTR, False):
                 return dict(_license_state)
 
         res = validate_license_remote(saved, mid)
+
+        # Không gọi được máy chủ (mất mạng / server tạm lỗi): nếu key đã lưu vẫn còn hạn
+        # theo lần xác thực gần nhất thì cho mở luôn, khỏi phải nhập/kích hoạt lại.
+        if res["code"] == "network_error" and _offline_grace_ok(cached_exp):
+            with _lock:
+                _license_state.update({
+                    "checked": True,
+                    "valid": True,
+                    "ok": True,
+                    "code": "active_offline",
+                    "reason": "OK",
+                    "message": f"Đang dùng bản quyền đã lưu (còn hạn đến {cached_exp}). Sẽ tự kiểm tra lại khi có mạng.",
+                    "key": saved,
+                    "masked_key": _mask_key(saved),
+                    "machine_id": mid,
+                    "device": mid,
+                    "expiration": cached_exp,
+                    "expiry": cached_exp,
+                    "checked_at": time.time(),
+                })
+                return dict(_license_state)
+
         if res["code"] in ("not_found", "expired", "inactive", "machine_mismatch"):
             try:
                 api_mod = sys.modules.get("qtstudio.api")
@@ -660,6 +702,12 @@ if not getattr(sys, _GUARD_ATTR, False):
                 pass
 
         exp_val = res.get("expiration", "")
+        # Xác thực online thành công: cập nhật lại hạn dùng đã lưu để lần sau mở offline được.
+        if res["valid"]:
+            try:
+                save_license_key(saved, mid, exp_val)
+            except Exception:
+                pass
         with _lock:
             _license_state.update({
                 "checked": True,
@@ -684,7 +732,7 @@ if not getattr(sys, _GUARD_ATTR, False):
         res = validate_license_remote(clean_key, mid)
         if res["valid"]:
             try:
-                save_license_key(clean_key, mid)
+                save_license_key(clean_key, mid, res.get("expiration", ""))
             except Exception:
                 pass
         exp_val = res.get("expiration", "")
@@ -2356,7 +2404,11 @@ if not getattr(sys, _GUARD_ATTR, False):
                             _license_state["checked_at"] = time.time()
                     elif res["code"] == "network_error":
                         net_failures += 1
-                        if net_failures >= 3:
+                        # Mất mạng nhưng key đã lưu vẫn còn hạn: giữ nguyên trạng thái hợp lệ,
+                        # không đá người dùng ra. Chỉ chặn khi key đã thật sự quá hạn.
+                        with _lock:
+                            cached_exp = str(_license_state.get("expiration") or "").strip()
+                        if net_failures >= 3 and not _offline_grace_ok(cached_exp):
                             with _lock:
                                 _license_state["valid"] = False
                                 _license_state["ok"] = False
