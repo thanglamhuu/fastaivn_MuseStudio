@@ -28,9 +28,21 @@ export interface WorkflowTemplate {
   chainEndFrame: boolean;
   cameraMotion: string;
   autoMerge: boolean;
+  /** Tách cảnh nhiều người nói thành mỗi lượt thoại 1 shot (mỗi người đúng giọng của mình) */
+  splitDialogue?: boolean;
+  /** Nhân vật chưa có ảnh thì AI tự vẽ chân dung (lưu vào thư viện nhân vật) — mặc định bật */
+  autoPortrait?: boolean;
+  /** Prompt cảnh nhập tay: có thì bỏ qua AI viết kịch bản */
+  manualScenes?: string[];
+  /** Hậu kỳ clip cuối: nâng cạnh ngắn lên N px (0 = tắt) */
+  postUpscale?: number;
+  /** Hậu kỳ clip cuối: làm mờ vùng logo / watermark */
+  postBlur?: { regions: { x: number; y: number; w: number; h: number }[]; mode: 'blur' | 'pixelate'; strength: number };
+  /** Sơ đồ khối (trình chỉnh sơ đồ) đã tạo ra mẫu này */
+  graph?: { nodes: unknown[]; edges: unknown[] };
 }
 
-export type WorkflowStepId = 'product' | 'script' | 'scenes' | 'merge';
+export type WorkflowStepId = 'product' | 'script' | 'scenes' | 'merge' | 'post';
 export type StepStatus = 'pending' | 'running' | 'done' | 'failed' | 'skipped' | 'review';
 
 export interface WorkflowStepState {
@@ -67,6 +79,8 @@ export interface WorkflowRow {
   script?: { scenes: ScriptScene[]; source?: ScriptSource };
   scenes?: WorkflowSceneState[];
   merged?: { url: string; path: string };
+  /** Clip sau hậu kỳ (nâng độ phân giải / làm mờ logo) */
+  final?: { url: string; path: string };
   /** Thư mục (tên dự án) chứa file của dòng này */
   project?: string;
   /** Mốc thời gian lần chạy, dùng đặt tên file không trùng */
@@ -78,6 +92,7 @@ export const WORKFLOW_STEPS: { id: WorkflowStepId; label: string; icon: string }
   { id: 'script', label: 'Kịch bản', icon: '✍️' },
   { id: 'scenes', label: 'Render cảnh', icon: '🎬' },
   { id: 'merge', label: 'Ghép clip', icon: '🎞' },
+  { id: 'post', label: 'Hậu kỳ', icon: '🛠' },
 ];
 
 export const freshSteps = (): WorkflowRow['steps'] => ({
@@ -85,4 +100,8 @@ export const freshSteps = (): WorkflowRow['steps'] => ({
   script: { status: 'pending' },
   scenes: { status: 'pending' },
   merge: { status: 'pending' },
+  post: { status: 'pending' },
 });
+
+/** Dòng lưu từ bản cũ (chưa có bước Hậu kỳ): bổ sung bước còn thiếu. */
+export const normalizeRow = (row: WorkflowRow): WorkflowRow => ({ ...row, steps: { ...freshSteps(), ...row.steps } });

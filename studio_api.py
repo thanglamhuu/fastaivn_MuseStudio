@@ -279,6 +279,8 @@ class StudioAccountUpdate(BaseModel):
     label: str | None = None
     enabled: bool | None = None
     max_concurrency: int | None = Field(default=None, ge=1, le=16)
+    # Giọng Muse dành riêng cho tài khoản (mã avocado_v2:...); "" = không dành riêng
+    dedicated_voice: str | None = Field(default=None, max_length=200)
     # Chuỗi header "Cookie" copy từ F12, hoặc dict
     cookies: str | dict[str, str] | None = None
 
@@ -295,6 +297,11 @@ async def update_account(account_id: str, body: StudioAccountUpdate, request: Re
         acc.enabled = body.enabled
     if body.max_concurrency is not None:
         acc.meta["max_concurrency"] = body.max_concurrency
+    if body.dedicated_voice is not None:
+        if body.dedicated_voice.strip():
+            acc.meta["dedicated_voice"] = body.dedicated_voice.strip()
+        else:
+            acc.meta.pop("dedicated_voice", None)
     if body.cookies is not None:
         raw = body.cookies.strip() if isinstance(body.cookies, str) else body.cookies
         if isinstance(raw, str) and raw.lower().startswith("cookie:"):

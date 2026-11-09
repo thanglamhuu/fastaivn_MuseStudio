@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { MuseBatchStudio } from './components/MuseBatchStudio';
 import { SettingsPage } from './components/SettingsPage';
 import { WorkflowStudio } from './components/WorkflowStudio';
+import { MediaLibrary } from './components/MediaLibrary';
 import { useStudioLibrary } from './hooks/useStudioLibrary';
 import { GATEWAY_URL } from './config/appConfig';
 import { useMuseAccounts } from './hooks/useMuseAccounts';
@@ -20,7 +21,7 @@ const useGatewayHealth = () => {
   return state;
 };
 
-type Tab = 'batch' | 'workflow' | 'settings';
+type Tab = 'batch' | 'workflow' | 'media' | 'settings';
 
 export const App: React.FC = () => {
   const health = useGatewayHealth();
@@ -57,6 +58,7 @@ export const App: React.FC = () => {
         <div className="flex items-center gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800">
           {tabBtn('batch', '🚀 Tạo video hàng loạt')}
           {tabBtn('workflow', '🧩 Workflow làm clip')}
+          {tabBtn('media', '🗂 Thư viện media')}
           {tabBtn(
             'settings',
             <>
@@ -97,6 +99,9 @@ export const App: React.FC = () => {
             library={library}
             onOpenSettings={() => setTab('settings')}
           />
+        </div>
+        <div className={tab === 'media' ? '' : 'hidden'}>
+          <MediaLibrary library={library} active={tab === 'media'} />
         </div>
         <div className={tab === 'settings' ? '' : 'hidden'}>
           <SettingsPage accountsState={accountsState} library={library} />

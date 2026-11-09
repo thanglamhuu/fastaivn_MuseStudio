@@ -20,9 +20,11 @@ import {
   WorkflowStepId,
   WorkflowTemplate,
   freshSteps,
+  normalizeRow,
 } from '../types/workflow';
-import { newLibraryId } from '../types/library';
+import { StudioCharacter, StudioProduct, newLibraryId } from '../types/library';
 import { aspectClass } from '../utils/image';
+import { WorkflowGraphEditor } from './WorkflowGraphEditor';
 
 const inputCls =
   'w-full bg-slate-950 border border-white/5 text-[11px] text-slate-200 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-indigo-500';
@@ -44,7 +46,17 @@ const STEP_STYLE: Record<StepStatus, string> = {
   review: 'bg-amber-500/20 text-amber-200 border-amber-500/60',
 };
 
-const INTERRUPTED = 'Bị gián đoạn do tải lại trang — bấm Chạy tiếp.';
+/** Vị trí watermark hay gặp (tỉ lệ theo khung) */
+const WATERMARK_SPOTS = [
+  { id: 'tl', label: 'Trên trái', region: { x: 0.02, y: 0.02, w: 0.34, h: 0.08 } },
+  { id: 'tr', label: 'Trên phải', region: { x: 0.64, y: 0.02, w: 0.34, h: 0.08 } },
+  { id: 'bl', label: 'Dưới trái', region: { x: 0.02, y: 0.9, w: 0.34, h: 0.08 } },
+  { id: 'br', label: 'Dưới phải', region: { x: 0.64, y: 0.9, w: 0.34, h: 0.08 } },
+];
+const sameRegion = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+  Math.abs(a.x - b.x) < 1e-6 && Math.abs(a.y - b.y) < 1e-6;
+
+const INTERRUPTED ='Bị gián đoạn do tải lại trang — bấm Chạy tiếp.';
 
 /** Tách 1 dòng dán vào: "link hoặc tên SP | tên nhân vật | ghi chú" (phân cách bằng Tab, | hoặc ;). */
 const splitLine = (line: string) => {
@@ -65,7 +77,11 @@ export const WorkflowStudio: React.FC<{
   const [customs, setCustoms] = usePersistentState<WorkflowTemplate[]>('workflow.custom.v1', [], { server: true });
   const [selectedId, setSelectedId] = usePersistentState('workflow.selected.v1', BUILTIN_WORKFLOWS[0].id);
   const [reviewScript, setReviewScript] = usePersistentState('workflow.review.v1', false);
-  const [rows, setRows] = usePersistentState<WorkflowRow[]>('workflow.rows.v1', [], { server: true });
+  const [rows, setRows] = usePersistentState<WorkflowRow[]>('workflow.rows.v1', [], {
+    server: true,
+    // dòng lưu từ bản cũ chưa có bước Hậu kỳ
+    merge: (stored) => (Array.isArray(stored) ? stored.map(normalizeRow) : []),
+  });
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
 
@@ -75,6 +91,13 @@ export const WorkflowStudio: React.FC<{
   useEffect(() => setDraft(selected), [selected]);
   const dirty = JSON.stringify(draft) !== JSON.stringify(selected);
 
+  const [view, setView] = usePersistentState<'list' | 'graph'>('workflow.view.v1', 'list');
+  /** Áp dụng sơ đồ: lưu thành workflow riêng (mới hoặc ghi đè workflow riêng đang chọn) */
+  const applyGraph = (tpl: WorkflowTemplate) => {
+    setCustoms((prev) => (prev.some((t) => t.id === tpl.id) ? prev.map((t) => (t.id === tpl.id ? tpl : t)) : [...prev, tpl]));
+    setSelectedId(tpl.id);
+    setDraft(tpl);
+  };
   const [busy, setBusy] = useState(false);
   const [runningRowId, setRunningRowId] = useState<string | null>(null);
   const stopRef = useRef(false);
@@ -120,9 +143,21 @@ export const WorkflowStudio: React.FC<{
     getRow: (id) => rowsRef.current.find((r) => r.id === id),
     patchRow,
     library: () => libraryRef.current,
-    addProduct: (p) => libraryRef.current.setProducts((prev) => [...prev, p]),
-    updateProduct: (id, patch) =>
-      libraryRef.current.setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p))),
+    // Cập nhật luôn bản đang đọc để bước sau thấy ngay, không chờ React vẽ lại
+    addProduct: (p) => {
+      libraryRef.current = { ...libraryRef.current, products: [...libraryRef.current.products, p] };
+      libraryRef.current.setProducts((prev) => [...prev, p]);
+    },
+    updateProduct: (id, patch) => {
+      const fn = (list: StudioProduct[]) => list.map((p) => (p.id === id ? { ...p, ...patch } : p));
+      libraryRef.current = { ...libraryRef.current, products: fn(libraryRef.current.products) };
+      libraryRef.current.setProducts(fn);
+    },
+    updateCharacter: (id, patch) => {
+      const fn = (list: StudioCharacter[]) => list.map((c) => (c.id === id ? { ...c, ...patch } : c));
+      libraryRef.current = { ...libraryRef.current, characters: fn(libraryRef.current.characters) };
+      libraryRef.current.setCharacters(fn);
+    },
     threads: () => threadsRef.current,
     shouldStop: () => stopRef.current,
     reviewScript,
@@ -172,7 +207,9 @@ export const WorkflowStudio: React.FC<{
     setRows((prev) => [...prev, { id: newLibraryId('wfr'), steps: freshSteps(), ...partial }]);
 
   const addFromForm = () => {
-    if (!newProductId && !newLink.trim()) return alert('Chọn sản phẩm trong thư viện hoặc dán link / tên sản phẩm.');
+    if (!newProductId && !newLink.trim() && !draft.manualScenes?.length) {
+      return alert('Chọn sản phẩm trong thư viện hoặc dán link / tên sản phẩm.');
+    }
     addRow({
       productId: newProductId || undefined,
       link: newProductId ? undefined : newLink.trim(),
@@ -247,7 +284,60 @@ export const WorkflowStudio: React.FC<{
 
   const doneCount = rows.filter((r) => !firstOpenStep(r)).length;
 
+  const viewSwitch = (
+    <div className="px-4 lg:px-6 pt-4 flex flex-wrap items-center gap-2">
+      <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-1">
+        {(
+          [
+            ['list', '📋 Mẫu & danh sách dòng'],
+            ['graph', '🧩 Sơ đồ khối (tự lắp workflow)'],
+          ] as const
+        ).map(([v, label]) => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${view === v ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {view === 'graph' && (
+        <>
+          <select
+            value={selected.id}
+            onChange={(e) => setSelectedId(e.target.value)}
+            className="bg-slate-900 border border-slate-700 text-xs text-slate-200 rounded-lg p-1.5"
+          >
+            {allTemplates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.icon} {t.name}
+                {t.builtin ? '' : ' • của tôi'}
+              </option>
+            ))}
+          </select>
+          <span className="text-[11px] text-slate-500">
+            Mẫu có sẵn được lưu thành bản “(sơ đồ)” của bạn; sau khi áp dụng, chuyển sang “Mẫu & danh sách dòng” để chạy.
+          </span>
+        </>
+      )}
+    </div>
+  );
+
+  if (view === 'graph') {
+    return (
+      <div>
+        {viewSwitch}
+        <div className="p-4 lg:p-6">
+          <WorkflowGraphEditor template={selected} onApply={applyGraph} />
+        </div>
+      </div>
+    );
+  }
+
   return (
+    <div>
+    {viewSwitch}
     <div className="p-4 lg:p-6 grid grid-cols-1 xl:grid-cols-[360px_1fr] gap-5">
       {/* ---------------- Cột trái: mẫu workflow ---------------- */}
       <aside className="space-y-4">
@@ -409,13 +499,59 @@ export const WorkflowStudio: React.FC<{
                 ['rotateProductImages', 'Xoay vòng ảnh sản phẩm qua từng cảnh (lookbook)'],
                 ['chainEndFrame', 'Nối khung cuối → khung đầu (chạy tuần tự)'],
                 ['autoMerge', 'Tự ghép các cảnh thành 1 clip'],
+                ['splitDialogue', 'Tách lời thoại nhiều nhân vật: mỗi lượt thoại 1 shot đúng giọng'],
+                ['autoPortrait', 'Nhân vật chưa có ảnh: AI tự vẽ chân dung (lưu vào thư viện)'],
               ] as const
             ).map(([k, label]) => (
               <label key={k} className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={!!draft[k]} onChange={(e) => set(k, e.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={k === 'autoPortrait' ? draft.autoPortrait !== false : !!draft[k]}
+                  onChange={(e) => set(k, e.target.checked)}
+                />
                 {label}
               </label>
             ))}
+          </div>
+          <div className="border-t border-slate-800 pt-2 space-y-2">
+            <p className={labelCls}>🛠 Hậu kỳ clip cuối</p>
+            <select
+              className={inputCls}
+              value={draft.postUpscale || 0}
+              onChange={(e) => set('postUpscale', Number(e.target.value))}
+            >
+              <option value={0}>Không nâng độ phân giải</option>
+              {[1080, 1440, 2160].map((n) => (
+                <option key={n} value={n}>
+                  Nâng cạnh ngắn lên {n}px{n === 2160 ? ' (4K)' : ''}
+                </option>
+              ))}
+            </select>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-300">
+              <span className="text-slate-500">Làm mờ watermark ở:</span>
+              {WATERMARK_SPOTS.map((spot) => {
+                const on = !!draft.postBlur?.regions.some((r) => sameRegion(r, spot.region));
+                return (
+                  <label key={spot.id} className="flex items-center gap-1 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      onChange={() => {
+                        const cur = draft.postBlur?.regions ?? [];
+                        const regions = on
+                          ? cur.filter((r) => !sameRegion(r, spot.region))
+                          : [...cur, spot.region];
+                        set('postBlur', regions.length ? { regions, mode: 'blur', strength: 24 } : undefined);
+                      }}
+                    />
+                    {spot.label}
+                  </label>
+                );
+              })}
+            </div>
+            <p className="text-[10px] text-slate-500">
+              Vùng tùy ý: dùng tab Thư viện media (kéo chuột khoanh vùng) cho từng clip.
+            </p>
           </div>
           <div className="flex flex-wrap gap-2 pt-1">
             <button onClick={saveAsNew} className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[11px] font-semibold">
@@ -755,16 +891,17 @@ export const WorkflowStudio: React.FC<{
                     </div>
                   )}
 
-                  {row.merged && (
+                  {(row.final || row.merged) && (
                     <div className="flex flex-wrap gap-3 items-start">
                       <video
-                        src={row.merged.url}
+                        src={(row.final || row.merged)!.url}
                         controls
                         className={`${aspectClass(tpl.aspectRatio)} w-48 rounded-lg border border-emerald-600/50 bg-black`}
                       />
-                      <p className="text-[11px] text-emerald-300 break-all flex-1 min-w-[200px]">
-                        🎞 Clip hoàn chỉnh: {row.merged.path}
-                      </p>
+                      <div className="text-[11px] text-emerald-300 break-all flex-1 min-w-[200px] space-y-1">
+                        {row.merged && <p>🎞 Clip ghép: {row.merged.path}</p>}
+                        {row.final && <p>🛠 Sau hậu kỳ: {row.final.path}</p>}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -773,6 +910,7 @@ export const WorkflowStudio: React.FC<{
           );
         })}
       </div>
+    </div>
     </div>
   );
 };

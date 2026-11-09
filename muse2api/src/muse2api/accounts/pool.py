@@ -200,6 +200,9 @@ class AccountPool:
         self.acquire_timeout = acquire_timeout
         self._accounts: dict[str, Account] = {}
         self._inflight: dict[str, int] = defaultdict(int)
+        # [MuseStudio patch] Muse voice of the video tasks running on each account: muse.ai
+        # sets the voice per account, so tasks with different voices must not share one.
+        self._voice: dict[str, str] = {}
         self._cond = asyncio.Condition()
 
     # ---- lifecycle / CRUD ----
@@ -264,16 +267,45 @@ class AccountPool:
                    or quota_exhausted(a, now)}
         return set() if len(blocked) == len(usable) else blocked
 
+    @staticmethod
+    def dedicated_voice(acc: Account) -> str:
+        """[MuseStudio patch] Voice an account is reserved for (set in the studio UI)."""
+        return str(acc.meta.get("dedicated_voice") or "")
+
+    def _voice_ok(self, acc: Account, voice: str | None) -> bool:
+        """[MuseStudio patch] An account reserved for another voice never takes the task;
+        an account already rendering with another voice waits until it is idle."""
+        if not voice:
+            return True
+        own = self.dedicated_voice(acc)
+        if own and own != voice:
+            return False
+        running = self._voice.get(acc.id)
+        return not (self._inflight[acc.id] and running and running != voice)
+
     def _candidates(
-        self, exclude: Iterable[str], kind: str | None = None
+        self, exclude: Iterable[str], kind: str | None = None, voice: str | None = None
     ) -> tuple[list[Account], bool, float | None]:
         """Returns (free candidates, whether a usable account is merely busy, and the
         earliest time a cooling account comes back, if any)."""
         now = time.time()
         excluded = set(exclude) | self._kind_blocked(kind, now)
+        if voice:
+            # [MuseStudio patch] accounts reserved for other voices are not candidates at all
+            # (unless every usable account is reserved for another voice: then use them all)
+            usable = [a for a in self._accounts.values()
+                      if a.id not in excluded and a.enabled and a.status != AccountStatus.INVALID]
+            other = {a.id for a in usable if self.dedicated_voice(a) not in ("", voice)}
+            if len(other) < len(usable):
+                excluded |= other
+            else:
+                voice = None
         free, busy, back_at = [], False, None
         for acc in self._accounts.values():
             if acc.id in excluded or not acc.enabled or acc.status == AccountStatus.INVALID:
+                continue
+            if voice and not self._voice_ok(acc, voice):
+                busy = True  # frees up once its current voice finishes
                 continue
             if not acc.is_available(now):  # cooling down
                 back_at = acc.cooldown_until if back_at is None else min(back_at, acc.cooldown_until)
@@ -282,6 +314,10 @@ class AccountPool:
                 busy = True
                 continue
             free.append(acc)
+        if voice:
+            # [MuseStudio patch] prefer accounts reserved for this voice
+            mine = [a for a in free if self.dedicated_voice(a) == voice]
+            free = mine or free
         return free, busy, back_at
 
     def has_alternative(self, exclude: Iterable[str], kind: str | None = None) -> bool:
@@ -292,13 +328,14 @@ class AccountPool:
                    for a in self._accounts.values())
 
     async def acquire(
-        self, *, exclude: Iterable[str] = (), hint: str | None = None, kind: str | None = None
+        self, *, exclude: Iterable[str] = (), hint: str | None = None, kind: str | None = None,
+        voice: str | None = None, wait: float | None = None,
     ) -> Account:
         exclude = tuple(exclude)
-        deadline = time.monotonic() + self.acquire_timeout
+        deadline = time.monotonic() + (wait if wait is not None else self.acquire_timeout)
         async with self._cond:
             while True:
-                free, busy, back_at = self._candidates(exclude, kind)
+                free, busy, back_at = self._candidates(exclude, kind, voice)
                 if free:
                     if hint is None:
                         # [MuseStudio patch] Spread work evenly: among free accounts pick
@@ -313,6 +350,8 @@ class AccountPool:
                         free = [a for a in free if (quota_used_pct(a, now) or 0.0) == lowest]
                     acc = self.strategy.choose(free, hint)
                     self._inflight[acc.id] += 1
+                    if voice:
+                        self._voice[acc.id] = voice
                     acc.last_used_at = time.time()
                     return acc
                 remaining = deadline - time.monotonic()
@@ -333,6 +372,8 @@ class AccountPool:
     async def release(self, account: Account, error: BaseException | None = None) -> None:
         async with self._cond:
             self._inflight[account.id] = max(0, self._inflight[account.id] - 1)
+            if not self._inflight[account.id]:
+                self._voice.pop(account.id, None)
             self._apply_result(account, error)
             self._cond.notify_all()
         await self.persist()
@@ -367,9 +408,10 @@ class AccountPool:
 
     @asynccontextmanager
     async def lease(
-        self, *, exclude: Iterable[str] = (), hint: str | None = None, kind: str | None = None
+        self, *, exclude: Iterable[str] = (), hint: str | None = None, kind: str | None = None,
+        voice: str | None = None, wait: float | None = None,
     ) -> AsyncIterator[Lease]:
-        acc = await self.acquire(exclude=exclude, hint=hint, kind=kind)
+        acc = await self.acquire(exclude=exclude, hint=hint, kind=kind, voice=voice, wait=wait)
         lease = Lease(acc)
         try:
             yield lease

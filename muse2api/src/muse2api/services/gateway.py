@@ -27,12 +27,14 @@ class Gateway:
 
     @asynccontextmanager
     async def _lease(self, exclude: list[str], hint: str | None,
-                     kind: str | None = None) -> AsyncIterator[Lease]:
+                     kind: str | None = None, voice: str | None = None,
+                     wait: float | None = None) -> AsyncIterator[Lease]:
         if not self.driver.requires_account and not self.pool.all():
             note_account(_ANONYMOUS.id)
             yield Lease(_ANONYMOUS)
             return
-        async with self.pool.lease(exclude=exclude, hint=hint, kind=kind) as lease:
+        async with self.pool.lease(exclude=exclude, hint=hint, kind=kind, voice=voice,
+                                   wait=wait) as lease:
             note_account(lease.account.id)
             yield lease
 
@@ -62,10 +64,11 @@ class Gateway:
                     log.warning("chat failed on %s (%s), failing over", lease.account.id, exc)
 
     async def _run(self, fn: Callable[[Account], Awaitable[T]], hint: str | None = None,
-                   kind: str | None = None) -> T:
+                   kind: str | None = None, voice: str | None = None,
+                   wait: float | None = None) -> T:
         tried: list[str] = []
         for attempt in range(self.max_failover + 1):
-            async with self._lease(tried, hint, kind) as lease:
+            async with self._lease(tried, hint, kind, voice, wait) as lease:
                 try:
                     return await fn(lease.account)
                 except UpstreamError as exc:
@@ -85,4 +88,8 @@ class Gateway:
                 req.on_account(acc.id)
             return self.driver.generate_video(acc, req)
 
-        return await self._run(run, kind="video")
+        # [MuseStudio patch] route by voice (one voice per account at a time, reserved
+        # accounts first). Video tasks run in the background, so waiting for an account
+        # whose current voice is busy may take as long as a render instead of 60 s.
+        wait = max(self.pool.acquire_timeout, req.timeout) if req.voice else None
+        return await self._run(run, kind="video", voice=req.voice, wait=wait)

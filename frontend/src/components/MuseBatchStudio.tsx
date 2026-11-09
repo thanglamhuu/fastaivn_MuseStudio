@@ -33,6 +33,8 @@ import { buildVoiceInfo, resolveVoice } from '../data/voicePresets';
 import { VoiceBadge, VoiceSelect } from './VoicePicker';
 import { aspectClass, sceneGridClass } from '../utils/image';
 import { urlToDataUrl } from '../services/productService';
+import { onStudioMessage } from '../utils/studioBus';
+import { multiVoiceInfo, speakerCount, splitDialogueText } from '../utils/dialogue';
 
 const DEFAULT_PROMPTS =
   'Nhân vật mỉm cười tự nhiên trước ống kính, tay nâng sản phẩm lên ngang ngực, ánh sáng studio ấm áp\nNhân vật xoay nhẹ góc nghiêng 45 độ, chỉ tay vào chi tiết trên sản phẩm, chuyển động mượt mà\nCận cảnh sản phẩm trên tay nhân vật, camera đẩy nhẹ vào, giữ nguyên trang phục và khuôn mặt';
@@ -120,6 +122,33 @@ export const MuseBatchStudio: React.FC<{
   );
   const refPoolRef = useRef(refPool);
   refPoolRef.current = refPool;
+  /** Khung đầu riêng của từng cảnh (số cảnh -> ảnh), gửi từ Thư viện media */
+  const [startFrames, setStartFrames] = usePersistentState<Record<number, { dataUrl: string; name: string }>>(
+    'startFrames.v1',
+    {},
+    { server: true }
+  );
+  const startFramesRef = useRef(startFrames);
+  startFramesRef.current = startFrames;
+
+  // Nhận ảnh / khung hình gửi sang từ tab Thư viện media
+  useEffect(
+    () =>
+      onStudioMessage((msg) => {
+        if (msg.type === 'reference') {
+          setReferences((prev) => [
+            ...prev.filter((r) => r.role !== msg.role),
+            { id: `${msg.role}_${Date.now()}`, role: msg.role, dataUrl: msg.dataUrl, name: msg.name },
+          ]);
+        } else if (msg.type === 'pool') {
+          setRefPool((prev) => [...prev, { id: `pool_${Date.now()}`, dataUrl: msg.dataUrl, name: msg.name }]);
+        } else if (msg.type === 'startFrame') {
+          setStartFrames((prev) => ({ ...prev, [msg.sceneIndex]: { dataUrl: msg.dataUrl, name: msg.name } }));
+        }
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
   const [scenes, setScenes] = usePersistentState<BatchSceneItem[]>('scenes.v1', [], {
     serialize: serializeScenes,
     server: true,
@@ -352,12 +381,16 @@ export const MuseBatchStudio: React.FC<{
       if (!items.length) throw new Error('Cảnh này không có ảnh tham chiếu nào (thêm ảnh ở khối 2).');
 
       let generatedFrame: string | null = null;
+      const ownStart = startFramesRef.current[scene.index]?.dataUrl;
       if (cfg.chainEndFrame && chainFromVideoUrl) {
         try {
           generatedFrame = await extractLastFrameAsDataUrl(chainFromVideoUrl);
         } catch {
           // Fallback về ảnh tham chiếu gốc nếu không trích xuất được frame
         }
+      } else if (ownStart) {
+        // Khung đầu riêng của cảnh (chọn từ Thư viện media)
+        generatedFrame = ownStart;
       } else if (cfg.useTwoStepKeyframe && refs.length > 1) {
         updateScene(scene.id, { status: 'generating_keyframe' });
         generatedFrame = await generateMuseKeyframe(cfg, rawPrompt, refs);
@@ -383,8 +416,14 @@ export const MuseBatchStudio: React.FC<{
         emotion: sceneCharacter?.emotion,
         characterName: sceneCharacter?.name,
       });
+      // Cảnh có nhiều người nói (không tách): thêm hồ sơ giọng cho từng nhân vật
+      const dialogueVoices = multiVoiceInfo(
+        rawPrompt,
+        libraryRef.current.characters,
+        libraryRef.current.museVoiceNames
+      );
       const lockedPrompt = buildLockedPrompt(
-        [charTag, voiceInfo, rawPrompt].filter(Boolean).join(' '),
+        [charTag, voiceInfo, dialogueVoices, rawPrompt].filter(Boolean).join(' '),
         refs,
         cfg.cameraMotion,
         { name: prod.name, visual: prod.visual },
@@ -512,6 +551,11 @@ export const MuseBatchStudio: React.FC<{
     const multiThread = accounts.some((a) => a.max_concurrency > 1);
     return ids.size > 1 && multiThread ? ids.size : 0;
   })();
+
+  /** Số dòng có ≥ 2 nhân vật cùng nói */
+  const multiSpeakerLines = batchPromptText
+    .split('\n')
+    .filter((l) => l.trim() && speakerCount(l, characters) >= 2).length;
 
   /** Mô tả ngắn cách kho ảnh được chia cho các cảnh của lô hiện tại. */
   const refModeSummary = (() => {
@@ -968,6 +1012,44 @@ export const MuseBatchStudio: React.FC<{
                 placeholder="Nhập mỗi cảnh trên 1 dòng..."
                 className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
               />
+              {multiSpeakerLines > 0 && (
+                <div className="flex flex-wrap items-center gap-2 bg-fuchsia-500/10 border border-fuchsia-500/30 rounded-lg p-2">
+                  <span className="text-[11px] text-fuchsia-200 flex-1 min-w-[200px]">
+                    🎭 {multiSpeakerLines} cảnh có nhiều nhân vật cùng nói. Muse chỉ giữ chắc 1 giọng mỗi clip — tách
+                    thành mỗi lượt thoại 1 shot để ai cũng đúng giọng của mình.
+                  </span>
+                  <button
+                    onClick={() => setBatchPromptText(splitDialogueText(batchPromptText, characters))}
+                    className="px-2.5 py-1 rounded-lg bg-fuchsia-600 text-white text-[11px] font-semibold"
+                  >
+                    Tách lời thoại theo vai
+                  </button>
+                </div>
+              )}
+              {Object.keys(startFrames).length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] text-slate-400">Khung đầu riêng:</span>
+                  {Object.entries(startFrames).map(([idx, f]) => (
+                    <span key={idx} className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-lg pr-1">
+                      <img src={f.dataUrl} alt="" className="w-6 h-10 object-cover rounded-l-lg" />
+                      <span className="text-[10px] text-slate-300">Cảnh {idx}</span>
+                      <button
+                        onClick={() =>
+                          setStartFrames((prev) => {
+                            const next = { ...prev };
+                            delete next[Number(idx)];
+                            return next;
+                          })
+                        }
+                        className="text-[10px] text-red-300 px-1"
+                        title="Bỏ khung đầu riêng"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
 
               <div className="grid grid-cols-3 gap-2 pt-1">
                 <div>

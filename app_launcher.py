@@ -67,6 +67,9 @@ muse_fastapi_app.include_router(media_router)
 from studio_ai import router as ai_router  # noqa: E402
 
 muse_fastapi_app.include_router(ai_router)
+from studio_library import router as library_router  # noqa: E402
+
+muse_fastapi_app.include_router(library_router)
 
 # Thêm đoạn cấu hình này ngay sau khi khởi tạo muse_fastapi_app
 muse_fastapi_app.add_middleware(

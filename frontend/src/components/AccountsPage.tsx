@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   LoginJob,
+  MuseVoice,
   StudioAccount,
+  listMuseVoices,
   cancelBrowserLogin,
   checkMuseQuota,
   deleteMuseAccount,
@@ -15,6 +17,7 @@ import {
 } from '../services/museBatchService';
 import { MuseAccountsState } from '../hooks/useMuseAccounts';
 import { loadPersisted, savePersisted } from '../hooks/usePersistentState';
+import { MATRIX_12_VOICES } from '../data/voicePresets';
 
 const LOGIN_JOB_KEY = 'loginJob.v1';
 
@@ -56,9 +59,10 @@ const AccountRow: React.FC<{
   acc: StudioAccount;
   perAccountMax: number;
   loginBusy: boolean;
+  voices: MuseVoice[];
   onLogin: (acc: StudioAccount) => void;
   onChanged: () => void;
-}> = ({ acc, perAccountMax, loginBusy, onLogin, onChanged }) => {
+}> = ({ acc, perAccountMax, loginBusy, voices, onLogin, onChanged }) => {
   const [label, setLabel] = useState(acc.label);
   const [cookieOpen, setCookieOpen] = useState(false);
   const [cookieText, setCookieText] = useState('');
@@ -159,6 +163,33 @@ const AccountRow: React.FC<{
               {n} luồng
             </option>
           ))}
+        </select>
+
+        <select
+          value={String(acc.meta.dedicated_voice || '')}
+          onChange={(e) =>
+            run('voice', () => updateStudioAccount(acc.id, { dedicated_voice: e.target.value }).then(() => {}))
+          }
+          className="bg-slate-900 border border-slate-700 rounded-lg px-1.5 py-1 text-xs max-w-[190px]"
+          title="Giọng dành riêng: tài khoản chỉ nhận cảnh dùng đúng giọng này (muse.ai đặt giọng theo tài khoản)"
+        >
+          <option value="">🎙 Giọng: dùng chung</option>
+          <optgroup label="Giọng gốc của 12 hồ sơ">
+            {[...new Map(MATRIX_12_VOICES.map((v) => [v.museVoiceId, v])).values()].map((v) => (
+              <option key={v.museVoiceId} value={v.museVoiceId}>
+                🎙 {v.museVoiceName} ({v.gender === 'male' ? 'Nam' : 'Nữ'})
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Giọng khác của muse.ai">
+            {voices
+              .filter((v) => !MATRIX_12_VOICES.some((m) => m.museVoiceId === v.id))
+              .map((v) => (
+                <option key={v.id} value={v.id}>
+                  🎙 {v.name} · {v.group_label}
+                </option>
+              ))}
+          </optgroup>
         </select>
 
         <div className="flex flex-wrap gap-1.5 ml-auto">
@@ -280,6 +311,10 @@ export const AccountsPage: React.FC<{ state: MuseAccountsState }> = ({ state }) 
   const [bulkNote, setBulkNote] = useState('');
   const [checkingAll, setCheckingAll] = useState(false);
   const pollRef = useRef<number | null>(null);
+  const [voices, setVoices] = useState<MuseVoice[]>([]);
+  useEffect(() => {
+    listMuseVoices().then(setVoices).catch(() => setVoices([]));
+  }, []);
 
   const loginActive = !!loginJob && ['starting', 'waiting', 'verifying'].includes(loginJob.status);
 
@@ -479,6 +514,7 @@ export const AccountsPage: React.FC<{ state: MuseAccountsState }> = ({ state }) 
                 acc={acc}
                 perAccountMax={perAccountMax}
                 loginBusy={loginActive}
+                voices={voices}
                 onLogin={beginLogin}
                 onChanged={refresh}
               />

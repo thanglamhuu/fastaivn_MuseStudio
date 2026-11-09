@@ -6,7 +6,8 @@ import { StudioLibraryState } from '../hooks/useStudioLibrary';
 import { StudioCharacter, StudioProduct, newLibraryId } from '../types/library';
 import { EMOTION_OPTIONS, MATRIX_12_VOICES, resolveVoice } from '../data/voicePresets';
 import { MuseVoiceSelect, VoiceBadge, VoiceSelect } from './VoicePicker';
-import { fileToResizedDataUrl } from '../utils/image';
+import { fileToResizedDataUrl, urlToResizedDataUrl } from '../utils/image';
+import { generatePortrait } from '../services/libraryService';
 import { getStudioSettings, openProjectFolder } from '../services/museBatchService';
 import { GATEWAY_URL } from '../config/appConfig';
 
@@ -139,6 +140,43 @@ const CharactersSection: React.FC<{ lib: StudioLibraryState }> = ({ lib }) => {
     characters.some((c) => c.id !== selected.id && c.name.trim().toLowerCase() === selected.name.trim().toLowerCase());
   const voice = selected ? resolveVoice(selected.voicePresetId, selected.museVoiceOverride, museVoiceNames) : {};
 
+  // AI tạo chân dung: các ảnh gợi ý (URL trên Gateway, đã nằm trong Thư viện media)
+  const [portraits, setPortraits] = useState<string[]>([]);
+  const [portraitStyle, setPortraitStyle] = useState('');
+  const [portraitBusy, setPortraitBusy] = useState(false);
+  useEffect(() => setPortraits([]), [selectedId]);
+
+  const makePortraits = async () => {
+    if (!selected) return;
+    if (selected.description.trim().length < 3) return alert('Nhập mô tả ngoại hình trước để AI vẽ đúng nhân vật.');
+    setPortraitBusy(true);
+    try {
+      const res = await generatePortrait({
+        name: selected.name,
+        description: selected.description,
+        style: portraitStyle,
+        n: 2,
+        // Đã có ảnh mặt: tạo thêm ảnh mới giữ đúng người đó
+        reference: selected.images[0],
+      });
+      setPortraits(res.data.map((d) => d.url));
+    } catch (err: any) {
+      alert(`Không tạo được chân dung: ${err.message}`);
+    } finally {
+      setPortraitBusy(false);
+    }
+  };
+
+  const pickPortrait = async (url: string) => {
+    try {
+      const dataUrl = await urlToResizedDataUrl(url);
+      update({ images: [...(selected?.images ?? []), dataUrl] });
+      setPortraits((p) => p.filter((u) => u !== url));
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
       <div className="xl:col-span-7 space-y-3">
@@ -204,6 +242,47 @@ const CharactersSection: React.FC<{ lib: StudioLibraryState }> = ({ lib }) => {
               images={selected.images}
               onChange={(images) => update({ images })}
             />
+            <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3 space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-semibold text-slate-200">🎨 AI tạo chân dung</span>
+                <input
+                  value={portraitStyle}
+                  onChange={(e) => setPortraitStyle(e.target.value)}
+                  placeholder="Phong cách thêm (tùy chọn): áo dài trắng, ánh sáng hoàng hôn..."
+                  className={`${field} flex-1 min-w-[160px]`}
+                />
+                <button
+                  onClick={makePortraits}
+                  disabled={portraitBusy}
+                  className="px-3 py-1.5 bg-fuchsia-600 hover:bg-fuchsia-500 rounded-lg text-[11px] font-semibold disabled:opacity-50"
+                >
+                  {portraitBusy ? '⏳ Đang vẽ (~1 phút)...' : selected.images.length ? 'Tạo thêm góc mới' : 'Tạo từ mô tả'}
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-500">
+                {selected.images.length
+                  ? 'Dùng ảnh chính hiện có làm mẫu để giữ đúng khuôn mặt.'
+                  : 'Chưa có ảnh: AI vẽ chân dung theo mô tả ngoại hình, chọn ảnh ưng ý để khóa mặt.'}{' '}
+                Ảnh tạo ra cũng được lưu trong Thư viện media.
+              </p>
+              {portraits.length > 0 && (
+                <div className="grid grid-cols-4 gap-2">
+                  {portraits.map((url) => (
+                    <button
+                      key={url}
+                      onClick={() => pickPortrait(url)}
+                      className="relative aspect-[9/16] rounded-lg overflow-hidden border border-fuchsia-500/60 group"
+                      title="Dùng ảnh này để khóa mặt"
+                    >
+                      <img src={url} alt="" className="w-full h-full object-cover" />
+                      <span className="absolute inset-x-0 bottom-0 bg-fuchsia-600/90 text-[10px] py-0.5 opacity-0 group-hover:opacity-100">
+                        ✓ Dùng ảnh này
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <ImageStrip
               label="Trang phục cố định (tùy chọn)"
               images={selected.outfitImage ? [selected.outfitImage] : []}

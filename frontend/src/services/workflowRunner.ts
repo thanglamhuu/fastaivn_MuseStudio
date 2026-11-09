@@ -1,4 +1,5 @@
-// Bộ chạy Workflow làm clip: mỗi dòng đi qua 4 bước Sản phẩm → Kịch bản → Render cảnh → Ghép.
+// Bộ chạy Workflow làm clip: mỗi dòng đi qua các bước Sản phẩm → Kịch bản → Render cảnh → Ghép → Hậu kỳ.
+// Dùng chung cho tab Workflow và trình chỉnh sơ đồ khối (sơ đồ được dịch thành WorkflowTemplate).
 // Mỗi bước lưu kết quả vào dòng, nên "Chạy tiếp" bắt đầu lại đúng ở bước lỗi
 // (bước Render cảnh chỉ làm lại các cảnh chưa xong, cảnh đang render dở thì chờ tiếp task cũ).
 import {
@@ -32,8 +33,11 @@ import type {
   WorkflowStepState,
   WorkflowTemplate,
 } from '../types/workflow';
-import { WORKFLOW_STEPS } from '../types/workflow';
+import { WORKFLOW_STEPS, normalizeRow } from '../types/workflow';
 import { extractLastFrameAsDataUrl } from '../utils/videoFrameExtractor';
+import { multiVoiceInfo, splitDialogueLine } from '../utils/dialogue';
+import { urlToResizedDataUrl } from '../utils/image';
+import { blurRegions, generatePortrait, upscaleMedia } from './libraryService';
 
 export const STOPPED = '⏹ Đã dừng theo yêu cầu';
 
@@ -47,6 +51,7 @@ export interface RunnerDeps {
   };
   addProduct: (p: StudioProduct) => void;
   updateProduct: (id: string, patch: Partial<StudioProduct>) => void;
+  updateCharacter: (id: string, patch: Partial<StudioCharacter>) => void;
   /** Số luồng render song song (tổng luồng của các tài khoản dùng được) */
   threads: () => number;
   shouldStop: () => boolean;
@@ -74,14 +79,15 @@ export const rowProduct = (row: WorkflowRow, products: StudioProduct[]): StudioP
 
 /** Bước đầu tiên chưa xong của dòng ("Chạy tiếp" bắt đầu ở đây). */
 export const firstOpenStep = (row: WorkflowRow): WorkflowStepId | null =>
-  WORKFLOW_STEPS.find((s) => !['done', 'skipped'].includes(row.steps[s.id].status))?.id ?? null;
+  WORKFLOW_STEPS.find((s) => !['done', 'skipped'].includes(row.steps[s.id]?.status ?? 'pending'))?.id ?? null;
 
 /** Đặt lại các bước từ `from` trở đi (và dữ liệu của chúng) để chạy lại. */
 export const resetFrom = (row: WorkflowRow, from: WorkflowStepId): WorkflowRow => {
   const idx = WORKFLOW_STEPS.findIndex((s) => s.id === from);
   const steps = { ...row.steps };
   WORKFLOW_STEPS.slice(idx).forEach((s) => (steps[s.id] = { status: 'pending' }));
-  const next: WorkflowRow = { ...row, steps, merged: undefined };
+  const next: WorkflowRow = { ...row, steps, final: undefined };
+  if (idx <= 3) next.merged = undefined;
   if (idx <= 1) {
     next.script = undefined;
     next.scenes = undefined;
@@ -96,6 +102,7 @@ export async function runWorkflowRow(rowId: string, tpl: WorkflowTemplate, deps:
   const setStep = (id: WorkflowStepId, patch: Partial<WorkflowStepState>) =>
     deps.patchRow(rowId, (r) => ({ ...r, steps: { ...r.steps, [id]: { ...r.steps[id], ...patch } } }));
   const row = () => deps.getRow(rowId)!;
+  deps.patchRow(rowId, normalizeRow);
 
   for (const step of WORKFLOW_STEPS) {
     const st = row().steps[step.id].status;
@@ -124,12 +131,13 @@ const STEP_RUNNERS: Record<
   (rowId: string, tpl: WorkflowTemplate, deps: RunnerDeps) => Promise<StepResult>
 > = {
   /** Sản phẩm: lấy từ thư viện, hoặc đọc link Shopee/TikTok rồi tự lưu vào thư viện. */
-  product: async (rowId, _tpl, deps) => {
+  product: async (rowId, tpl, deps) => {
     const row = deps.getRow(rowId)!;
     const existing = rowProduct(row, deps.library().products);
     if (existing) {
       return { detail: existing.id ? existing.name : `${existing.name} (chỉ có tên, không có ảnh)` };
     }
+    if (!row.link && tpl.manualScenes?.length) return { status: 'skipped', detail: 'Không dùng sản phẩm' };
     if (!isLink(row.link)) throw new Error('Dòng chưa có sản phẩm: chọn sản phẩm trong thư viện hoặc dán link.');
     const r = await scrapeProductLink(row.link!.trim());
     if (!r.title) {
@@ -167,8 +175,38 @@ const STEP_RUNNERS: Record<
     const row = deps.getRow(rowId)!;
     const lib = deps.library();
     const prod = rowProduct(row, lib.products);
-    if (!prod) throw new Error('Chưa có sản phẩm.');
     const mainChar = lib.characters.find((c) => c.id === row.characterId);
+    const stamp = nowStamp();
+    const project = `Workflow - ${(prod?.name || mainChar?.name || 'Clip').slice(0, 60)}`;
+    const finish = (lines: { prompt: string; title?: string }[], script?: WorkflowRow['script']): StepResult => {
+      // Tách cảnh nhiều người nói: mỗi lượt thoại 1 shot với đúng giọng người nói
+      const expanded = tpl.splitDialogue
+        ? lines.flatMap((l) => {
+            const parts = splitDialogueLine(l.prompt, lib.characters);
+            return parts.map((prompt, k) => ({
+              prompt,
+              title: parts.length > 1 ? `${l.title || 'Cảnh'} · lượt ${k + 1}` : l.title,
+            }));
+          })
+        : lines;
+      const scenes: WorkflowSceneState[] = expanded.map((l) => ({ ...l, status: 'pending' }));
+      deps.patchRow(rowId, (x) => ({ ...x, script, scenes, stamp, project }));
+      return {
+        detail: `${scenes.length} cảnh${scenes.length > lines.length ? ` (tách vai từ ${lines.length})` : ''}`,
+        status: deps.reviewScript ? 'review' : 'done',
+      };
+    };
+    // Prompt nhập tay (vd. từ sơ đồ khối): không cần AI viết
+    if (tpl.manualScenes?.length) {
+      const name = prod?.name || '';
+      return finish(
+        tpl.manualScenes
+          .map((t) => t.trim())
+          .filter(Boolean)
+          .map((t, k) => ({ prompt: name ? t.split('{product}').join(name) : t, title: `Cảnh ${k + 1}` }))
+      );
+    }
+    if (!prod) throw new Error('Chưa có sản phẩm.');
     const product: ProductInfo = {
       ...EMPTY_PRODUCT,
       url: prod.url,
@@ -202,29 +240,17 @@ const STEP_RUNNERS: Record<
     if (prod.id && !prod.visual && script.product?.visual) {
       deps.updateProduct(prod.id, { visual: script.product.visual });
     }
-    const scenes: WorkflowSceneState[] = script.scenes.map((s) => ({
-      prompt: sceneToPromptLine(s),
-      title: s.title,
-      status: 'pending',
-    }));
-    const stamp = nowStamp();
-    deps.patchRow(rowId, (x) => ({
-      ...x,
-      script: { scenes: script.scenes, source: script.source },
-      scenes,
-      stamp,
-      project: `Workflow - ${prod.name.slice(0, 60)}`,
-    }));
-    return {
-      detail: `${scenes.length} cảnh`,
-      status: deps.reviewScript ? 'review' : 'done',
-    };
+    return finish(
+      script.scenes.map((s) => ({ prompt: sceneToPromptLine(s), title: s.title })),
+      { scenes: script.scenes, source: script.source }
+    );
   },
 
   /** Render cảnh: song song theo số luồng (nối khung cuối thì tuần tự), tự lưu file từng cảnh. */
   scenes: async (rowId, tpl, deps) => {
     const scenes = deps.getRow(rowId)!.scenes ?? [];
     if (!scenes.length) throw new Error('Chưa có kịch bản.');
+    await ensurePortraits(rowId, tpl, deps);
     const todo = scenes.map((s, i) => (s.status === 'done' ? -1 : i)).filter((i) => i >= 0);
     const threads = tpl.chainEndFrame ? 1 : Math.max(1, deps.threads());
     let next = 0;
@@ -256,7 +282,62 @@ const STEP_RUNNERS: Record<
     deps.patchRow(rowId, (x) => ({ ...x, merged: { url: res.url, path: res.path } }));
     return { detail: res.path };
   },
+
+  /** Hậu kỳ clip cuối (clip ghép, hoặc cảnh duy nhất): làm mờ logo rồi nâng độ phân giải. */
+  post: async (rowId, tpl, deps) => {
+    const row = deps.getRow(rowId)!;
+    const blur = tpl.postBlur?.regions.length ? tpl.postBlur : null;
+    const up = tpl.postUpscale || 0;
+    if (!blur && !up) return { status: 'skipped', detail: 'Mẫu không có hậu kỳ' };
+    const source = row.merged?.url || row.scenes?.find((s) => s.videoUrl)?.videoUrl;
+    if (!source) throw new Error('Chưa có clip để hậu kỳ.');
+    let url = source;
+    const done: string[] = [];
+    if (blur) {
+      url = (await blurRegions(url, blur.regions, blur.mode, blur.strength)).url;
+      done.push(`làm mờ ${blur.regions.length} vùng`);
+    }
+    if (up) {
+      try {
+        url = (await upscaleMedia(url, up)).url;
+        done.push(`nâng ${up}px`);
+      } catch (err: any) {
+        // Clip đã đủ nét: bỏ qua bước nâng
+        if (!/không cần nâng/.test(String(err?.message))) throw err;
+      }
+    }
+    const res = await exportVideo(url, row.project || 'Workflow', `${row.stamp || nowStamp()}_FINAL`);
+    deps.patchRow(rowId, (x) => ({ ...x, final: { url, path: res.path } }));
+    return { detail: `${done.join(', ') || 'giữ nguyên'} → ${res.path}` };
+  },
 };
+
+/**
+ * Nhân vật trong dòng (nhân vật chính + nhân vật được nhắc trong cảnh) chưa có ảnh khóa mặt:
+ * AI vẽ chân dung theo mô tả rồi lưu thẳng vào thư viện nhân vật.
+ */
+async function ensurePortraits(rowId: string, tpl: WorkflowTemplate, deps: RunnerDeps) {
+  if (tpl.faceless || tpl.autoPortrait === false) return;
+  const row = deps.getRow(rowId)!;
+  const lib = deps.library();
+  const wanted = new Map<string, StudioCharacter>();
+  const main = lib.characters.find((c) => c.id === row.characterId);
+  if (main) wanted.set(main.id, main);
+  (row.scenes ?? []).forEach((s) => {
+    const c = characterInPrompt(s.prompt, lib.characters);
+    if (c) wanted.set(c.id, c);
+  });
+  for (const c of wanted.values()) {
+    if (c.images.length || c.description.trim().length < 3 || deps.shouldStop()) continue;
+    deps.patchRow(rowId, (r) => ({
+      ...r,
+      steps: { ...r.steps, scenes: { ...r.steps.scenes, detail: `🎨 AI đang vẽ chân dung ${c.name}...` } },
+    }));
+    const res = await generatePortrait({ name: c.name, description: c.description, n: 1 });
+    const dataUrl = await urlToResizedDataUrl(res.data[0].url);
+    deps.updateCharacter(c.id, { images: [dataUrl] });
+  }
+}
 
 async function renderOneScene(rowId: string, i: number, tpl: WorkflowTemplate, deps: RunnerDeps) {
   const setScene = (patch: Partial<WorkflowSceneState>) =>
@@ -325,8 +406,9 @@ async function renderOneScene(rowId: string, i: number, tpl: WorkflowTemplate, d
       items = items.slice(0, 4);
       const charTag = !tpl.faceless && ch?.description ? `[CHARACTER ${ch.name}: ${ch.description}]` : '';
       const voiceInfo = buildVoiceInfo(voice, { emotion: ch?.emotion, characterName: ch?.name });
+      const dialogueVoices = multiVoiceInfo(scene.prompt, lib.characters, lib.museVoiceNames);
       const prompt = buildLockedPrompt(
-        [charTag, voiceInfo, scene.prompt].filter(Boolean).join(' '),
+        [charTag, voiceInfo, dialogueVoices, scene.prompt].filter(Boolean).join(' '),
         refs,
         tpl.cameraMotion,
         { name: prod?.name, visual: prod?.visual },

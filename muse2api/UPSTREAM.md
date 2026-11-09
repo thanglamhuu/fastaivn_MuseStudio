@@ -34,6 +34,11 @@ tại commit `3a20b5e` ("chore: bump version to 0.4.0", v0.4.0). Thư mục `.gi
 - `drivers/http/` (mới, thay bản stub): driver HTTP/WebSocket Noise không cần Chrome (`MUSE2API_DRIVER=http`).
   `drivers/http/noise/` là mã Apache-2.0 của Meta (giữ LICENSE/NOTICE). Giao thức: `docs/protocol.md`.
   Test: `tests/test_http_driver.py` (chỉ offline, chưa thử với muse.ai thật). Thêm phụ thuộc `cryptography>=42`.
+- `accounts/pool.py` (`dedicated_voice`, `_voice_ok`, tham số `voice`/`wait` của `acquire`/`lease`),
+  `services/gateway.py` (`generate_video` chuyển `req.voice`): muse.ai đặt giọng theo tài khoản, nên tài khoản
+  đang render giọng A không nhận task giọng B cùng lúc; tài khoản có `meta.dedicated_voice` chỉ nhận đúng giọng đó
+  và được ưu tiên cho giọng đó. Task video có giọng chờ tài khoản hợp giọng tối đa bằng thời gian render.
+  Test: `tests/test_studio_voice_pool.py` (repo gốc).
 
 API riêng của MuseStudio (đăng nhập bằng trình duyệt, sửa tài khoản) nằm ngoài thư mục này,
 ở `studio_api.py` và `studio_product.py` (đọc link Shopee/TikTok) của repo gốc, nên không đụng tới code upstream.

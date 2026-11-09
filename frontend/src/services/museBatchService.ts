@@ -272,7 +272,7 @@ export const listStudioAccounts = async (): Promise<StudioAccountsResponse> => {
 
 export const updateStudioAccount = async (
   accountId: string,
-  patch: { label?: string; enabled?: boolean; max_concurrency?: number; cookies?: string }
+  patch: { label?: string; enabled?: boolean; max_concurrency?: number; cookies?: string; dedicated_voice?: string }
 ): Promise<StudioAccount> => {
   const res = await gatewayFetch(`/studio/accounts/${encodeURIComponent(accountId)}`, {
     method: 'PATCH',

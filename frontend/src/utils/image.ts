@@ -49,3 +49,11 @@ export const sceneGridClass = (ratio?: AspectRatio | string) =>
   ratio === '16:9' || ratio === '4:3'
     ? 'grid grid-cols-1 md:grid-cols-2 gap-4'
     : 'grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-3';
+
+/** Tải ảnh từ URL (vd. media của Gateway) rồi thu nhỏ thành data URL để lưu / gửi lại cho muse.ai. */
+export const urlToResizedDataUrl = async (url: string, maxSide = 1280): Promise<string> => {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Không tải được ảnh (HTTP ${res.status})`);
+  const blob = await res.blob();
+  return fileToResizedDataUrl(new File([blob], 'image', { type: blob.type }), maxSide);
+};
