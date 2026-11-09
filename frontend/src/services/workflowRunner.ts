@@ -11,6 +11,7 @@ import {
   buildLockedPrompt,
   createAndPollMuseVideo,
   exportVideo,
+  generateMuseKeyframe,
   mergeVideos,
   orderedReferenceRoles,
   pollMuseVideoTask,
@@ -38,6 +39,7 @@ import { extractLastFrameAsDataUrl } from '../utils/videoFrameExtractor';
 import { multiVoiceInfo, splitDialogueLine } from '../utils/dialogue';
 import { urlToResizedDataUrl } from '../utils/image';
 import { blurRegions, generatePortrait, upscaleMedia } from './libraryService';
+import { buildReferencePrompt } from './referencePrompt';
 
 export const STOPPED = '⏹ Đã dừng theo yêu cầu';
 
@@ -76,6 +78,22 @@ export const rowProduct = (row: WorkflowRow, products: StudioProduct[]): StudioP
   }
   return undefined;
 };
+
+/** Dàn nhân vật cố định của workflow (khối Nhân vật chọn thư viện / tải ảnh), bỏ nhân vật đã xóa. */
+export const workflowCast = (tpl: WorkflowTemplate, characters: StudioCharacter[]): StudioCharacter[] =>
+  tpl.faceless
+    ? []
+    : (tpl.characterIds ?? [])
+        .map((id) => characters.find((c) => c.id === id))
+        .filter((c): c is StudioCharacter => !!c);
+
+/** Nhân vật chính: nhân vật chọn ở dòng, không có thì nhân vật đầu tiên của workflow. */
+export const mainCharacterOf = (
+  row: WorkflowRow,
+  tpl: WorkflowTemplate,
+  characters: StudioCharacter[]
+): StudioCharacter | undefined =>
+  characters.find((c) => c.id === row.characterId) ?? workflowCast(tpl, characters)[0];
 
 /** Bước đầu tiên chưa xong của dòng ("Chạy tiếp" bắt đầu ở đây). */
 export const firstOpenStep = (row: WorkflowRow): WorkflowStepId | null =>
@@ -175,7 +193,7 @@ const STEP_RUNNERS: Record<
     const row = deps.getRow(rowId)!;
     const lib = deps.library();
     const prod = rowProduct(row, lib.products);
-    const mainChar = lib.characters.find((c) => c.id === row.characterId);
+    const mainChar = mainCharacterOf(row, tpl, lib.characters);
     const stamp = nowStamp();
     const project = `Workflow - ${(prod?.name || mainChar?.name || 'Clip').slice(0, 60)}`;
     const finish = (lines: { prompt: string; title?: string }[], script?: WorkflowRow['script']): StepResult => {
@@ -217,11 +235,15 @@ const STEP_RUNNERS: Record<
     };
     const template =
       SCRIPT_TEMPLATES.find((t) => t.id === tpl.scriptTemplateId) ?? SCRIPT_TEMPLATES[0];
-    // Nhân vật chính lên đầu để AI ưu tiên dùng
-    const chars = mainChar ? [mainChar, ...lib.characters.filter((c) => c.id !== mainChar.id)] : lib.characters;
+    // Workflow có dàn nhân vật cố định: AI chỉ viết với đúng dàn đó (+ nhân vật của dòng).
+    // Không có thì đưa cả thư viện. Nhân vật chính luôn lên đầu để AI ưu tiên dùng.
+    const cast = workflowCast(tpl, lib.characters);
+    const pool = cast.length ? cast : lib.characters;
+    const chars = mainChar ? [mainChar, ...pool.filter((c) => c.id !== mainChar.id)] : pool;
     const notes = [
       tpl.extraNote,
       mainChar && !tpl.faceless ? `Nhân vật chính là ${mainChar.name}.` : '',
+      cast.length > 1 && !tpl.faceless ? `Dàn nhân vật: ${chars.map((c) => c.name).join(', ')}.` : '',
       row.note,
     ]
       .filter(Boolean)
@@ -251,6 +273,12 @@ const STEP_RUNNERS: Record<
     const scenes = deps.getRow(rowId)!.scenes ?? [];
     if (!scenes.length) throw new Error('Chưa có kịch bản.');
     await ensurePortraits(rowId, tpl, deps);
+    await ensureOutfit(rowId, tpl, deps);
+    // Ảnh tham chiếu xong: thay dòng "AI đang vẽ / tạo ảnh..." bằng trạng thái render
+    deps.patchRow(rowId, (r) => ({
+      ...r,
+      steps: { ...r.steps, scenes: { ...r.steps.scenes, detail: `🎬 Đang render ${scenes.filter((s) => s.status !== 'done').length} cảnh...` } },
+    }));
     const todo = scenes.map((s, i) => (s.status === 'done' ? -1 : i)).filter((i) => i >= 0);
     const threads = tpl.chainEndFrame ? 1 : Math.max(1, deps.threads());
     let next = 0;
@@ -321,8 +349,9 @@ async function ensurePortraits(rowId: string, tpl: WorkflowTemplate, deps: Runne
   const row = deps.getRow(rowId)!;
   const lib = deps.library();
   const wanted = new Map<string, StudioCharacter>();
-  const main = lib.characters.find((c) => c.id === row.characterId);
+  const main = mainCharacterOf(row, tpl, lib.characters);
   if (main) wanted.set(main.id, main);
+  workflowCast(tpl, lib.characters).forEach((c) => wanted.set(c.id, c));
   (row.scenes ?? []).forEach((s) => {
     const c = characterInPrompt(s.prompt, lib.characters);
     if (c) wanted.set(c.id, c);
@@ -333,10 +362,42 @@ async function ensurePortraits(rowId: string, tpl: WorkflowTemplate, deps: Runne
       ...r,
       steps: { ...r.steps, scenes: { ...r.steps.scenes, detail: `🎨 AI đang vẽ chân dung ${c.name}...` } },
     }));
-    const res = await generatePortrait({ name: c.name, description: c.description, n: 1 });
+    // Như HND: chân dung mặc sẵn trang phục của workflow → Ảnh #1 và Ảnh #2 khóa cùng một bộ đồ
+    const outfit = tpl.outfit?.description.trim();
+    const res = await generatePortrait({
+      name: c.name,
+      description: c.description,
+      n: 1,
+      style: outfit ? `Mặc đúng bộ trang phục: ${outfit}`.slice(0, 300) : undefined,
+    });
     const dataUrl = await urlToResizedDataUrl(res.data[0].url);
     deps.updateCharacter(c.id, { images: [dataUrl] });
   }
+}
+
+/** Prompt tạo ảnh trang phục đơn (ma-nơ-canh vô hình, không người) — theo cách HND Muse AI. */
+export const outfitImagePrompt = (desc: string) =>
+  'Single-frame 4K fashion wardrobe reference photo — ONE OUTFIT ONLY in ONE SINGLE UNDIVIDED FRAME ' +
+  '(NO PEOPLE, NO FACES, NO COLLAGE, NO SPLIT-SCREEN, NO TEXT). Invisible ghost mannequin / lookbook display ' +
+  `on a bright minimal studio background, full garment clearly visible: cut, color, fabric texture. Outfit: ${desc}`;
+
+/**
+ * Khối Trang phục chỉ có mô tả: AI tạo 1 ảnh trang phục cho lượt chạy (lưu vào dòng),
+ * mọi cảnh dùng chung ảnh này để trang phục đồng nhất khi render song song.
+ */
+async function ensureOutfit(rowId: string, tpl: WorkflowTemplate, deps: RunnerDeps) {
+  const o = tpl.outfit;
+  if (!o || o.image || !o.description.trim() || deps.getRow(rowId)!.outfitImage || deps.shouldStop()) return;
+  deps.patchRow(rowId, (r) => ({
+    ...r,
+    steps: { ...r.steps, scenes: { ...r.steps.scenes, detail: '👗 AI đang tạo ảnh trang phục...' } },
+  }));
+  const img = await generateMuseKeyframe(
+    { ...DEFAULT_MUSE_CONFIG, aspectRatio: tpl.aspectRatio },
+    outfitImagePrompt(o.description.trim()),
+    []
+  );
+  deps.patchRow(rowId, (r) => ({ ...r, outfitImage: img }));
 }
 
 async function renderOneScene(rowId: string, i: number, tpl: WorkflowTemplate, deps: RunnerDeps) {
@@ -349,7 +410,7 @@ async function renderOneScene(rowId: string, i: number, tpl: WorkflowTemplate, d
   const scene = row.scenes![i];
   const lib = deps.library();
   const prod = rowProduct(row, lib.products);
-  const mainChar = lib.characters.find((c) => c.id === row.characterId);
+  const mainChar = mainCharacterOf(row, tpl, lib.characters);
   const ch = characterInPrompt(scene.prompt, lib.characters) ?? mainChar;
   const voice =
     ch && (ch.voicePresetId || ch.museVoiceOverride)
@@ -360,9 +421,13 @@ async function renderOneScene(rowId: string, i: number, tpl: WorkflowTemplate, d
   const refs: ReferenceImage[] = [];
   if (!tpl.faceless && ch?.images[0]) {
     refs.push({ id: `char_${ch.id}`, role: 'character', dataUrl: ch.images[0], name: ch.name });
-    if (ch.outfitImage && !tpl.rotateProductImages) {
-      refs.push({ id: `outfit_${ch.id}`, role: 'outfit', dataUrl: ch.outfitImage, name: `${ch.name} outfit` });
-    }
+  }
+  // Trang phục của workflow (khối 👗) ưu tiên hơn trang phục riêng của nhân vật
+  const wfOutfit = tpl.outfit?.image || (tpl.outfit ? row.outfitImage : undefined);
+  if (wfOutfit) {
+    refs.push({ id: 'outfit_wf', role: 'outfit', dataUrl: wfOutfit, name: 'outfit' });
+  } else if (!tpl.faceless && ch?.images[0] && ch.outfitImage && !tpl.rotateProductImages) {
+    refs.push({ id: `outfit_${ch.id}`, role: 'outfit', dataUrl: ch.outfitImage, name: `${ch.name} outfit` });
   }
   if (prod?.images.length) {
     const img = tpl.rotateProductImages ? prod.images[i % prod.images.length] : prod.images[0];
@@ -386,34 +451,68 @@ async function renderOneScene(rowId: string, i: number, tpl: WorkflowTemplate, d
       }
     }
     if (!videoUrl) {
-      const roles = orderedReferenceRoles(refs);
-      let items: { url: string; role: ImageRole }[] = roles.map((role) => ({
-        url: refs.find((r) => r.role === role)!.dataUrl,
-        role,
-      }));
+      const refMode = tpl.refMode ?? 'reference';
       const prev = i > 0 ? deps.getRow(rowId)!.scenes![i - 1] : undefined;
+      let keyframe = '';
       if (tpl.chainEndFrame && prev?.videoUrl) {
         try {
-          const frame = await extractLastFrameAsDataUrl(prev.videoUrl);
-          items = [{ url: frame, role: 'keyframe' }, ...items];
+          keyframe = await extractLastFrameAsDataUrl(prev.videoUrl);
         } catch {
           /* không cắt được khung cuối: dùng ảnh tham chiếu gốc */
         }
       }
-      if (!items.length) {
-        throw new Error('Cảnh không có ảnh nào: thêm ảnh cho sản phẩm hoặc chọn nhân vật có ảnh.');
-      }
-      items = items.slice(0, 4);
-      const charTag = !tpl.faceless && ch?.description ? `[CHARACTER ${ch.name}: ${ch.description}]` : '';
       const voiceInfo = buildVoiceInfo(voice, { emotion: ch?.emotion, characterName: ch?.name });
       const dialogueVoices = multiVoiceInfo(scene.prompt, lib.characters, lib.museVoiceNames);
-      const prompt = buildLockedPrompt(
-        [charTag, voiceInfo, dialogueVoices, scene.prompt].filter(Boolean).join(' '),
-        refs,
-        tpl.cameraMotion,
-        { name: prod?.name, visual: prod?.visual },
-        items.map((it) => it.role)
-      );
+      let items: { url: string; role: ImageRole }[];
+      let prompt: string;
+
+      if (refMode === 'reference') {
+        // Direct Reference-to-Video (như HND): Nhân vật → Trang phục → Sản phẩm, đều là tham chiếu.
+        // Chỉ khung nối từ cảnh trước mới làm khung mở đầu (gửi ở vị trí "image").
+        const ordered = (['character', 'outfit', 'product'] as const)
+          .map((role) => refs.find((r) => r.role === role))
+          .filter((r): r is ReferenceImage => !!r);
+        items = [
+          ...(keyframe ? [{ url: keyframe, role: 'keyframe' as ImageRole }] : []),
+          ...ordered.slice(0, 3).map((r) => ({ url: r.dataUrl, role: r.role as ImageRole })),
+        ];
+        const outfitDesc = tpl.outfit?.description || (ch?.outfitImage ? `trang phục cố định của ${ch.name}` : '');
+        prompt = buildReferencePrompt({
+          images: items.map((it) =>
+            it.role === 'character'
+              ? { role: 'character', name: ch?.name, description: ch?.description }
+              : it.role === 'outfit'
+                ? { role: 'outfit', description: outfitDesc }
+                : it.role === 'product'
+                  ? { role: 'product', name: prod?.name, description: prod?.visual || prod?.description }
+                  : { role: 'keyframe' }
+          ),
+          scenePrompt: scene.prompt,
+          setting: tpl.setting,
+          cameraMotion: tpl.cameraMotion,
+          voiceInfo: [voiceInfo, dialogueVoices].filter(Boolean).join(' '),
+          realism: tpl.realismLock !== false,
+        });
+      } else {
+        // Cách cũ: ảnh đầu (nhân vật) làm khung mở đầu video
+        items = orderedReferenceRoles(refs).map((role) => ({ url: refs.find((r) => r.role === role)!.dataUrl, role }));
+        if (keyframe) items = [{ url: keyframe, role: 'keyframe' }, ...items];
+        if (!items.length) {
+          throw new Error('Cảnh không có ảnh nào: thêm ảnh cho sản phẩm hoặc chọn nhân vật có ảnh.');
+        }
+        items = items.slice(0, 4);
+        const charTag = !tpl.faceless && ch?.description ? `[CHARACTER ${ch.name}: ${ch.description}]` : '';
+        prompt = buildLockedPrompt(
+          [charTag, voiceInfo, dialogueVoices, scene.prompt].filter(Boolean).join(' '),
+          refs,
+          tpl.cameraMotion,
+          { name: prod?.name, visual: prod?.visual },
+          items.map((it) => it.role)
+        );
+      }
+      // Reference mode không có khung nối: ảnh nào cũng là tham chiếu, không ép khung mở đầu
+      const firstFrame = refMode === 'reference' ? (keyframe ? items[0].url : '') : items[0].url;
+      const restRefs = (refMode === 'reference' && !keyframe ? items : items.slice(1)).map((it) => it.url);
       const cfg: MuseConfig = {
         ...DEFAULT_MUSE_CONFIG,
         aspectRatio: tpl.aspectRatio,
@@ -423,10 +522,10 @@ async function renderOneScene(rowId: string, i: number, tpl: WorkflowTemplate, d
       videoUrl = await createAndPollMuseVideo(
         cfg,
         prompt,
-        items[0].url,
+        firstFrame,
         (taskId) => setScene({ taskId }),
         pollOpts,
-        items.slice(1).map((it) => it.url)
+        restRefs
       );
     }
     setScene({ status: 'done', videoUrl, progress: 100 });

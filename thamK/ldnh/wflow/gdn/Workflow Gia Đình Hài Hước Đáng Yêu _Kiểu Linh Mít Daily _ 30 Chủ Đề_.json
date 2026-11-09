@@ -1,0 +1,399 @@
+{
+  "schemaVersion": 1,
+  "kind": "flow-workflow",
+  "exportedAt": "2026-11-09T16:06:10.145675+07:00",
+  "name": "Workflow Gia Đình Hài Hước Đáng Yêu (Kiểu Linh Mít Daily · 30 Chủ Đề)",
+  "description": "Sitcom gia đình trẻ hiện đại hài hước đáng yêu (Bố, Mẹ, Bé gái lớn 4 tuổi bà cụ non & Em bé út Bé Mít 1 tuổi): Chọn nhanh 30 chủ đề, tự động tạo Character Sheet đa góc độ & Storyboard dạng lưới nếu không tải ảnh lên, tùy chỉnh thời lượng & số cảnh linh hoạt (2-8 cảnh), hỗ trợ lồng ghép sản phẩm Affiliate khéo léo.",
+  "viewport": {
+    "x": 1868.642925809822,
+    "y": 57.696551724137976,
+    "zoom": 0.7399999999999999
+  },
+  "nodes": [
+    {
+      "id": "d5ea823a-f2ff-40c5-9f6d-c3714f72fea4",
+      "type": "upload-image",
+      "position": {
+        "x": -2068,
+        "y": 266
+      },
+      "data": {
+        "batchRole": "input",
+        "batchLabel": "👨 NHÂN VẬT 1: BỐ (ĐỂ TRỐNG = TỰ TẠO)",
+        "batchKey": "nhan-vat-1",
+        "batchOrder": 1,
+        "refRole": "character",
+        "prompt": "Nhân vật Bố (@BoGiaDinh): Bố trẻ Việt Nam ~30 tuổi khuôn mặt điển trai hiền lành ấm áp, đeo kính cận gọng mảnh, tóc ngắn vuốt gọn gàng, mặc áo polo sáng màu và quần short kaki lịch sự ở nhà",
+        "localPath": "D:\\work\\fastaivn\\srcs\\fastaivnflowList\\lamclip\\gdn\\Bo.png",
+        "fileName": "Bo.png",
+        "memberRole": "father",
+        "sheetPrompt": "Single-Frame Solo Portrait Photo — ONE PERSON ONLY in ONE SINGLE UNDIVIDED FRAME (@BoGiaDinh - Nhân vật Bố): Bố trẻ Việt Nam ~30 tuổi khuôn mặt điển trai hiền lành ấm áp, đeo kính cận gọng mảnh, tóc ngắn vuốt gọn gàng, mặc áo polo sáng màu và quần short kaki lịch sự ở nhà. QUY TẮC BẮT BUỘC: Ảnh chụp chân dung bán thân (medium close-up portrait từ thắt lưng trở lên) CHỈ DUY NHẤT 1 NGƯỜI ĐÀN ÔNG (Bố) trong 1 khung hình đơn liền mạch, TUYỆT ĐỐI KHÔNG vẽ thêm phụ nữ hay trẻ em vào chung ảnh. TUYỆT ĐỐI KHÔNG chia ô (NO split-screen), KHÔNG ghép nhiều ảnh/nhiều mặt (NO collage, NO grid, NO character sheet, NO multiple angles). Người bố nhìn thẳng ống kính với nụ cười hiền lành ấm áp tự nhiên, đứng trong phòng khách căn hộ hiện đại ánh sáng tự nhiên ban ngày ấm áp, chụp bằng iPhone 16 Pro Max / ống kính 85mm f/1.8 4K siêu thực, da thật tự nhiên có chi tiết lỗ chân lông, không có chữ viết trên ảnh.",
+        "characterName": "Bố",
+        "characterTag": "@BoGiaDinh",
+        "voiceHint": "giọng nam 30 tuổi trầm ấm, hài hước đời thường",
+        "generatedPath": "D:\\work\\fastaivn\\srcs\\fastaivnflowList\\lamclip\\gdn\\Bo.png"
+      }
+    },
+    {
+      "id": "79d22136-57af-4501-a8ce-5bc3c4578dfc",
+      "type": "upload-image",
+      "position": {
+        "x": -1648,
+        "y": 266
+      },
+      "data": {
+        "refRole": "character",
+        "memberRole": "mother",
+        "batchRole": "input",
+        "batchLabel": "👩 NHÂN VẬT 2: MẸ (ĐỂ TRỐNG = TỰ TẠO)",
+        "batchKey": "nhan-vat-2",
+        "batchOrder": 2,
+        "localPath": "D:\\work\\fastaivn\\srcs\\fastaivnflowList\\lamclip\\gdn\\Me.png",
+        "fileName": "Me.png",
+        "prompt": "Nhân vật Mẹ (@MeGiaDinh): Mẹ trẻ Việt Nam ~27 tuổi xinh đẹp dịu dàng, làn da trắng sáng, tóc dài nâu hạt dẻ uốn sóng nhẹ, mặc set đồ bộ lụa/cotton Hàn Quốc màu kem pastel thanh lịch ở nhà",
+        "sheetPrompt": "Single-Frame Solo Portrait Photo — ONE PERSON ONLY in ONE SINGLE UNDIVIDED FRAME (@MeGiaDinh - Nhân vật Mẹ): Mẹ trẻ Việt Nam ~27 tuổi xinh đẹp dịu dàng, làn da trắng sáng, tóc dài nâu hạt dẻ uốn sóng nhẹ, mặc set đồ bộ lụa/cotton Hàn Quốc màu kem pastel thanh lịch ở nhà. QUY TẮC BẮT BUỘC: Ảnh chụp chân dung bán thân (medium close-up portrait từ thắt lưng trở lên) CHỈ DUY NHẤT 1 NGƯỜI PHỤ NỮ (Mẹ) trong 1 khung hình đơn liền mạch, TUYỆT ĐỐI KHÔNG vẽ thêm đàn ông hay trẻ em vào chung ảnh. TUYỆT ĐỐI KHÔNG chia ô (NO split-screen), KHÔNG ghép nhiều ảnh/nhiều mặt (NO collage, NO grid, NO character sheet, NO multiple angles). Người mẹ nhìn thẳng ống kính với nụ cười dịu dàng tươi tắn tự nhiên, đứng trong phòng khách căn hộ hiện đại ánh sáng tự nhiên ban ngày ấm áp, chụp bằng iPhone 16 Pro Max / ống kính 85mm f/1.8 4K siêu thực, da thật tự nhiên có chi tiết lỗ chân lông, không có chữ viết trên ảnh.",
+        "characterName": "Mẹ",
+        "characterTag": "@MeGiaDinh",
+        "voiceHint": "giọng nữ 27 tuổi dịu dàng, sắc sảo rõ chữ",
+        "generatedPath": "D:\\work\\fastaivn\\srcs\\fastaivnflowList\\lamclip\\gdn\\Me.png"
+      }
+    },
+    {
+      "id": "2d0dd628-41c2-44be-8033-67f45bfec86d",
+      "type": "upload-image",
+      "position": {
+        "x": -1228,
+        "y": 266
+      },
+      "data": {
+        "refRole": "character",
+        "memberRole": "child",
+        "batchRole": "input",
+        "batchLabel": "👧 NHÂN VẬT 3: CON GÁI (ĐỂ TRỐNG = TỰ TẠO)",
+        "batchKey": "nhan-vat-3",
+        "batchOrder": 3,
+        "localPath": "D:\\work\\fastaivn\\srcs\\fastaivnflowList\\lamclip\\gdn\\ChiDai.png",
+        "fileName": "ChiDai.png",
+        "prompt": "Nhân vật Con gái (@ConGai): Bé gái 4 tuổi Việt Nam gương mặt bầu bĩnh má phúng phính hồng hào, mắt to tròn đen láy lém lỉnh, tóc buộc hai bên cài kẹp nơ ngọc trai, mặc váy yếm/set đồ cotton hồng pastel xinh xắn, biểu cảm 'bà cụ non' đáng yêu",
+        "sheetPrompt": "Single-Frame Solo Portrait Photo — ONE PERSON ONLY in ONE SINGLE UNDIVIDED FRAME (@ConGai - Nhân vật Con gái): Bé gái 4 tuổi Việt Nam gương mặt bầu bĩnh má phúng phính hồng hào, mắt to tròn đen láy lém lỉnh, tóc buộc hai bên cài kẹp nơ ngọc trai, mặc váy yếm/set đồ cotton hồng pastel xinh xắn, biểu cảm 'bà cụ non' đáng yêu. QUY TẮC BẮT BUỘC: Ảnh chụp chân dung bán thân (medium close-up portrait từ thắt lưng trở lên) CHỈ DUY NHẤT 1 EM BÉ GÁI 4 TUỔI trong 1 khung hình đơn liền mạch, TUYỆT ĐỐI KHÔNG vẽ người lớn (bố/mẹ) vào chung ảnh. TUYỆT ĐỐI KHÔNG chia ô (NO split-screen), KHÔNG ghép nhiều ảnh/nhiều mặt (NO collage, NO grid, NO character sheet, NO multiple angles). Bé gái nhìn thẳng ống kính với biểu cảm 'bà cụ non' lém lỉnh đáng yêu tự nhiên, đứng trong phòng khách căn hộ hiện đại ánh sáng tự nhiên ban ngày ấm áp, chụp bằng iPhone 16 Pro Max / ống kính 85mm f/1.8 4K siêu thực, da thật tự nhiên có chi tiết lỗ chân lông, không có chữ viết trên ảnh.",
+        "characterName": "Con gái",
+        "characterTag": "@ConGai",
+        "voiceHint": "giọng bé gái 4 tuổi miền Bắc trong trẻo, cao vút, lém lỉnh tự nhiên",
+        "generatedPath": "D:\\work\\fastaivn\\srcs\\fastaivnflowList\\lamclip\\gdn\\ChiDai.png"
+      }
+    },
+    {
+      "id": "85445863-442b-4aa3-81e1-92cdf0b4fcfc",
+      "type": "prompt",
+      "position": {
+        "x": -2039,
+        "y": -74
+      },
+      "data": {
+        "batchRole": "input",
+        "batchLabel": "Prompt Video Scene 1 (10s)",
+        "prompt": "CẢNH 01 (0s - 10s · 10s · Phân đoạn 1 (0s-10s): Màn đối đáp 3 lượt bắt bài cực gắt giữa Con gái & Bố ngay tại phòng khách — Direct Reference-to-Video): Bối cảnh & Khung hình 9:16 cố định: Medium two-shot dọc 9:16 quay bằng iPhone 16 Pro Max đời thực trong phòng khách căn hộ chung cư hiện đại ấm cúng (sofa kem, rèm voan trắng, sàn gỗ sáng màu). Con gái 4 tuổi @BeGaiLinhMit (giữ đúng 100% khuôn mặt & trang phục Ảnh tham chiếu #3: Bé gái 4 tuổi Việt Nam gương mặt bầu bĩnh má phúng phính hồng hào, mắt to tròn đen láy lém lỉnh, tóc buộc hai bên cài kẹp nơ ngọc trai, mặc váy yếm/set đồ cotton hồng pastel xinh xắn, biểu cảm 'bà cụ non' đáng yêu) đứng ngay trước mặt Bố, một tay cầm điện thoại của mẹ, một tay chống nạnh 'bà cụ non', ngẩng đầu nhìn thẳng vào mắt Bố. Đối diện ngay trong cùng khung hình là Bố @BoGiaDinh (giữ đúng 100% khuôn mặt đeo kính & trang phục Ảnh tham chiếu #1: Bố trẻ Việt Nam ~30 tuổi khuôn mặt điển trai hiền lành ấm áp, đeo kính cận gọng mảnh, tóc ngắn vuốt gọn gàng, mặc áo polo sáng màu và quần short kaki lịch sự ở nhà) vừa bước vào phòng khách, tay xách cặp, gương mặt bất ngờ nhìn xuống con gái. [Ánh xạ đồng nhất tuyệt đối khuôn mặt & trang phục từng người từ 3 ảnh Chân Dung Đơn riêng: Ảnh #1 = Bố @BoGiaDinh, Ảnh #2 = Mẹ @MeGiaDinh, Ảnh #3 = Con gái 4 tuổi @BeGaiLinhMit]. Diễn biến, Biểu cảm, Tông giọng & Đối thoại khóa khớp miệng 10s: Quay liền mạch 10 giây không cắt cảnh (10s seamless continuous single-take shot, đối thoại qua lại 3 lượt liên tục như đời thật, khóa khớp miệng đúng từng người nói): Từ giây 0-3.5 [LƯỢT 1 — CHỈ DUY NHẤT CON GÁI @BeGaiLinhMit (Ảnh #3) MỞ MIỆNG NÓI; BỐ @BoGiaDinh (Ảnh #1) TUYỆT ĐỐI NGẬM MIỆNG LẮNG NGHE]: Con gái @BeGaiLinhMit bước sát lại chống nạnh, biểu cảm mắt to tròn nhướng mày 'bà cụ non' sắc sảo, chỉ tay và cử động môi khớp chính xác từng chữ bằng tông giọng bé gái 4 tuổi trong trẻo cao vút tự nhiên: \"Lúc nào cũng bảo 5 phút rồi sắp về, nhà chứ có phải cái nhà trọ đâu!\" (trong khi Bố @BoGiaDinh ngậm miệng, chớp mắt ngạc nhiên sau kính cận lắng nghe). Từ giây 3.5-7.0 [LƯỢT 2 — CHỈ DUY NHẤT BỐ @BoGiaDinh (Ảnh #1) MỞ MIỆNG NÓI; CON GÁI @BeGaiLinhMit (Ảnh #3) TUYỆT ĐỐI NGẬM MIỆNG]: Bố @BoGiaDinh vội cúi người xuống ngang tầm mắt con gái, đưa tay suỵt nhẹ với biểu cảm dở khóc dở cười nịnh con, cử động môi khớp lời thoại bằng tông giọng nam 30 tuổi trầm ấm tự nhiên: \"Ấy chết, cục vàng của ba nói nhỏ thôi kẻo mẹ trong bếp nghe thấy giờ, ngoài đường kẹt xe thật mà con!\" (trong khi Con gái @BeGaiLinhMit ngậm miệng, khoanh tay nghiêng đầu nhìn bố). Từ giây 7.0-10.0 [LƯỢT 3 — CHỈ DUY NHẤT CON GÁI @BeGaiLinhMit (Ảnh #3) MỞ MIỆNG NÓI; BỐ @BoGiaDinh (Ảnh #1) NGẬM MIỆNG CƯỜI TRỪ]: Con gái @BeGaiLinhMit lắc đầu chu môi lý sự bằng tông giọng lém lỉnh tự nhiên nối mượt sang cảnh sau: \"Ba đừng có lý do lý trấu nữa, mẹ dặn con đứng canh đồng hồ nãy giờ rồi đó nha!\". [KHÓA ĐỒNG NHẤT ẢNH THAM CHIẾU, BỐI CẢNH, GIỌNG NÓI & KHỚP MIỆNG TUYỆT ĐỐI XUYÊN SUỐT 3 CẢNH (30s): 1) ÁNH XẠ ĐÚNG ẢNH THAM CHIẾU: Ảnh đính kèm #1 = Bố @BoGiaDinh; Ảnh đính kèm #2 = Mẹ @MeGiaDinh; Ảnh đính kèm #3 = Con gái 4 tuổi @BeGaiLinhMit — giữ giống 100% khuôn mặt, độ tuổi, kiểu tóc và trang phục từ từng ảnh tham chiếu riêng, tuyệt đối KHÔNG tráo đổi hay pha trộn khuôn mặt giữa các nhân vật. 2) KHÓA BỐI CẢNH CỐ ĐỊNH 100%: Cả 3 phân cảnh diễn ra trong CÙNG MỘT phòng khách căn hộ chung cư hiện đại ấm cúng (sofa vải kem sáng, bàn trà gỗ sồi, thảm be, rèm voan trắng đón ánh nắng tự nhiên ban ngày 5200K, sàn gỗ sáng màu) — giữ nguyên vị trí nội thất và ánh sáng. 3) KHÓA TÔNG GIỌNG & KHỚP MIỆNG (SPEAKER LIP-SYNC LOCK): Giọng @BeGaiLinhMit (Ảnh #3) là giọng bé gái 4 tuổi miền Bắc trong trẻo, cao vút, lém lỉnh, ngắt nghỉ lấy hơi tự nhiên; Giọng @BoGiaDinh (Ảnh #1) là giọng nam 30 tuổi trầm ấm, hài hước đời thường; Giọng @MeGiaDinh (Ảnh #2) là giọng nữ 27 tuổi dịu dàng, sắc sảo tự nhiên. Ở mỗi lượt thoại, CHỈ DUY NHẤT nhân vật được chỉ định đang nói mới mở miệng cử động môi khớp chính xác từng âm tiết tiếng Việt; các nhân vật còn lại trong khung hình TUYỆT ĐỐI NGẬM MIỆNG (chỉ mỉm cười, gật đầu, chớp mắt hoặc biểu cảm gương mặt lắng nghe), KHÔNG ĐƯỢC MỞ MIỆNG NHÉP THEO. 4) KHÓA CHÂN THẬT CHỐNG MÀU AI: Quay bằng camera iPhone 16 Pro Max 4K 60fps đời thực cầm tay nhẹ tự nhiên, da người thật có lỗ chân lông, tuyệt đối KHÔNG ám màu nhựa AI]."
+      }
+    },
+    {
+      "id": "f2ef6b9c-1c54-406c-9cb0-62c9ed8f7bb3",
+      "type": "generate-video",
+      "position": {
+        "x": -1701,
+        "y": 86
+      },
+      "data": {
+        "videoMode": "reference-to-video",
+        "model": "Muse Video",
+        "ratio": "9:16",
+        "duration": 10,
+        "prompt": "CẢNH 01 (0s - 10s · 10s · Phân đoạn 1 (0s-10s): Màn đối đáp 3 lượt bắt bài cực gắt giữa Con gái & Bố ngay tại phòng khách — Direct Reference-to-Video): Bối cảnh & Khung hình 9:16 cố định: Medium two-shot dọc 9:16 quay bằng iPhone 16 Pro Max đời thực trong phòng khách căn hộ chung cư hiện đại ấm cúng (sofa kem, rèm voan trắng, sàn gỗ sáng màu). Con gái 4 tuổi @BeGaiLinhMit (giữ đúng 100% khuôn mặt & trang phục Ảnh tham chiếu #3: Bé gái 4 tuổi Việt Nam gương mặt bầu bĩnh má phúng phính hồng hào, mắt to tròn đen láy lém lỉnh, tóc buộc hai bên cài kẹp nơ ngọc trai, mặc váy yếm/set đồ cotton hồng pastel xinh xắn, biểu cảm 'bà cụ non' đáng yêu) đứng ngay trước mặt Bố, một tay cầm điện thoại của mẹ, một tay chống nạnh 'bà cụ non', ngẩng đầu nhìn thẳng vào mắt Bố. Đối diện ngay trong cùng khung hình là Bố @BoGiaDinh (giữ đúng 100% khuôn mặt đeo kính & trang phục Ảnh tham chiếu #1: Bố trẻ Việt Nam ~30 tuổi khuôn mặt điển trai hiền lành ấm áp, đeo kính cận gọng mảnh, tóc ngắn vuốt gọn gàng, mặc áo polo sáng màu và quần short kaki lịch sự ở nhà) vừa bước vào phòng khách, tay xách cặp, gương mặt bất ngờ nhìn xuống con gái. [Ánh xạ đồng nhất tuyệt đối khuôn mặt & trang phục từng người từ 3 ảnh Chân Dung Đơn riêng: Ảnh #1 = Bố @BoGiaDinh, Ảnh #2 = Mẹ @MeGiaDinh, Ảnh #3 = Con gái 4 tuổi @BeGaiLinhMit]. Diễn biến, Biểu cảm, Tông giọng & Đối thoại khóa khớp miệng 10s: Quay liền mạch 10 giây không cắt cảnh (10s seamless continuous single-take shot, đối thoại qua lại 3 lượt liên tục như đời thật, khóa khớp miệng đúng từng người nói): Từ giây 0-3.5 [LƯỢT 1 — CHỈ DUY NHẤT CON GÁI @BeGaiLinhMit (Ảnh #3) MỞ MIỆNG NÓI; BỐ @BoGiaDinh (Ảnh #1) TUYỆT ĐỐI NGẬM MIỆNG LẮNG NGHE]: Con gái @BeGaiLinhMit bước sát lại chống nạnh, biểu cảm mắt to tròn nhướng mày 'bà cụ non' sắc sảo, chỉ tay và cử động môi khớp chính xác từng chữ bằng tông giọng bé gái 4 tuổi trong trẻo cao vút tự nhiên: \"Lúc nào cũng bảo 5 phút rồi sắp về, nhà chứ có phải cái nhà trọ đâu!\" (trong khi Bố @BoGiaDinh ngậm miệng, chớp mắt ngạc nhiên sau kính cận lắng nghe). Từ giây 3.5-7.0 [LƯỢT 2 — CHỈ DUY NHẤT BỐ @BoGiaDinh (Ảnh #1) MỞ MIỆNG NÓI; CON GÁI @BeGaiLinhMit (Ảnh #3) TUYỆT ĐỐI NGẬM MIỆNG]: Bố @BoGiaDinh vội cúi người xuống ngang tầm mắt con gái, đưa tay suỵt nhẹ với biểu cảm dở khóc dở cười nịnh con, cử động môi khớp lời thoại bằng tông giọng nam 30 tuổi trầm ấm tự nhiên: \"Ấy chết, cục vàng của ba nói nhỏ thôi kẻo mẹ trong bếp nghe thấy giờ, ngoài đường kẹt xe thật mà con!\" (trong khi Con gái @BeGaiLinhMit ngậm miệng, khoanh tay nghiêng đầu nhìn bố). Từ giây 7.0-10.0 [LƯỢT 3 — CHỈ DUY NHẤT CON GÁI @BeGaiLinhMit (Ảnh #3) MỞ MIỆNG NÓI; BỐ @BoGiaDinh (Ảnh #1) NGẬM MIỆNG CƯỜI TRỪ]: Con gái @BeGaiLinhMit lắc đầu chu môi lý sự bằng tông giọng lém lỉnh tự nhiên nối mượt sang cảnh sau: \"Ba đừng có lý do lý trấu nữa, mẹ dặn con đứng canh đồng hồ nãy giờ rồi đó nha!\". [KHÓA ĐỒNG NHẤT ẢNH THAM CHIẾU, BỐI CẢNH, GIỌNG NÓI & KHỚP MIỆNG TUYỆT ĐỐI XUYÊN SUỐT 3 CẢNH (30s): 1) ÁNH XẠ ĐÚNG ẢNH THAM CHIẾU: Ảnh đính kèm #1 = Bố @BoGiaDinh; Ảnh đính kèm #2 = Mẹ @MeGiaDinh; Ảnh đính kèm #3 = Con gái 4 tuổi @BeGaiLinhMit — giữ giống 100% khuôn mặt, độ tuổi, kiểu tóc và trang phục từ từng ảnh tham chiếu riêng, tuyệt đối KHÔNG tráo đổi hay pha trộn khuôn mặt giữa các nhân vật. 2) KHÓA BỐI CẢNH CỐ ĐỊNH 100%: Cả 3 phân cảnh diễn ra trong CÙNG MỘT phòng khách căn hộ chung cư hiện đại ấm cúng (sofa vải kem sáng, bàn trà gỗ sồi, thảm be, rèm voan trắng đón ánh nắng tự nhiên ban ngày 5200K, sàn gỗ sáng màu) — giữ nguyên vị trí nội thất và ánh sáng. 3) KHÓA TÔNG GIỌNG & KHỚP MIỆNG (SPEAKER LIP-SYNC LOCK): Giọng @BeGaiLinhMit (Ảnh #3) là giọng bé gái 4 tuổi miền Bắc trong trẻo, cao vút, lém lỉnh, ngắt nghỉ lấy hơi tự nhiên; Giọng @BoGiaDinh (Ảnh #1) là giọng nam 30 tuổi trầm ấm, hài hước đời thường; Giọng @MeGiaDinh (Ảnh #2) là giọng nữ 27 tuổi dịu dàng, sắc sảo tự nhiên. Ở mỗi lượt thoại, CHỈ DUY NHẤT nhân vật được chỉ định đang nói mới mở miệng cử động môi khớp chính xác từng âm tiết tiếng Việt; các nhân vật còn lại trong khung hình TUYỆT ĐỐI NGẬM MIỆNG (chỉ mỉm cười, gật đầu, chớp mắt hoặc biểu cảm gương mặt lắng nghe), KHÔNG ĐƯỢC MỞ MIỆNG NHÉP THEO. 4) KHÓA CHÂN THẬT CHỐNG MÀU AI: Quay bằng camera iPhone 16 Pro Max 4K 60fps đời thực cầm tay nhẹ tự nhiên, da người thật có lỗ chân lông, tuyệt đối KHÔNG ám màu nhựa AI].",
+        "batchLabel": "Tạo Video Scene 1 (10s)",
+        "profileId": "aaronturner476n@member.animee.tokyo"
+      }
+    },
+    {
+      "id": "172a8ea5-1124-4d3b-9100-6aa3e5df4775",
+      "type": "prompt",
+      "position": {
+        "x": -1407,
+        "y": 174
+      },
+      "data": {
+        "batchRole": "input",
+        "batchLabel": "Prompt Video Scene 2 (10s)",
+        "prompt": "CẢNH 02 (10s - 20s · 10s · Phân đoạn 2 (10s-20s): Bố ngồi xổm thương lượng với Con gái & Mẹ bước ra nhập cuộc — Direct Reference-to-Video): Bối cảnh & Khung hình 9:16 cố định: Medium three-shot dọc 9:16 liền mạch đúng phòng khách căn hộ hiện đại ấm cúng (cùng sofa kem, rèm voan trắng, sàn gỗ sáng màu và ánh nắng 5200K như Cảnh 1). Bố @BoGiaDinh (Ảnh tham chiếu #1: Bố trẻ Việt Nam ~30 tuổi khuôn mặt điển trai hiền lành ấm áp, đeo kính cận gọng mảnh, tóc ngắn vuốt gọn gàng, mặc áo polo sáng màu và quần short kaki lịch sự ở nhà) ngồi xổm xuống ngang tầm mắt Con gái @BeGaiLinhMit (Ảnh tham chiếu #3: Bé gái 4 tuổi Việt Nam gương mặt bầu bĩnh má phúng phính hồng hào, mắt to tròn đen láy lém lỉnh, tóc buộc hai bên cài kẹp nơ ngọc trai, mặc váy yếm/set đồ cotton hồng pastel xinh xắn, biểu cảm 'bà cụ non' đáng yêu), hai tay nắm nhẹ tay con gái thương lượng; ngay bên cạnh trong cùng khung hình, Mẹ @MeGiaDinh (Ảnh tham chiếu #2: Mẹ trẻ Việt Nam ~27 tuổi xinh đẹp dịu dàng, làn da trắng sáng, tóc dài nâu hạt dẻ uốn sóng nhẹ, mặc set đồ bộ lụa/cotton Hàn Quốc màu kem pastel thanh lịch ở nhà) bước tới khoanh tay mỉm cười lắng nghe hai bố con. [Ánh xạ đồng nhất tuyệt đối khuôn mặt & trang phục từng người từ 3 ảnh Chân Dung Đơn riêng: Ảnh #1 = Bố @BoGiaDinh, Ảnh #2 = Mẹ @MeGiaDinh, Ảnh #3 = Con gái 4 tuổi @BeGaiLinhMit]. Diễn biến, Biểu cảm, Tông giọng & Đối thoại khóa khớp miệng 10s: Quay liền mạch 10 giây không cắt cảnh (10s seamless continuous single-take shot, nối tiếp nhịp đối thoại tự nhiên, khóa khớp miệng đúng từng người nói): Từ giây 0-3.5 [LƯỢT 1 — CHỈ DUY NHẤT BỐ @BoGiaDinh (Ảnh #1) MỞ MIỆNG NÓI; CON GÁI (Ảnh #3) & MẸ (Ảnh #2) TUYỆT ĐỐI NGẬM MIỆNG]: Bố @BoGiaDinh xoa đầu Con gái @BeGaiLinhMit, biểu cảm năn nỉ ấm áp, cử động môi khớp lời thoại bằng tông giọng nam trầm ấm nhỏ nhẹ: \"Thôi mà đồng minh ruột, con nói đỡ giúp ba một câu đi, lát ba thưởng chầu kem sô-cô-la siêu to luôn!\" (Con gái và Mẹ ngậm miệng mỉm cười lắng nghe). Từ giây 3.5-7.0 [LƯỢT 2 — CHỈ DUY NHẤT CON GÁI @BeGaiLinhMit (Ảnh #3) MỞ MIỆNG NÓI; BỐ (Ảnh #1) & MẸ (Ảnh #2) TUYỆT ĐỐI NGẬM MIỆNG]: Con gái @BeGaiLinhMit nghiêng đầu liếc mắt lém lỉnh ra sau lưng Bố rồi tủm tỉm cử động môi nói bằng tông giọng bé gái 4 tuổi trong trẻo tinh nghịch: \"Ba định hối lộ con hả, tiếc quá tổng tư lệnh đứng ngay sau lưng ba nghe hết trơn rồi kìa!\" (Bố ngậm miệng giật mình quay đầu lại). Từ giây 7.0-10.0 [LƯỢT 3 — CHỈ DUY NHẤT MẸ @MeGiaDinh (Ảnh #2) MỞ MIỆNG NÓI; BỐ (Ảnh #1) & CON GÁI (Ảnh #3) TUYỆT ĐỐI NGẬM MIỆNG]: Mẹ @MeGiaDinh bước sát lại vỗ nhẹ vai Bố, biểu cảm nhướng mày dịu dàng mà uy quyền, cử động môi khớp lời thoại bằng tông giọng nữ 27 tuổi tự nhiên rõ chữ: \"Hai bố con bàn tính gì rôm rả thế, anh giải trình tiếp cho hai mẹ con nghe xem nào!\". [KHÓA ĐỒNG NHẤT ẢNH THAM CHIẾU, BỐI CẢNH, GIỌNG NÓI & KHỚP MIỆNG TUYỆT ĐỐI XUYÊN SUỐT 3 CẢNH (30s): 1) ÁNH XẠ ĐÚNG ẢNH THAM CHIẾU: Ảnh đính kèm #1 = Bố @BoGiaDinh; Ảnh đính kèm #2 = Mẹ @MeGiaDinh; Ảnh đính kèm #3 = Con gái 4 tuổi @BeGaiLinhMit — giữ giống 100% khuôn mặt, độ tuổi, kiểu tóc và trang phục từ từng ảnh tham chiếu riêng, tuyệt đối KHÔNG tráo đổi hay pha trộn khuôn mặt giữa các nhân vật. 2) KHÓA BỐI CẢNH CỐ ĐỊNH 100%: Cả 3 phân cảnh diễn ra trong CÙNG MỘT phòng khách căn hộ chung cư hiện đại ấm cúng (sofa vải kem sáng, bàn trà gỗ sồi, thảm be, rèm voan trắng đón ánh nắng tự nhiên ban ngày 5200K, sàn gỗ sáng màu) — giữ nguyên vị trí nội thất và ánh sáng. 3) KHÓA TÔNG GIỌNG & KHỚP MIỆNG (SPEAKER LIP-SYNC LOCK): Giọng @BeGaiLinhMit (Ảnh #3) là giọng bé gái 4 tuổi miền Bắc trong trẻo, cao vút, lém lỉnh, ngắt nghỉ lấy hơi tự nhiên; Giọng @BoGiaDinh (Ảnh #1) là giọng nam 30 tuổi trầm ấm, hài hước đời thường; Giọng @MeGiaDinh (Ảnh #2) là giọng nữ 27 tuổi dịu dàng, sắc sảo tự nhiên. Ở mỗi lượt thoại, CHỈ DUY NHẤT nhân vật được chỉ định đang nói mới mở miệng cử động môi khớp chính xác từng âm tiết tiếng Việt; các nhân vật còn lại trong khung hình TUYỆT ĐỐI NGẬM MIỆNG (chỉ mỉm cười, gật đầu, chớp mắt hoặc biểu cảm gương mặt lắng nghe), KHÔNG ĐƯỢC MỞ MIỆNG NHÉP THEO. 4) KHÓA CHÂN THẬT CHỐNG MÀU AI: Quay bằng camera iPhone 16 Pro Max 4K 60fps đời thực cầm tay nhẹ tự nhiên, da người thật có lỗ chân lông, tuyệt đối KHÔNG ám màu nhựa AI]."
+      }
+    },
+    {
+      "id": "609b13bd-a864-4556-8913-2e933a5f904d",
+      "type": "generate-video",
+      "position": {
+        "x": -1399,
+        "y": 395
+      },
+      "data": {
+        "videoMode": "reference-to-video",
+        "model": "Muse Video",
+        "ratio": "9:16",
+        "duration": 10,
+        "prompt": "CẢNH 02 (10s - 20s · 10s · Phân đoạn 2 (10s-20s): Bố ngồi xổm thương lượng với Con gái & Mẹ bước ra nhập cuộc — Direct Reference-to-Video): Bối cảnh & Khung hình 9:16 cố định: Medium three-shot dọc 9:16 liền mạch đúng phòng khách căn hộ hiện đại ấm cúng (cùng sofa kem, rèm voan trắng, sàn gỗ sáng màu và ánh nắng 5200K như Cảnh 1). Bố @BoGiaDinh (Ảnh tham chiếu #1: Bố trẻ Việt Nam ~30 tuổi khuôn mặt điển trai hiền lành ấm áp, đeo kính cận gọng mảnh, tóc ngắn vuốt gọn gàng, mặc áo polo sáng màu và quần short kaki lịch sự ở nhà) ngồi xổm xuống ngang tầm mắt Con gái @BeGaiLinhMit (Ảnh tham chiếu #3: Bé gái 4 tuổi Việt Nam gương mặt bầu bĩnh má phúng phính hồng hào, mắt to tròn đen láy lém lỉnh, tóc buộc hai bên cài kẹp nơ ngọc trai, mặc váy yếm/set đồ cotton hồng pastel xinh xắn, biểu cảm 'bà cụ non' đáng yêu), hai tay nắm nhẹ tay con gái thương lượng; ngay bên cạnh trong cùng khung hình, Mẹ @MeGiaDinh (Ảnh tham chiếu #2: Mẹ trẻ Việt Nam ~27 tuổi xinh đẹp dịu dàng, làn da trắng sáng, tóc dài nâu hạt dẻ uốn sóng nhẹ, mặc set đồ bộ lụa/cotton Hàn Quốc màu kem pastel thanh lịch ở nhà) bước tới khoanh tay mỉm cười lắng nghe hai bố con. [Ánh xạ đồng nhất tuyệt đối khuôn mặt & trang phục từng người từ 3 ảnh Chân Dung Đơn riêng: Ảnh #1 = Bố @BoGiaDinh, Ảnh #2 = Mẹ @MeGiaDinh, Ảnh #3 = Con gái 4 tuổi @BeGaiLinhMit]. Diễn biến, Biểu cảm, Tông giọng & Đối thoại khóa khớp miệng 10s: Quay liền mạch 10 giây không cắt cảnh (10s seamless continuous single-take shot, nối tiếp nhịp đối thoại tự nhiên, khóa khớp miệng đúng từng người nói): Từ giây 0-3.5 [LƯỢT 1 — CHỈ DUY NHẤT BỐ @BoGiaDinh (Ảnh #1) MỞ MIỆNG NÓI; CON GÁI (Ảnh #3) & MẸ (Ảnh #2) TUYỆT ĐỐI NGẬM MIỆNG]: Bố @BoGiaDinh xoa đầu Con gái @BeGaiLinhMit, biểu cảm năn nỉ ấm áp, cử động môi khớp lời thoại bằng tông giọng nam trầm ấm nhỏ nhẹ: \"Thôi mà đồng minh ruột, con nói đỡ giúp ba một câu đi, lát ba thưởng chầu kem sô-cô-la siêu to luôn!\" (Con gái và Mẹ ngậm miệng mỉm cười lắng nghe). Từ giây 3.5-7.0 [LƯỢT 2 — CHỈ DUY NHẤT CON GÁI @BeGaiLinhMit (Ảnh #3) MỞ MIỆNG NÓI; BỐ (Ảnh #1) & MẸ (Ảnh #2) TUYỆT ĐỐI NGẬM MIỆNG]: Con gái @BeGaiLinhMit nghiêng đầu liếc mắt lém lỉnh ra sau lưng Bố rồi tủm tỉm cử động môi nói bằng tông giọng bé gái 4 tuổi trong trẻo tinh nghịch: \"Ba định hối lộ con hả, tiếc quá tổng tư lệnh đứng ngay sau lưng ba nghe hết trơn rồi kìa!\" (Bố ngậm miệng giật mình quay đầu lại). Từ giây 7.0-10.0 [LƯỢT 3 — CHỈ DUY NHẤT MẸ @MeGiaDinh (Ảnh #2) MỞ MIỆNG NÓI; BỐ (Ảnh #1) & CON GÁI (Ảnh #3) TUYỆT ĐỐI NGẬM MIỆNG]: Mẹ @MeGiaDinh bước sát lại vỗ nhẹ vai Bố, biểu cảm nhướng mày dịu dàng mà uy quyền, cử động môi khớp lời thoại bằng tông giọng nữ 27 tuổi tự nhiên rõ chữ: \"Hai bố con bàn tính gì rôm rả thế, anh giải trình tiếp cho hai mẹ con nghe xem nào!\". [KHÓA ĐỒNG NHẤT ẢNH THAM CHIẾU, BỐI CẢNH, GIỌNG NÓI & KHỚP MIỆNG TUYỆT ĐỐI XUYÊN SUỐT 3 CẢNH (30s): 1) ÁNH XẠ ĐÚNG ẢNH THAM CHIẾU: Ảnh đính kèm #1 = Bố @BoGiaDinh; Ảnh đính kèm #2 = Mẹ @MeGiaDinh; Ảnh đính kèm #3 = Con gái 4 tuổi @BeGaiLinhMit — giữ giống 100% khuôn mặt, độ tuổi, kiểu tóc và trang phục từ từng ảnh tham chiếu riêng, tuyệt đối KHÔNG tráo đổi hay pha trộn khuôn mặt giữa các nhân vật. 2) KHÓA BỐI CẢNH CỐ ĐỊNH 100%: Cả 3 phân cảnh diễn ra trong CÙNG MỘT phòng khách căn hộ chung cư hiện đại ấm cúng (sofa vải kem sáng, bàn trà gỗ sồi, thảm be, rèm voan trắng đón ánh nắng tự nhiên ban ngày 5200K, sàn gỗ sáng màu) — giữ nguyên vị trí nội thất và ánh sáng. 3) KHÓA TÔNG GIỌNG & KHỚP MIỆNG (SPEAKER LIP-SYNC LOCK): Giọng @BeGaiLinhMit (Ảnh #3) là giọng bé gái 4 tuổi miền Bắc trong trẻo, cao vút, lém lỉnh, ngắt nghỉ lấy hơi tự nhiên; Giọng @BoGiaDinh (Ảnh #1) là giọng nam 30 tuổi trầm ấm, hài hước đời thường; Giọng @MeGiaDinh (Ảnh #2) là giọng nữ 27 tuổi dịu dàng, sắc sảo tự nhiên. Ở mỗi lượt thoại, CHỈ DUY NHẤT nhân vật được chỉ định đang nói mới mở miệng cử động môi khớp chính xác từng âm tiết tiếng Việt; các nhân vật còn lại trong khung hình TUYỆT ĐỐI NGẬM MIỆNG (chỉ mỉm cười, gật đầu, chớp mắt hoặc biểu cảm gương mặt lắng nghe), KHÔNG ĐƯỢC MỞ MIỆNG NHÉP THEO. 4) KHÓA CHÂN THẬT CHỐNG MÀU AI: Quay bằng camera iPhone 16 Pro Max 4K 60fps đời thực cầm tay nhẹ tự nhiên, da người thật có lỗ chân lông, tuyệt đối KHÔNG ám màu nhựa AI].",
+        "batchLabel": "Tạo Video Scene 2 (10s)",
+        "profileId": "aaronturner476n@member.animee.tokyo"
+      }
+    },
+    {
+      "id": "5bfad153-c9ba-4dd5-9d61-4fe0f83d0be0",
+      "type": "prompt",
+      "position": {
+        "x": -1492,
+        "y": 698
+      },
+      "data": {
+        "batchRole": "input",
+        "batchLabel": "Prompt Video Scene 3 (10s)",
+        "prompt": "CẢNH 03 (20s - 30s · 10s · Phân đoạn 3 (20s-30s): Cả gia đình 3 người tung hứng ăn ý & chốt kết ấm áp đời thường — Direct Reference-to-Video): Bối cảnh & Khung hình 9:16 cố định: Medium close-up three-shot dọc 9:16 tại sofa kem phòng khách ấm cúng (giữ nguyên 100% bối cảnh và ánh sáng phòng khách của Cảnh 1 & 2). Bố @BoGiaDinh (Ảnh tham chiếu #1: Bố trẻ Việt Nam ~30 tuổi khuôn mặt điển trai hiền lành ấm áp, đeo kính cận gọng mảnh, tóc ngắn vuốt gọn gàng, mặc áo polo sáng màu và quần short kaki lịch sự ở nhà), Mẹ @MeGiaDinh (Ảnh tham chiếu #2: Mẹ trẻ Việt Nam ~27 tuổi xinh đẹp dịu dàng, làn da trắng sáng, tóc dài nâu hạt dẻ uốn sóng nhẹ, mặc set đồ bộ lụa/cotton Hàn Quốc màu kem pastel thanh lịch ở nhà) và Con gái @BeGaiLinhMit (Ảnh tham chiếu #3: Bé gái 4 tuổi Việt Nam gương mặt bầu bĩnh má phúng phính hồng hào, mắt to tròn đen láy lém lỉnh, tóc buộc hai bên cài kẹp nơ ngọc trai, mặc váy yếm/set đồ cotton hồng pastel xinh xắn, biểu cảm 'bà cụ non' đáng yêu) ngồi sát bên nhau trên sofa kem trong cùng khung hình; Con gái vòng tay ôm cổ Bố và nắm tay Mẹ làm trọng tài hòa giải. [Ánh xạ đồng nhất tuyệt đối khuôn mặt & trang phục từng người từ 3 ảnh Chân Dung Đơn riêng: Ảnh #1 = Bố @BoGiaDinh, Ảnh #2 = Mẹ @MeGiaDinh, Ảnh #3 = Con gái 4 tuổi @BeGaiLinhMit]. Diễn biến, Biểu cảm, Tông giọng & Đối thoại khóa khớp miệng 10s: Quay liền mạch 10 giây không cắt cảnh (10s seamless continuous single-take shot, khép lại chuỗi hội thoại 30s mượt như video quay thật, khóa khớp miệng đúng từng người nói): Từ giây 0-3.5 [LƯỢT 1 — CHỈ DUY NHẤT BỐ @BoGiaDinh (Ảnh #1) MỞ MIỆNG NÓI; MẸ (Ảnh #2) & CON GÁI (Ảnh #3) NGẬM MIỆNG LẮNG NGHE]: Bố @BoGiaDinh vòng tay ôm cả hai mẹ con vào lòng, biểu cảm cười trừ chiều chuộng, cử động môi nói bằng tông giọng nam trầm ấm tự nhiên: \"Ba xin lỗi hai công chúa của ba mà, từ mai tan làm là ba phi thẳng về nhà ngay lập tức!\". Từ giây 3.5-7.0 [LƯỢT 2 — CHỈ DUY NHẤT CON GÁI @BeGaiLinhMit (Ảnh #3) MỞ MIỆNG NÓI; BỐ (Ảnh #1) & MẸ (Ảnh #2) NGẬM MIỆNG MỈM CƯỜI]: Con gái @BeGaiLinhMit ôm cổ Bố và kéo tay Mẹ @MeGiaDinh lại gần, biểu cảm tít mắt đáng yêu, cử động môi phân xử bằng giọng bé gái 4 tuổi trong trẻo: \"Mẹ ơi ba biết lỗi rồi, ba phải thơm mẹ với con mỗi người một cái thì mới được tha nha!\". Từ giây 7.0-10.0 [LƯỢT 3 — CHỈ DUY NHẤT MẸ @MeGiaDinh (Ảnh #2) MỞ MIỆNG NÓI; BỐ (Ảnh #1) & CON GÁI (Ảnh #3) NGẬM MIỆNG CƯỜI ẤM ÁP]: Mẹ @MeGiaDinh mỉm cười dịu dàng cử động môi nói bằng tông giọng nữ ấm áp: \"Chỉ có con gái là giỏi làm trọng tài thôi!\", đồng thời Bố thơm nhẹ lên má con gái tự nhiên khép lại cảnh quay. [KHÓA ĐỒNG NHẤT ẢNH THAM CHIẾU, BỐI CẢNH, GIỌNG NÓI & KHỚP MIỆNG TUYỆT ĐỐI XUYÊN SUỐT 3 CẢNH (30s): 1) ÁNH XẠ ĐÚNG ẢNH THAM CHIẾU: Ảnh đính kèm #1 = Bố @BoGiaDinh; Ảnh đính kèm #2 = Mẹ @MeGiaDinh; Ảnh đính kèm #3 = Con gái 4 tuổi @BeGaiLinhMit — giữ giống 100% khuôn mặt, độ tuổi, kiểu tóc và trang phục từ từng ảnh tham chiếu riêng, tuyệt đối KHÔNG tráo đổi hay pha trộn khuôn mặt giữa các nhân vật. 2) KHÓA BỐI CẢNH CỐ ĐỊNH 100%: Cả 3 phân cảnh diễn ra trong CÙNG MỘT phòng khách căn hộ chung cư hiện đại ấm cúng (sofa vải kem sáng, bàn trà gỗ sồi, thảm be, rèm voan trắng đón ánh nắng tự nhiên ban ngày 5200K, sàn gỗ sáng màu) — giữ nguyên vị trí nội thất và ánh sáng. 3) KHÓA TÔNG GIỌNG & KHỚP MIỆNG (SPEAKER LIP-SYNC LOCK): Giọng @BeGaiLinhMit (Ảnh #3) là giọng bé gái 4 tuổi miền Bắc trong trẻo, cao vút, lém lỉnh, ngắt nghỉ lấy hơi tự nhiên; Giọng @BoGiaDinh (Ảnh #1) là giọng nam 30 tuổi trầm ấm, hài hước đời thường; Giọng @MeGiaDinh (Ảnh #2) là giọng nữ 27 tuổi dịu dàng, sắc sảo tự nhiên. Ở mỗi lượt thoại, CHỈ DUY NHẤT nhân vật được chỉ định đang nói mới mở miệng cử động môi khớp chính xác từng âm tiết tiếng Việt; các nhân vật còn lại trong khung hình TUYỆT ĐỐI NGẬM MIỆNG (chỉ mỉm cười, gật đầu, chớp mắt hoặc biểu cảm gương mặt lắng nghe), KHÔNG ĐƯỢC MỞ MIỆNG NHÉP THEO. 4) KHÓA CHÂN THẬT CHỐNG MÀU AI: Quay bằng camera iPhone 16 Pro Max 4K 60fps đời thực cầm tay nhẹ tự nhiên, da người thật có lỗ chân lông, tuyệt đối KHÔNG ám màu nhựa AI]."
+      }
+    },
+    {
+      "id": "6d314b03-9d2d-4cae-bd27-b6798ed38f1b",
+      "type": "generate-video",
+      "position": {
+        "x": -1397,
+        "y": 527
+      },
+      "data": {
+        "videoMode": "reference-to-video",
+        "model": "Muse Video",
+        "ratio": "9:16",
+        "duration": 10,
+        "prompt": "CẢNH 03 (20s - 30s · 10s · Phân đoạn 3 (20s-30s): Cả gia đình 3 người tung hứng ăn ý & chốt kết ấm áp đời thường — Direct Reference-to-Video): Bối cảnh & Khung hình 9:16 cố định: Medium close-up three-shot dọc 9:16 tại sofa kem phòng khách ấm cúng (giữ nguyên 100% bối cảnh và ánh sáng phòng khách của Cảnh 1 & 2). Bố @BoGiaDinh (Ảnh tham chiếu #1: Bố trẻ Việt Nam ~30 tuổi khuôn mặt điển trai hiền lành ấm áp, đeo kính cận gọng mảnh, tóc ngắn vuốt gọn gàng, mặc áo polo sáng màu và quần short kaki lịch sự ở nhà), Mẹ @MeGiaDinh (Ảnh tham chiếu #2: Mẹ trẻ Việt Nam ~27 tuổi xinh đẹp dịu dàng, làn da trắng sáng, tóc dài nâu hạt dẻ uốn sóng nhẹ, mặc set đồ bộ lụa/cotton Hàn Quốc màu kem pastel thanh lịch ở nhà) và Con gái @BeGaiLinhMit (Ảnh tham chiếu #3: Bé gái 4 tuổi Việt Nam gương mặt bầu bĩnh má phúng phính hồng hào, mắt to tròn đen láy lém lỉnh, tóc buộc hai bên cài kẹp nơ ngọc trai, mặc váy yếm/set đồ cotton hồng pastel xinh xắn, biểu cảm 'bà cụ non' đáng yêu) ngồi sát bên nhau trên sofa kem trong cùng khung hình; Con gái vòng tay ôm cổ Bố và nắm tay Mẹ làm trọng tài hòa giải. [Ánh xạ đồng nhất tuyệt đối khuôn mặt & trang phục từng người từ 3 ảnh Chân Dung Đơn riêng: Ảnh #1 = Bố @BoGiaDinh, Ảnh #2 = Mẹ @MeGiaDinh, Ảnh #3 = Con gái 4 tuổi @BeGaiLinhMit]. Diễn biến, Biểu cảm, Tông giọng & Đối thoại khóa khớp miệng 10s: Quay liền mạch 10 giây không cắt cảnh (10s seamless continuous single-take shot, khép lại chuỗi hội thoại 30s mượt như video quay thật, khóa khớp miệng đúng từng người nói): Từ giây 0-3.5 [LƯỢT 1 — CHỈ DUY NHẤT BỐ @BoGiaDinh (Ảnh #1) MỞ MIỆNG NÓI; MẸ (Ảnh #2) & CON GÁI (Ảnh #3) NGẬM MIỆNG LẮNG NGHE]: Bố @BoGiaDinh vòng tay ôm cả hai mẹ con vào lòng, biểu cảm cười trừ chiều chuộng, cử động môi nói bằng tông giọng nam trầm ấm tự nhiên: \"Ba xin lỗi hai công chúa của ba mà, từ mai tan làm là ba phi thẳng về nhà ngay lập tức!\". Từ giây 3.5-7.0 [LƯỢT 2 — CHỈ DUY NHẤT CON GÁI @BeGaiLinhMit (Ảnh #3) MỞ MIỆNG NÓI; BỐ (Ảnh #1) & MẸ (Ảnh #2) NGẬM MIỆNG MỈM CƯỜI]: Con gái @BeGaiLinhMit ôm cổ Bố và kéo tay Mẹ @MeGiaDinh lại gần, biểu cảm tít mắt đáng yêu, cử động môi phân xử bằng giọng bé gái 4 tuổi trong trẻo: \"Mẹ ơi ba biết lỗi rồi, ba phải thơm mẹ với con mỗi người một cái thì mới được tha nha!\". Từ giây 7.0-10.0 [LƯỢT 3 — CHỈ DUY NHẤT MẸ @MeGiaDinh (Ảnh #2) MỞ MIỆNG NÓI; BỐ (Ảnh #1) & CON GÁI (Ảnh #3) NGẬM MIỆNG CƯỜI ẤM ÁP]: Mẹ @MeGiaDinh mỉm cười dịu dàng cử động môi nói bằng tông giọng nữ ấm áp: \"Chỉ có con gái là giỏi làm trọng tài thôi!\", đồng thời Bố thơm nhẹ lên má con gái tự nhiên khép lại cảnh quay. [KHÓA ĐỒNG NHẤT ẢNH THAM CHIẾU, BỐI CẢNH, GIỌNG NÓI & KHỚP MIỆNG TUYỆT ĐỐI XUYÊN SUỐT 3 CẢNH (30s): 1) ÁNH XẠ ĐÚNG ẢNH THAM CHIẾU: Ảnh đính kèm #1 = Bố @BoGiaDinh; Ảnh đính kèm #2 = Mẹ @MeGiaDinh; Ảnh đính kèm #3 = Con gái 4 tuổi @BeGaiLinhMit — giữ giống 100% khuôn mặt, độ tuổi, kiểu tóc và trang phục từ từng ảnh tham chiếu riêng, tuyệt đối KHÔNG tráo đổi hay pha trộn khuôn mặt giữa các nhân vật. 2) KHÓA BỐI CẢNH CỐ ĐỊNH 100%: Cả 3 phân cảnh diễn ra trong CÙNG MỘT phòng khách căn hộ chung cư hiện đại ấm cúng (sofa vải kem sáng, bàn trà gỗ sồi, thảm be, rèm voan trắng đón ánh nắng tự nhiên ban ngày 5200K, sàn gỗ sáng màu) — giữ nguyên vị trí nội thất và ánh sáng. 3) KHÓA TÔNG GIỌNG & KHỚP MIỆNG (SPEAKER LIP-SYNC LOCK): Giọng @BeGaiLinhMit (Ảnh #3) là giọng bé gái 4 tuổi miền Bắc trong trẻo, cao vút, lém lỉnh, ngắt nghỉ lấy hơi tự nhiên; Giọng @BoGiaDinh (Ảnh #1) là giọng nam 30 tuổi trầm ấm, hài hước đời thường; Giọng @MeGiaDinh (Ảnh #2) là giọng nữ 27 tuổi dịu dàng, sắc sảo tự nhiên. Ở mỗi lượt thoại, CHỈ DUY NHẤT nhân vật được chỉ định đang nói mới mở miệng cử động môi khớp chính xác từng âm tiết tiếng Việt; các nhân vật còn lại trong khung hình TUYỆT ĐỐI NGẬM MIỆNG (chỉ mỉm cười, gật đầu, chớp mắt hoặc biểu cảm gương mặt lắng nghe), KHÔNG ĐƯỢC MỞ MIỆNG NHÉP THEO. 4) KHÓA CHÂN THẬT CHỐNG MÀU AI: Quay bằng camera iPhone 16 Pro Max 4K 60fps đời thực cầm tay nhẹ tự nhiên, da người thật có lỗ chân lông, tuyệt đối KHÔNG ám màu nhựa AI].",
+        "batchLabel": "Tạo Video Scene 3 (10s)",
+        "profileId": "aaronturner476n@member.animee.tokyo"
+      }
+    },
+    {
+      "id": "f95f220b-ac51-41e4-a3c3-823b93656bdc",
+      "type": "merge-video",
+      "position": {
+        "x": -1075,
+        "y": 86
+      },
+      "data": {
+        "portCount": 3,
+        "batchRole": "output",
+        "batchLabel": "TIMELINE (GHÉP 5 CLIPS)",
+        "batchKey": "merge-timeline"
+      }
+    },
+    {
+      "id": "a6f3b6fa-a849-48ec-b2b8-0197c25a6798",
+      "type": "result",
+      "position": {
+        "x": -846,
+        "y": 455
+      },
+      "data": {
+        "batchRole": "output",
+        "batchLabel": "XUẤT VIDEO HOÀN CHỈNH (5 SCENES)",
+        "batchKey": "final-video"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "2fd86385-b638-45d8-8012-3adf1a3a7289",
+      "source": "d5ea823a-f2ff-40c5-9f6d-c3714f72fea4",
+      "sourceHandle": "image-out",
+      "target": "f2ef6b9c-1c54-406c-9cb0-62c9ed8f7bb3",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "5f693688-ecf8-4c76-8622-46b5c15b61d5",
+      "source": "79d22136-57af-4501-a8ce-5bc3c4578dfc",
+      "sourceHandle": "image-out",
+      "target": "f2ef6b9c-1c54-406c-9cb0-62c9ed8f7bb3",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "e118c500-2092-47ec-9193-a78ec3adab24",
+      "source": "2d0dd628-41c2-44be-8033-67f45bfec86d",
+      "sourceHandle": "image-out",
+      "target": "f2ef6b9c-1c54-406c-9cb0-62c9ed8f7bb3",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "61fb733f-46c0-48e4-8043-0c36df71c1ba",
+      "source": "85445863-442b-4aa3-81e1-92cdf0b4fcfc",
+      "sourceHandle": "text-out",
+      "target": "f2ef6b9c-1c54-406c-9cb0-62c9ed8f7bb3",
+      "targetHandle": "text-in"
+    },
+    {
+      "id": "514e4f72-0fa7-42b5-8c11-59b10000cc28",
+      "source": "f2ef6b9c-1c54-406c-9cb0-62c9ed8f7bb3",
+      "sourceHandle": "video-out",
+      "target": "f95f220b-ac51-41e4-a3c3-823b93656bdc",
+      "targetHandle": "video-in-0"
+    },
+    {
+      "id": "f50f0699-a97c-4773-8276-0c38ecdee53d",
+      "source": "d5ea823a-f2ff-40c5-9f6d-c3714f72fea4",
+      "sourceHandle": "image-out",
+      "target": "609b13bd-a864-4556-8913-2e933a5f904d",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "2ad61dba-4da2-41f2-b6a8-3498da48f48a",
+      "source": "79d22136-57af-4501-a8ce-5bc3c4578dfc",
+      "sourceHandle": "image-out",
+      "target": "609b13bd-a864-4556-8913-2e933a5f904d",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "ac14f016-e5db-4270-91cc-9e996d74f828",
+      "source": "2d0dd628-41c2-44be-8033-67f45bfec86d",
+      "sourceHandle": "image-out",
+      "target": "609b13bd-a864-4556-8913-2e933a5f904d",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "9beff705-dc82-4f22-841d-011c74d8427a",
+      "source": "172a8ea5-1124-4d3b-9100-6aa3e5df4775",
+      "sourceHandle": "text-out",
+      "target": "609b13bd-a864-4556-8913-2e933a5f904d",
+      "targetHandle": "text-in"
+    },
+    {
+      "id": "792ea7f8-c029-49e0-97bc-5b454f2ea2bb",
+      "source": "609b13bd-a864-4556-8913-2e933a5f904d",
+      "sourceHandle": "video-out",
+      "target": "f95f220b-ac51-41e4-a3c3-823b93656bdc",
+      "targetHandle": "video-in-1"
+    },
+    {
+      "id": "edc6dc05-f381-4a96-81b4-1736a686a73c",
+      "source": "d5ea823a-f2ff-40c5-9f6d-c3714f72fea4",
+      "sourceHandle": "image-out",
+      "target": "6d314b03-9d2d-4cae-bd27-b6798ed38f1b",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "b93221c3-bb34-430b-af80-0d3a0894f598",
+      "source": "79d22136-57af-4501-a8ce-5bc3c4578dfc",
+      "sourceHandle": "image-out",
+      "target": "6d314b03-9d2d-4cae-bd27-b6798ed38f1b",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "7afeec29-244f-47d6-8255-ffc92c6ebf97",
+      "source": "2d0dd628-41c2-44be-8033-67f45bfec86d",
+      "sourceHandle": "image-out",
+      "target": "6d314b03-9d2d-4cae-bd27-b6798ed38f1b",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "878a5899-d0af-44bb-90dc-53bf289e1bb6",
+      "source": "5bfad153-c9ba-4dd5-9d61-4fe0f83d0be0",
+      "sourceHandle": "text-out",
+      "target": "6d314b03-9d2d-4cae-bd27-b6798ed38f1b",
+      "targetHandle": "text-in"
+    },
+    {
+      "id": "95d9a0b5-5d23-4b0c-bb40-403f57b59a7a",
+      "source": "6d314b03-9d2d-4cae-bd27-b6798ed38f1b",
+      "sourceHandle": "video-out",
+      "target": "f95f220b-ac51-41e4-a3c3-823b93656bdc",
+      "targetHandle": "video-in-2"
+    },
+    {
+      "id": "ee7d470e-15fd-4dd3-9f55-721eb3dbc7d6",
+      "source": "f95f220b-ac51-41e4-a3c3-823b93656bdc",
+      "sourceHandle": "video-out",
+      "target": "a6f3b6fa-a849-48ec-b2b8-0197c25a6798",
+      "targetHandle": "video-in"
+    }
+  ],
+  "templateStyle": "family_sitcom_linh_mit",
+  "syncConfig": {
+    "characterId": "",
+    "characterName": "@GiaDinhLinhMit",
+    "characterDesc": "Gia đình trẻ Việt Nam phong cách Linh Mít Daily: (1) @BoGiaDinh (Bố): Bố trẻ Việt Nam ~30 tuổi khuôn mặt điển trai hiền lành ấm áp, đeo kính cận gọng mảnh, tóc ngắn vuốt gọn gàng, mặc áo polo sáng màu và quần short kaki lịch sự ở nhà; (2) @MeGiaDinh (Mẹ): Mẹ trẻ Việt Nam ~27 tuổi xinh đẹp dịu dàng, làn da trắng sáng, tóc dài nâu hạt dẻ uốn sóng nhẹ, mặc set đồ bộ lụa/cotton Hàn Quốc màu kem pastel thanh lịch ở nhà; (3) @BeGaiLinhMit (Con gái / Bé Mít): Bé gái 4 tuổi Việt Nam gương mặt bầu bĩnh má phúng phính hồng hào, mắt to tròn đen láy lém lỉnh, tóc buộc hai bên cài kẹp nơ ngọc trai, mặc váy yếm/set đồ cotton hồng pastel xinh xắn, biểu cảm 'bà cụ non' đáng yêu",
+    "characterPath": "D:\\work\\fastaivn\\srcs\\fastaivnflowList\\lamclip\\gdn\\Bo.png",
+    "fatherDesc": "Bố trẻ Việt Nam ~30 tuổi khuôn mặt điển trai hiền lành ấm áp, đeo kính cận gọng mảnh, tóc ngắn vuốt gọn gàng, mặc áo polo sáng màu và quần short kaki lịch sự ở nhà",
+    "fatherPath": "D:\\work\\fastaivn\\srcs\\fastaivnflowList\\lamclip\\gdn\\Bo.png",
+    "motherDesc": "Mẹ trẻ Việt Nam ~27 tuổi xinh đẹp dịu dàng, làn da trắng sáng, tóc dài nâu hạt dẻ uốn sóng nhẹ, mặc set đồ bộ lụa/cotton Hàn Quốc màu kem pastel thanh lịch ở nhà",
+    "motherPath": "D:\\work\\fastaivn\\srcs\\fastaivnflowList\\lamclip\\gdn\\Me.png",
+    "sonDesc": "",
+    "sonPath": "",
+    "childDesc": "Bé gái 4 tuổi Việt Nam gương mặt bầu bĩnh má phúng phính hồng hào, mắt to tròn đen láy lém lỉnh, tóc buộc hai bên cài kẹp nơ ngọc trai, mặc váy yếm/set đồ cotton hồng pastel xinh xắn, biểu cảm 'bà cụ non' đáng yêu",
+    "childPath": "D:\\work\\fastaivn\\srcs\\fastaivnflowList\\lamclip\\gdn\\ChiDai.png",
+    "babyDesc": "",
+    "babyPath": "",
+    "customCharacters": [
+      {
+        "slot": 1,
+        "role": "father",
+        "name": "Bố",
+        "tag": "@BoGiaDinh",
+        "icon": "👨",
+        "desc": "Bố trẻ Việt Nam ~30 tuổi khuôn mặt điển trai hiền lành ấm áp, đeo kính cận gọng mảnh, tóc ngắn vuốt gọn gàng, mặc áo polo sáng màu và quần short kaki lịch sự ở nhà",
+        "path": "D:\\work\\fastaivn\\srcs\\fastaivnflowList\\lamclip\\gdn\\Bo.png",
+        "voiceHint": "giọng nam 30 tuổi trầm ấm, hài hước đời thường",
+        "characterId": ""
+      },
+      {
+        "slot": 2,
+        "role": "mother",
+        "name": "Mẹ",
+        "tag": "@MeGiaDinh",
+        "icon": "👩",
+        "desc": "Mẹ trẻ Việt Nam ~27 tuổi xinh đẹp dịu dàng, làn da trắng sáng, tóc dài nâu hạt dẻ uốn sóng nhẹ, mặc set đồ bộ lụa/cotton Hàn Quốc màu kem pastel thanh lịch ở nhà",
+        "path": "D:\\work\\fastaivn\\srcs\\fastaivnflowList\\lamclip\\gdn\\Me.png",
+        "voiceHint": "giọng nữ 27 tuổi dịu dàng, sắc sảo rõ chữ",
+        "characterId": ""
+      },
+      {
+        "slot": 3,
+        "role": "child",
+        "name": "Con gái",
+        "tag": "@ConGai",
+        "icon": "👧",
+        "desc": "Bé gái 4 tuổi Việt Nam gương mặt bầu bĩnh má phúng phính hồng hào, mắt to tròn đen láy lém lỉnh, tóc buộc hai bên cài kẹp nơ ngọc trai, mặc váy yếm/set đồ cotton hồng pastel xinh xắn, biểu cảm 'bà cụ non' đáng yêu",
+        "path": "D:\\work\\fastaivn\\srcs\\fastaivnflowList\\lamclip\\gdn\\ChiDai.png",
+        "voiceHint": "giọng bé gái 4 tuổi miền Bắc trong trẻo, cao vút, lém lỉnh tự nhiên",
+        "characterId": ""
+      }
+    ],
+    "customCharactersLocked": true,
+    "familyCount": "3",
+    "includeBaby": false,
+    "graphMode": "",
+    "preserveCustomGraph": false,
+    "outfitDesc": "",
+    "outfitPath": "",
+    "productName": "",
+    "productDesc": "",
+    "productPath": "",
+    "userIdea": "1. Con gái nghe điện thoại hộ mẹ, chống nạnh mắng bố về muộn y hệt giọng mẹ (\"Lúc nào cũng bảo 5 phút rồi sắp về, nhà chứ có phải cái nhà trọ đâu!\")",
+    "templateStyle": "family_sitcom_linh_mit",
+    "pillarsMode": "multi_person_family",
+    "familyTopicId": 1,
+    "familyCastMode": "full_family",
+    "affiliateMode": "no",
+    "totalDurationSec": 30,
+    "sceneDurationSec": 10,
+    "sceneCount": 3,
+    "characterSheetPrompt": "Single-Frame Solo Portrait Photo — ONE PERSON ONLY in ONE SINGLE UNDIVIDED FRAME (@BoGiaDinh - Nhân vật Bố): Bố trẻ Việt Nam ~30 tuổi khuôn mặt điển trai hiền lành ấm áp, đeo kính cận gọng mảnh, tóc ngắn vuốt gọn gàng, mặc áo polo sáng màu và quần short kaki lịch sự ở nhà. QUY TẮC BẮT BUỘC: Ảnh chụp chân dung bán thân (medium close-up portrait từ thắt lưng trở lên) CHỈ DUY NHẤT 1 NGƯỜI ĐÀN ÔNG (Bố) trong 1 khung hình đơn liền mạch. TUYỆT ĐỐI KHÔNG chia ô (NO split-screen), KHÔNG ghép nhiều ảnh/nhiều mặt (NO collage, NO grid, NO character sheet, NO multiple angles), KHÔNG vẽ thêm phụ nữ hay trẻ em vào chung ảnh. Người bố đeo kính cận nhìn thẳng ống kính với nụ cười hiền lành ấm áp tự nhiên, đứng trong phòng khách căn hộ hiện đại ánh sáng tự nhiên ban ngày ấm áp, chụp bằng iPhone 16 Pro Max / ống kính 85mm f/1.8 4K siêu thực, da thật tự nhiên có chi tiết lỗ chân lông, không có chữ viết trên ảnh.",
+    "videoUrl": "https://www.youtube.com/results?search_query=Linh+Mit+Daily+gia+dinh+hai+huoc+shorts",
+    "tiktokUrl": "https://www.tiktok.com/search?q=linh%20mit%20daily%20gia%20dinh",
+    "autoAiOnRun": true
+  },
+  "updatedAt": "2026-11-09T09:05:33.821628+00:00",
+  "templateId": "ai-family-video-creator",
+  "execution": {
+    "profileIds": [
+      "8fec8be126e8"
+    ]
+  }
+}

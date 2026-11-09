@@ -12,6 +12,7 @@ import {
   resetFrom,
   rowProduct,
   runWorkflowRow,
+  workflowCast,
 } from '../services/workflowRunner';
 import {
   StepStatus,
@@ -169,7 +170,7 @@ export const WorkflowStudio: React.FC<{
     return !row.template || from === 'product' || from === 'script' ? draft : row.template;
   };
 
-  const runRows = async (ids: string[]) => {
+  const runRows = async (ids: string[], tplOverride?: WorkflowTemplate) => {
     if (busy) return;
     if (accountsState.usableCount === 0) {
       alert('Chưa có tài khoản Muse dùng được. Thêm tài khoản ở Cài đặt ➔ Tài khoản Muse.');
@@ -182,7 +183,7 @@ export const WorkflowStudio: React.FC<{
         if (stopRef.current) break;
         const row = rowsRef.current.find((r) => r.id === id);
         if (!row || !firstOpenStep(row)) continue;
-        const tpl = templateFor(row);
+        const tpl = tplOverride ?? templateFor(row);
         patchRow(id, (r) => ({ ...r, template: tpl }));
         setRunningRowId(id);
         await runWorkflowRow(id, tpl, deps);
@@ -191,6 +192,33 @@ export const WorkflowStudio: React.FC<{
       setRunningRowId(null);
       setBusy(false);
     }
+  };
+
+  /** Lượt chạy từ Sơ đồ khối (1 dòng mang sẵn mẫu của sơ đồ) — giữ lại sau khi tải lại trang. */
+  const [graphRunId, setGraphRunId] = usePersistentState<string>('workflow.graphRun.v1', '');
+  const graphRow = rows.find((r) => r.id === graphRunId);
+  const [graphProductId, setGraphProductId] = useState('');
+  const [graphLink, setGraphLink] = useState('');
+
+  /** ▶ Chạy Workflow ở Sơ đồ khối: lưu workflow, tạo 1 dòng mới rồi chạy ngay bằng bộ máy chung. */
+  const runGraph = (tpl: WorkflowTemplate) => {
+    if (busy) return;
+    if (!tpl.manualScenes?.length && !graphProductId && !graphLink.trim()) {
+      alert('Workflow dùng AI viết kịch bản: chọn sản phẩm hoặc dán link / tên sản phẩm ở thanh Chạy bên dưới sơ đồ.');
+      return;
+    }
+    applyGraph(tpl);
+    const row: WorkflowRow = {
+      id: newLibraryId('wfr'),
+      steps: freshSteps(),
+      productId: graphProductId || undefined,
+      link: graphProductId ? undefined : graphLink.trim() || undefined,
+      template: tpl,
+    };
+    rowsRef.current = [...rowsRef.current, row];
+    setRows(rowsRef.current);
+    setGraphRunId(row.id);
+    runRows([row.id], tpl);
   };
 
   const runAll = () =>
@@ -281,8 +309,215 @@ export const WorkflowStudio: React.FC<{
     return row.link || '(chưa có sản phẩm)';
   };
   const charName = (id?: string) => library.characters.find((c) => c.id === id)?.name;
+  const draftCast = workflowCast(draft, library.characters);
 
   const doneCount = rows.filter((r) => !firstOpenStep(r)).length;
+
+  /** Thẻ 1 dòng: tiến độ từng bước, duyệt kịch bản, cảnh đã render, clip cuối (dùng cả ở Sơ đồ khối). */
+  const renderRowCard = (row: WorkflowRow, idx: number) => {
+          const open = firstOpenStep(row);
+          const isRunning = runningRowId === row.id;
+          const tpl = row.template ?? draft;
+          const show = expanded[row.id] ?? (isRunning || row.steps.script.status === 'review');
+          const scenes = row.scenes ?? [];
+          const failedStep = WORKFLOW_STEPS.find((s) => row.steps[s.id].status === 'failed');
+          return (
+            <section
+              key={row.id}
+              className={`bg-slate-900 border rounded-2xl p-4 space-y-3 ${
+                isRunning ? 'border-indigo-500' : 'border-slate-800'
+              }`}
+            >
+              <div className="flex flex-wrap items-start gap-3">
+                <span className="text-xs font-bold text-slate-500 pt-0.5">#{idx + 1}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-slate-100 truncate" title={row.link}>
+                    {productLabel(row)}
+                  </p>
+                  <p className="text-[10px] text-slate-400 truncate">
+                    {row.template ? `${row.template.icon} ${row.template.name}` : 'Chưa chạy'}
+                    {row.characterId
+                      ? ` · 👤 ${charName(row.characterId) || '(nhân vật đã xóa)'}`
+                      : (() => {
+                          const cast = workflowCast(row.template ?? draft, library.characters);
+                          return cast.length ? ` · 👤 ${cast.map((c) => c.name).join(', ')} (workflow)` : '';
+                        })()}
+                    {row.note && ` · 📝 ${row.note}`}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {open && !busy && row.steps[open].status !== 'review' && (
+                    <button
+                      onClick={() => runRows([row.id])}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-600/80 text-white text-[10px] font-semibold"
+                    >
+                      ▶ {failedStep || row.steps[open].status !== 'pending' || open !== 'product' ? 'Chạy tiếp' : 'Chạy'}
+                    </button>
+                  )}
+                  {!busy && (
+                    <select
+                      value=""
+                      onChange={(e) => e.target.value && retryFrom(row, e.target.value as WorkflowStepId)}
+                      className="bg-slate-950 border border-slate-700 text-[10px] text-slate-300 rounded-lg px-1.5"
+                    >
+                      <option value="">↻ Chạy lại từ…</option>
+                      {WORKFLOW_STEPS.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.icon} {s.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {row.project && (
+                    <button
+                      onClick={() => openProjectFolder(row.project).catch((e) => alert(e.message))}
+                      className="px-2 py-1 rounded-lg bg-slate-800 text-[10px] text-slate-300"
+                      title={row.project}
+                    >
+                      📂
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setExpanded((m) => ({ ...m, [row.id]: !show }))}
+                    className="px-2 py-1 rounded-lg bg-slate-800 text-[10px] text-slate-300"
+                  >
+                    {show ? '▲' : '▼'}
+                  </button>
+                  {!isRunning && (
+                    <button
+                      onClick={() => setRows((prev) => prev.filter((r) => r.id !== row.id))}
+                      className="px-2 py-1 rounded-lg bg-slate-800 text-[10px] text-red-300"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Tiến độ 4 bước */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                {WORKFLOW_STEPS.map((s, i) => {
+                  const st = row.steps[s.id];
+                  const extra =
+                    s.id === 'scenes' && scenes.length
+                      ? ` ${scenes.filter((x) => x.status === 'done').length}/${scenes.length}`
+                      : '';
+                  return (
+                    <React.Fragment key={s.id}>
+                      {i > 0 && <span className="text-slate-600 text-[10px]">→</span>}
+                      <span
+                        className={`px-2 py-1 rounded-lg border text-[10px] ${STEP_STYLE[st.status]}`}
+                        title={st.error || st.detail || ''}
+                      >
+                        {s.icon} {s.label}
+                        {extra}
+                        {st.status === 'review' && ' · chờ duyệt'}
+                      </span>
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+              {failedStep && (
+                <p className="text-[11px] text-red-300">
+                  ⚠ {failedStep.label}: {row.steps[failedStep.id].error}
+                </p>
+              )}
+
+              {show && (
+                <div className="space-y-3 pt-1">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[10px] text-slate-400">
+                    {WORKFLOW_STEPS.map((s) =>
+                      row.steps[s.id].detail ? (
+                        <p key={s.id} className="truncate" title={row.steps[s.id].detail}>
+                          {s.icon} {row.steps[s.id].detail}
+                        </p>
+                      ) : null
+                    )}
+                    {row.script?.source && (
+                      <p>🤖 Kịch bản tạo bởi: {describeScriptSource(row.script.source)}</p>
+                    )}
+                  </div>
+
+                  {row.steps.script.status === 'review' && (
+                    <div className="space-y-2 bg-amber-500/5 border border-amber-500/30 rounded-xl p-3">
+                      <p className="text-[11px] text-amber-200">
+                        Xem / sửa prompt từng cảnh rồi bấm Duyệt để render.
+                      </p>
+                      {scenes.map((sc, i) => (
+                        <div key={i}>
+                          <label className={labelCls}>
+                            Cảnh {i + 1}
+                            {sc.title ? ` — ${sc.title}` : ''}
+                          </label>
+                          <textarea
+                            rows={3}
+                            className={inputCls}
+                            value={sc.prompt}
+                            onChange={(e) =>
+                              patchRow(row.id, (r) => ({
+                                ...r,
+                                scenes: r.scenes?.map((x, j) => (j === i ? { ...x, prompt: e.target.value } : x)),
+                              }))
+                            }
+                          />
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => approveScript(row)}
+                        disabled={busy}
+                        className="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 text-[11px] font-bold disabled:opacity-40"
+                      >
+                        ✅ Duyệt & render
+                      </button>
+                    </div>
+                  )}
+
+                  {scenes.length > 0 && row.steps.script.status !== 'review' && (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+                      {scenes.map((sc, i) => (
+                        <div key={i} className="rounded-lg overflow-hidden border border-slate-800 bg-slate-950">
+                          <div className={`${aspectClass(tpl.aspectRatio)} bg-black flex items-center justify-center`}>
+                            {sc.videoUrl ? (
+                              <video src={sc.videoUrl} controls className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-[10px] text-slate-500 px-1 text-center">
+                                {sc.status === 'running'
+                                  ? `⏳ ${sc.progress ? `${Math.round(sc.progress)}%` : 'Đang render'}`
+                                  : sc.status === 'failed'
+                                    ? '❌ Lỗi'
+                                    : 'Chờ'}
+                              </span>
+                            )}
+                          </div>
+                          <p
+                            className={`text-[9px] px-1.5 py-1 truncate ${sc.error ? 'text-red-300' : 'text-slate-400'}`}
+                            title={sc.error || sc.prompt}
+                          >
+                            {i + 1}. {sc.error || sc.title || sc.prompt}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {(row.final || row.merged) && (
+                    <div className="flex flex-wrap gap-3 items-start">
+                      <video
+                        src={(row.final || row.merged)!.url}
+                        controls
+                        className={`${aspectClass(tpl.aspectRatio)} w-48 rounded-lg border border-emerald-600/50 bg-black`}
+                      />
+                      <div className="text-[11px] text-emerald-300 break-all flex-1 min-w-[200px] space-y-1">
+                        {row.merged && <p>🎞 Clip ghép: {row.merged.path}</p>}
+                        {row.final && <p>🛠 Sau hậu kỳ: {row.final.path}</p>}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+          );
+  };
 
   const viewSwitch = (
     <div className="px-4 lg:px-6 pt-4 flex flex-wrap items-center gap-2">
@@ -329,7 +564,48 @@ export const WorkflowStudio: React.FC<{
       <div>
         {viewSwitch}
         <div className="p-4 lg:p-6">
-          <WorkflowGraphEditor template={selected} onApply={applyGraph} />
+          <WorkflowGraphEditor
+            template={selected}
+            onApply={applyGraph}
+            characterLibrary={{
+              characters: library.characters,
+              addCharacter: (c) => library.setCharacters((prev) => [...prev, c]),
+              updateCharacter: deps.updateCharacter,
+              onOpenSettings,
+            }}
+            runRow={graphRow && graphRow.template?.id === selected.id ? graphRow : undefined}
+            onRun={runGraph}
+            onStop={() => (stopRef.current = true)}
+            busy={busy}
+          />
+          <section className="mt-3 bg-slate-900 border border-slate-800 rounded-2xl p-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-white">▶ Chạy Workflow</span>
+            <span className="text-[10px] text-slate-500">Sản phẩm (chỉ cần khi dùng ✍️ AI viết kịch bản / khóa sản phẩm):</span>
+            <select
+              className="bg-slate-950 border border-slate-700 text-[11px] text-slate-200 rounded-lg p-1.5"
+              value={graphProductId}
+              onChange={(e) => setGraphProductId(e.target.value)}
+            >
+              <option value="">— Không / nhập link —</option>
+              {library.products.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            {!graphProductId && (
+              <input
+                className="bg-slate-950 border border-slate-700 text-[11px] text-slate-200 rounded-lg p-1.5 w-64"
+                placeholder="Link Shopee / TikTok hoặc tên SP (tùy chọn)"
+                value={graphLink}
+                onChange={(e) => setGraphLink(e.target.value)}
+              />
+            )}
+            <span className="text-[10px] text-slate-500 ml-auto">
+              {accountsState.usableCount} tài khoản · {accountsState.totalThreads} luồng render song song
+            </span>
+          </section>
+          {graphRow && <div className="mt-3">{renderRowCard(graphRow, rows.indexOf(graphRow))}</div>}
         </div>
       </div>
     );
@@ -619,7 +895,7 @@ export const WorkflowStudio: React.FC<{
             <div>
               <label className={labelCls}>Nhân vật</label>
               <select className={inputCls} value={newCharId} onChange={(e) => setNewCharId(e.target.value)}>
-                <option value="">-- Không / tự do --</option>
+                <option value="">{draftCast.length ? `-- Theo workflow (${draftCast[0].name}) --` : '-- Không / tự do --'}</option>
                 {library.characters.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -640,6 +916,12 @@ export const WorkflowStudio: React.FC<{
               + Thêm dòng
             </button>
           </div>
+          {draftCast.length > 0 && (
+            <p className="text-[10px] text-purple-300">
+              👤 Workflow có dàn nhân vật cố định: {draftCast.map((c) => c.name).join(', ')} (đặt ở 🧩 Sơ đồ khối). Chọn
+              nhân vật ở dòng sẽ thay nhân vật chính cho dòng đó.
+            </p>
+          )}
           {library.characters.length === 0 && (
             <p className="text-[10px] text-slate-500">
               Chưa có nhân vật nào —{' '}
@@ -710,205 +992,7 @@ export const WorkflowStudio: React.FC<{
           </p>
         )}
 
-        {rows.map((row, idx) => {
-          const open = firstOpenStep(row);
-          const isRunning = runningRowId === row.id;
-          const tpl = row.template ?? draft;
-          const show = expanded[row.id] ?? (isRunning || row.steps.script.status === 'review');
-          const scenes = row.scenes ?? [];
-          const failedStep = WORKFLOW_STEPS.find((s) => row.steps[s.id].status === 'failed');
-          return (
-            <section
-              key={row.id}
-              className={`bg-slate-900 border rounded-2xl p-4 space-y-3 ${
-                isRunning ? 'border-indigo-500' : 'border-slate-800'
-              }`}
-            >
-              <div className="flex flex-wrap items-start gap-3">
-                <span className="text-xs font-bold text-slate-500 pt-0.5">#{idx + 1}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-slate-100 truncate" title={row.link}>
-                    {productLabel(row)}
-                  </p>
-                  <p className="text-[10px] text-slate-400 truncate">
-                    {row.template ? `${row.template.icon} ${row.template.name}` : 'Chưa chạy'}
-                    {row.characterId && ` · 👤 ${charName(row.characterId) || '(nhân vật đã xóa)'}`}
-                    {row.note && ` · 📝 ${row.note}`}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {open && !busy && row.steps[open].status !== 'review' && (
-                    <button
-                      onClick={() => runRows([row.id])}
-                      className="px-2.5 py-1 rounded-lg bg-emerald-600/80 text-white text-[10px] font-semibold"
-                    >
-                      ▶ {failedStep || row.steps[open].status !== 'pending' || open !== 'product' ? 'Chạy tiếp' : 'Chạy'}
-                    </button>
-                  )}
-                  {!busy && (
-                    <select
-                      value=""
-                      onChange={(e) => e.target.value && retryFrom(row, e.target.value as WorkflowStepId)}
-                      className="bg-slate-950 border border-slate-700 text-[10px] text-slate-300 rounded-lg px-1.5"
-                    >
-                      <option value="">↻ Chạy lại từ…</option>
-                      {WORKFLOW_STEPS.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.icon} {s.label}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  {row.project && (
-                    <button
-                      onClick={() => openProjectFolder(row.project).catch((e) => alert(e.message))}
-                      className="px-2 py-1 rounded-lg bg-slate-800 text-[10px] text-slate-300"
-                      title={row.project}
-                    >
-                      📂
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setExpanded((m) => ({ ...m, [row.id]: !show }))}
-                    className="px-2 py-1 rounded-lg bg-slate-800 text-[10px] text-slate-300"
-                  >
-                    {show ? '▲' : '▼'}
-                  </button>
-                  {!isRunning && (
-                    <button
-                      onClick={() => setRows((prev) => prev.filter((r) => r.id !== row.id))}
-                      className="px-2 py-1 rounded-lg bg-slate-800 text-[10px] text-red-300"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Tiến độ 4 bước */}
-              <div className="flex flex-wrap items-center gap-1.5">
-                {WORKFLOW_STEPS.map((s, i) => {
-                  const st = row.steps[s.id];
-                  const extra =
-                    s.id === 'scenes' && scenes.length
-                      ? ` ${scenes.filter((x) => x.status === 'done').length}/${scenes.length}`
-                      : '';
-                  return (
-                    <React.Fragment key={s.id}>
-                      {i > 0 && <span className="text-slate-600 text-[10px]">→</span>}
-                      <span
-                        className={`px-2 py-1 rounded-lg border text-[10px] ${STEP_STYLE[st.status]}`}
-                        title={st.error || st.detail || ''}
-                      >
-                        {s.icon} {s.label}
-                        {extra}
-                        {st.status === 'review' && ' · chờ duyệt'}
-                      </span>
-                    </React.Fragment>
-                  );
-                })}
-              </div>
-              {failedStep && (
-                <p className="text-[11px] text-red-300">
-                  ⚠ {failedStep.label}: {row.steps[failedStep.id].error}
-                </p>
-              )}
-
-              {show && (
-                <div className="space-y-3 pt-1">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[10px] text-slate-400">
-                    {WORKFLOW_STEPS.map((s) =>
-                      row.steps[s.id].detail ? (
-                        <p key={s.id} className="truncate" title={row.steps[s.id].detail}>
-                          {s.icon} {row.steps[s.id].detail}
-                        </p>
-                      ) : null
-                    )}
-                    {row.script?.source && (
-                      <p>🤖 Kịch bản tạo bởi: {describeScriptSource(row.script.source)}</p>
-                    )}
-                  </div>
-
-                  {row.steps.script.status === 'review' && (
-                    <div className="space-y-2 bg-amber-500/5 border border-amber-500/30 rounded-xl p-3">
-                      <p className="text-[11px] text-amber-200">
-                        Xem / sửa prompt từng cảnh rồi bấm Duyệt để render.
-                      </p>
-                      {scenes.map((sc, i) => (
-                        <div key={i}>
-                          <label className={labelCls}>
-                            Cảnh {i + 1}
-                            {sc.title ? ` — ${sc.title}` : ''}
-                          </label>
-                          <textarea
-                            rows={3}
-                            className={inputCls}
-                            value={sc.prompt}
-                            onChange={(e) =>
-                              patchRow(row.id, (r) => ({
-                                ...r,
-                                scenes: r.scenes?.map((x, j) => (j === i ? { ...x, prompt: e.target.value } : x)),
-                              }))
-                            }
-                          />
-                        </div>
-                      ))}
-                      <button
-                        onClick={() => approveScript(row)}
-                        disabled={busy}
-                        className="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 text-[11px] font-bold disabled:opacity-40"
-                      >
-                        ✅ Duyệt & render
-                      </button>
-                    </div>
-                  )}
-
-                  {scenes.length > 0 && row.steps.script.status !== 'review' && (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
-                      {scenes.map((sc, i) => (
-                        <div key={i} className="rounded-lg overflow-hidden border border-slate-800 bg-slate-950">
-                          <div className={`${aspectClass(tpl.aspectRatio)} bg-black flex items-center justify-center`}>
-                            {sc.videoUrl ? (
-                              <video src={sc.videoUrl} controls className="w-full h-full object-cover" />
-                            ) : (
-                              <span className="text-[10px] text-slate-500 px-1 text-center">
-                                {sc.status === 'running'
-                                  ? `⏳ ${sc.progress ? `${Math.round(sc.progress)}%` : 'Đang render'}`
-                                  : sc.status === 'failed'
-                                    ? '❌ Lỗi'
-                                    : 'Chờ'}
-                              </span>
-                            )}
-                          </div>
-                          <p
-                            className={`text-[9px] px-1.5 py-1 truncate ${sc.error ? 'text-red-300' : 'text-slate-400'}`}
-                            title={sc.error || sc.prompt}
-                          >
-                            {i + 1}. {sc.error || sc.title || sc.prompt}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {(row.final || row.merged) && (
-                    <div className="flex flex-wrap gap-3 items-start">
-                      <video
-                        src={(row.final || row.merged)!.url}
-                        controls
-                        className={`${aspectClass(tpl.aspectRatio)} w-48 rounded-lg border border-emerald-600/50 bg-black`}
-                      />
-                      <div className="text-[11px] text-emerald-300 break-all flex-1 min-w-[200px] space-y-1">
-                        {row.merged && <p>🎞 Clip ghép: {row.merged.path}</p>}
-                        {row.final && <p>🛠 Sau hậu kỳ: {row.final.path}</p>}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </section>
-          );
-        })}
+        {rows.map(renderRowCard)}
       </div>
     </div>
     </div>

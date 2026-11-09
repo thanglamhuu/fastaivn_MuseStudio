@@ -1,0 +1,431 @@
+{
+  "schemaVersion": 1,
+  "kind": "flow-workflow",
+  "exportedAt": "2026-11-09T15:21:09.027537+07:00",
+  "name": "Workflow Đi Bộ Tạo Dáng (5 Scenes) (copy)",
+  "description": "Workflow AI chuẩn Muse Studio: Đồng bộ Nhân vật, Trang phục & Sản phẩm -> AI tự viết kịch bản đi bộ tạo dáng 5 góc máy -> 5 Scene Muse Image & Video -> Ghép Video TikTok hoàn chỉnh.",
+  "viewport": {
+    "x": 1098.5093797811874,
+    "y": 216.5730403879047,
+    "zoom": 0.6851490171211161
+  },
+  "nodes": [
+    {
+      "id": "de64d06c-300c-49f3-ba7f-0ae884a9237b",
+      "type": "upload-image",
+      "position": {
+        "x": -1275,
+        "y": -280
+      },
+      "data": {
+        "batchRole": "input",
+        "batchLabel": "👤 KHÓA NHÂN VẬT (GƯƠNG MẶT / DÁNG NGƯỜI)",
+        "batchKey": "nhan-vat-goc",
+        "batchOrder": 1,
+        "refRole": "character",
+        "prompt": "Bố trẻ Việt Nam ~30 tuổi khuôn mặt điển trai hiền lành ấm áp, đeo kính cận gọng mảnh, tóc ngắn vuốt gọn gàng, mặc áo polo sáng màu và quần short kaki lịch sự ở nhà",
+        "memberRole": "character",
+        "localPath": "",
+        "fileName": "",
+        "sheetPrompt": "Single-Frame Solo Portrait Photo — ONE PERSON ONLY in ONE SINGLE UNDIVIDED FRAME (@ModelCatwalkNu): Người mẫu nữ trẻ châu Á 23 tuổi gương mặt thanh tú sắc sảo, làn da trắng mịn căng bóng, sống mũi cao, mái tóc dài đen suôn mượt bay nhẹ, vóc dáng cao 1m72 tỷ lệ chuẩn mẫu thời trang. Mặc đúng bộ trang phục tham chiếu: Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài. QUY TẮC BẮT BUỘC: Ảnh chụp chân dung bán thân/toàn thân 1 người duy nhất trong 1 khung hình đơn liền mạch. TUYỆT ĐỐI KHÔNG chia ô (NO split-screen), KHÔNG ghép nhiều ảnh/nhiều mặt (NO collage, NO grid, NO character sheet, NO multiple angles). Nhìn thẳng ống kính với biểu cảm tự nhiên, ánh sáng 4K chân thực, da người thật, không có chữ viết trên ảnh.",
+        "characterName": "Bố",
+        "characterTag": "@BoGiaDinh"
+      }
+    },
+    {
+      "id": "af4900a1-f7c7-4cf2-a293-9dec1220d77e",
+      "type": "upload-image",
+      "position": {
+        "x": -855,
+        "y": -280
+      },
+      "data": {
+        "batchRole": "input",
+        "batchLabel": "👗 KHÓA TRANG PHỤC (OUTFIT / QUẦN ÁO)",
+        "batchKey": "trang-phuc-goc",
+        "batchOrder": 2,
+        "refRole": "outfit",
+        "prompt": "Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài",
+        "memberRole": "outfit",
+        "localPath": "",
+        "fileName": "",
+        "sheetPrompt": "Single-Frame 4K Fashion Wardrobe Reference Photo — ONE OUTFIT ONLY in ONE SINGLE UNDIVIDED FRAME (NO PEOPLE, NO FACES, NO COLLAGE, NO SPLIT-SCREEN): Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài. Trưng bày bộ trang phục nguyên bản trên ma-nơ-canh vô hình (invisible ghost mannequin / lookbook display) trong 1 khung hình đơn liền mạch trên nền studio sáng tối giản, thấy rõ 100% phom dáng, đường cắt may, màu sắc và chất liệu vải 4K siêu thực, tuyệt đối không chia ô, không có chữ viết trên ảnh."
+      }
+    },
+    {
+      "id": "cbb64af1-cdd4-492e-a9ab-b44407cda181",
+      "type": "prompt",
+      "position": {
+        "x": -1440,
+        "y": 580
+      },
+      "data": {
+        "batchRole": "input",
+        "batchLabel": "Prompt Video Scene 1 (10s)",
+        "prompt": "SCENE 01 (0s - 10s · 10s · Toàn cảnh bước đi mở màn & câu Hook tváhần thái (Full-body Tracking Walk) — Direct Reference-to-Video): Nhân vật @ModelCatwalkNu (Người mẫu nữ trẻ châu Á 23 tuổi gương mặt thanh tú sắc sảo, làn da trắng mịn căng bóng, sống mũi cao, mái tóc dài đen suôn mượt bay nhẹ, vóc dáng cao 1m72 tỷ lệ chuẩn mẫu thời trang) giữ nguyên 100% gương mặt, biểu cảm tự nhiên và tông giọng thật từ Ảnh tham chiếu #1, mặc đúng 100% bộ trang phục tham chiếu từ Ảnh #2 (Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài) trong bối cảnh cố định (Hành lang studio thời trang hiện đại tối giản (tường trắng kem phẳng mịn, sàn bê tông mài bóng nhẹ phản chiếu ánh đèn softbox 5600K chuẩn tạp chí) cố định 100% xuyên suốt mọi cảnh). Chuyển động, biểu cảm gương mặt, tông giọng & góc quay liền mạch 10 giây không cắt cảnh (10s seamless continuous single-take shot, 60fps smooth natural motion) bám sát mẫu (Workflow Đi Bộ Tạo Dáng (5 Scenes)): Từ giây 0-3.5 [NHỊP BƯỚC CATWALK MỞ MÀN — NHÂN VẬT @ModelCatwalkNu (Ảnh #1) KHÉP MÔI MỈM CƯỜI TỰ TIN]: Nhân vật @ModelCatwalkNu (giữ đúng gương mặt Ảnh #1, mặc đúng bộ trang phục Ảnh #2) sải bước catwalk tự tin từ chiều sâu hành lang studio sáng tiến thẳng về phía camera, tà áo và chân váy chuyển động nhịp nhàng theo từng bước chân, camera gimbal lùi chậm giữ khung hình toàn thân. Từ giây 3.5-7.0 [KHÓA KHỚP MIỆNG & BIỂU CẢM: CHỈ DUY NHẤT @ModelCatwalkNu (Ảnh #1) MỞ MIỆNG NÓI]: Nhân vật khẽ vuốt nhẹ mái tóc qua vai, ánh mắt sắc sảo khóa chặt ống kính, biểu cảm rạng rỡ tự nhiên và cử động môi khớp chính xác từng chữ bằng tông giọng nữ trẻ 23 tuổi trong trẻo, tự tin: \"Phom đồ lên dáng chuẩn từng centimet, mặc vào là tự tin sải bước luôn nha!\". Từ giây 7.0-10.0 [NHỊP POSE CHUYỂN CẢNH — KHÉP MÔI MỈM CƯỜI]: Nhân vật dừng nhẹ một nhịp, đặt tay lên eo nghiêng hông tạo dáng mở màn cực cuốn nối mượt sang cảnh 2.. | Chủ đề kịch bản: Trend TikTok Đi Bộ Tạo Dáng (Walk & Pose Catwalk) khoe trọn phom dáng trang phục mới qua 5 góc máy điện ảnh liền mạch [Khóa đồng nhất xuyên suốt 10s: Ảnh #1 = gương mặt, kiểu tóc, làn da, vóc dáng & giọng nói nhân vật @ModelCatwalkNu (Người mẫu nữ trẻ châu Á 23 tuổi gương mặt thanh tú sắc sảo, làn da trắng mịn căng bóng, sống mũi cao, mái tóc dài đen suôn mượt bay nhẹ, vóc dáng cao 1m72 tỷ lệ chuẩn mẫu thời trang); Ảnh #2 = form dáng, màu sắc & chất liệu trang phục (Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài)]. [KHÓA BỐI CẢNH CỐ ĐỊNH XUYÊN SUỐT: Hành lang studio thời trang hiện đại tối giản (tường trắng kem phẳng mịn, sàn bê tông mài bóng nhẹ phản chiếu ánh đèn softbox 5600K chuẩn tạp chí) cố định 100% xuyên suốt mọi cảnh] [KHÓA KHỚP MIỆNG (LIP-SYNC), BIỂU CẢM & TÔNG GIỌNG TỰ NHIÊN (@ModelCatwalkNu): Chỉ duy nhất nhân vật chính @ModelCatwalkNu (Ảnh tham chiếu #1) mở miệng nói đúng câu thoại đặt trong ngoặc kép với cử động môi khớp chính xác 100% từng âm tiết tiếng Việt; tông giọng nữ trẻ Việt Nam trong trẻo, tự nhiên, truyền cảm, ngắt nghỉ lấy hơi như người thật đang trò chuyện trực tiếp; biểu cảm ánh mắt giao tiếp ống kính sống động, nụ cười và cơ mặt mềm mại tự nhiên (ở các nhịp tạo dáng không thoại, nhân vật khép môi mỉm cười tự nhiên, tuyệt đối không nhép môi thừa).] [KHÓA CHÂN THẬT CHỐNG MÀU AI: Quay bằng camera iPhone 16 Pro Max / Sony FX3 4K 60fps thực tế đời thường, kết cấu da thật và ánh sáng vật lý chân thực 100%, tuyệt đối KHÔNG ám màu nhựa AI, KHÔNG làm mịn giả tạo]."
+      }
+    },
+    {
+      "id": "3f614f71-4a03-40a7-a0f4-3611f09c08e2",
+      "type": "generate-video",
+      "position": {
+        "x": -1034,
+        "y": 251
+      },
+      "data": {
+        "videoMode": "reference-to-video",
+        "model": "Muse Video",
+        "ratio": "9:16",
+        "duration": 10,
+        "prompt": "SCENE 01 (0s - 10s · 10s · Toàn cảnh bước đi mở màn & câu Hook thần thái (Full-body Tracking Walk) — Direct Reference-to-Video): Nhân vật @ModelCatwalkNu (Người mẫu nữ trẻ châu Á 23 tuổi gương mặt thanh tú sắc sảo, làn da trắng mịn căng bóng, sống mũi cao, mái tóc dài đen suôn mượt bay nhẹ, vóc dáng cao 1m72 tỷ lệ chuẩn mẫu thời trang) giữ nguyên 100% gương mặt, biểu cảm tự nhiên và tông giọng thật từ Ảnh tham chiếu #1, mặc đúng 100% bộ trang phục tham chiếu từ Ảnh #2 (Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài) trong bối cảnh cố định (Hành lang studio thời trang hiện đại tối giản (tường trắng kem phẳng mịn, sàn bê tông mài bóng nhẹ phản chiếu ánh đèn softbox 5600K chuẩn tạp chí) cố định 100% xuyên suốt mọi cảnh). Chuyển động, biểu cảm gương mặt, tông giọng & góc quay liền mạch 10 giây không cắt cảnh (10s seamless continuous single-take shot, 60fps smooth natural motion) bám sát mẫu (Workflow Đi Bộ Tạo Dáng (5 Scenes)): Từ giây 0-3.5 [NHỊP BƯỚC CATWALK MỞ MÀN — NHÂN VẬT @ModelCatwalkNu (Ảnh #1) KHÉP MÔI MỈM CƯỜI TỰ TIN]: Nhân vật @ModelCatwalkNu (giữ đúng gương mặt Ảnh #1, mặc đúng bộ trang phục Ảnh #2) sải bước catwalk tự tin từ chiều sâu hành lang studio sáng tiến thẳng về phía camera, tà áo và chân váy chuyển động nhịp nhàng theo từng bước chân, camera gimbal lùi chậm giữ khung hình toàn thân. Từ giây 3.5-7.0 [KHÓA KHỚP MIỆNG & BIỂU CẢM: CHỈ DUY NHẤT @ModelCatwalkNu (Ảnh #1) MỞ MIỆNG NÓI]: Nhân vật khẽ vuốt nhẹ mái tóc qua vai, ánh mắt sắc sảo khóa chặt ống kính, biểu cảm rạng rỡ tự nhiên và cử động môi khớp chính xác từng chữ bằng tông giọng nữ trẻ 23 tuổi trong trẻo, tự tin: \"Phom đồ lên dáng chuẩn từng centimet, mặc vào là tự tin sải bước luôn nha!\". Từ giây 7.0-10.0 [NHỊP POSE CHUYỂN CẢNH — KHÉP MÔI MỈM CƯỜI]: Nhân vật dừng nhẹ một nhịp, đặt tay lên eo nghiêng hông tạo dáng mở màn cực cuốn nối mượt sang cảnh 2.. | Chủ đề kịch bản: Trend TikTok Đi Bộ Tạo Dáng (Walk & Pose Catwalk) khoe trọn phom dáng trang phục mới qua 5 góc máy điện ảnh liền mạch [Khóa đồng nhất xuyên suốt 10s: Ảnh #1 = gương mặt, kiểu tóc, làn da, vóc dáng & giọng nói nhân vật @ModelCatwalkNu (Người mẫu nữ trẻ châu Á 23 tuổi gương mặt thanh tú sắc sảo, làn da trắng mịn căng bóng, sống mũi cao, mái tóc dài đen suôn mượt bay nhẹ, vóc dáng cao 1m72 tỷ lệ chuẩn mẫu thời trang); Ảnh #2 = form dáng, màu sắc & chất liệu trang phục (Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài)]. [KHÓA BỐI CẢNH CỐ ĐỊNH XUYÊN SUỐT: Hành lang studio thời trang hiện đại tối giản (tường trắng kem phẳng mịn, sàn bê tông mài bóng nhẹ phản chiếu ánh đèn softbox 5600K chuẩn tạp chí) cố định 100% xuyên suốt mọi cảnh] [KHÓA KHỚP MIỆNG (LIP-SYNC), BIỂU CẢM & TÔNG GIỌNG TỰ NHIÊN (@ModelCatwalkNu): Chỉ duy nhất nhân vật chính @ModelCatwalkNu (Ảnh tham chiếu #1) mở miệng nói đúng câu thoại đặt trong ngoặc kép với cử động môi khớp chính xác 100% từng âm tiết tiếng Việt; tông giọng nữ trẻ Việt Nam trong trẻo, tự nhiên, truyền cảm, ngắt nghỉ lấy hơi như người thật đang trò chuyện trực tiếp; biểu cảm ánh mắt giao tiếp ống kính sống động, nụ cười và cơ mặt mềm mại tự nhiên (ở các nhịp tạo dáng không thoại, nhân vật khép môi mỉm cười tự nhiên, tuyệt đối không nhép môi thừa).] [KHÓA CHÂN THẬT CHỐNG MÀU AI: Quay bằng camera iPhone 16 Pro Max / Sony FX3 4K 60fps thực tế đời thường, kết cấu da thật và ánh sáng vật lý chân thực 100%, tuyệt đối KHÔNG ám màu nhựa AI, KHÔNG làm mịn giả tạo].",
+        "batchLabel": "Tạo Video Scene 1 (10s)"
+      }
+    },
+    {
+      "id": "b3eacaff-c335-4ea5-94b4-b37916385cc0",
+      "type": "prompt",
+      "position": {
+        "x": -1059,
+        "y": 409
+      },
+      "data": {
+        "batchRole": "input",
+        "batchLabel": "Prompt Video Scene 2 (10s)",
+        "prompt": "SCENE 02 (10s - 20s · 10s · Trung cảnh xoay vai & giao tiếp ánh mắt (Medium Walk & Eye-Contact) — Direct Reference-to-Video): Nhân vật @ModelCatwalkNu (Người mẫu nữ trẻ châu Á 23 tuổi gương mặt thanh tú sắc sảo, làn da trắng mịn căng bóng, sống mũi cao, mái tóc dài đen suôn mượt bay nhẹ, vóc dáng cao 1m72 tỷ lệ chuẩn mẫu thời trang) giữ nguyên 100% gương mặt, biểu cảm tự nhiên và tông giọng thật từ Ảnh tham chiếu #1, mặc đúng 100% bộ trang phục tham chiếu từ Ảnh #2 (Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài) trong bối cảnh cố định (Hành lang studio thời trang hiện đại tối giản (tường trắng kem phẳng mịn, sàn bê tông mài bóng nhẹ phản chiếu ánh đèn softbox 5600K chuẩn tạp chí) cố định 100% xuyên suốt mọi cảnh). Chuyển động, biểu cảm gương mặt, tông giọng & góc quay liền mạch 10 giây không cắt cảnh (10s seamless continuous single-take shot, 60fps smooth natural motion) bám sát mẫu (Workflow Đi Bộ Tạo Dáng (5 Scenes)): Từ giây 0-3.5 [NHỊP BƯỚC XOAY VAI — @ModelCatwalkNu (Ảnh #1) KHÉP MÔI MỈM CƯỜI DUYÊN DÁNG]: Góc quay trung cảnh (medium shot) ngang thắt lưng trên cùng hành lang studio cố định khi nhân vật @ModelCatwalkNu bước chậm về phía trước rồi xoay nhẹ bờ vai 45 độ khoe trọn đường chiết eo tinh tế của bộ trang phục (Ảnh #2). Từ giây 3.5-7.0 [KHÓA KHỚP MIỆNG & BIỂU CẢM: CHỈ DUY NHẤT @ModelCatwalkNu (Ảnh #1) MỞ MIỆNG NÓI]: Nhân vật nghiêng đầu duyên dáng, tay chạm nhẹ lên ve cổ áo, ánh mắt giao tiếp ống kính sống động và cử động môi khớp lời thoại bằng tông giọng nữ tự nhiên truyền cảm: \"Chất vải đứng phom mà mặc lên người nhẹ tênh, cực kỳ tôn vòng eo luôn đó!\". Từ giây 7.0-10.0 [NHỊP POSE KHOE DÁNG — KHÉP MÔI MỈM CƯỜI]: Ánh sáng studio lướt qua bề mặt vải khi nhân vật khép môi nở nụ cười rạng rỡ nhìn thẳng camera.. | Chủ đề kịch bản: Trend TikTok Đi Bộ Tạo Dáng (Walk & Pose Catwalk) khoe trọn phom dáng trang phục mới qua 5 góc máy điện ảnh liền mạch [Khóa đồng nhất xuyên suốt 10s: Ảnh #1 = gương mặt, kiểu tóc, làn da, vóc dáng & giọng nói nhân vật @ModelCatwalkNu (Người mẫu nữ trẻ châu Á 23 tuổi gương mặt thanh tú sắc sảo, làn da trắng mịn căng bóng, sống mũi cao, mái tóc dài đen suôn mượt bay nhẹ, vóc dáng cao 1m72 tỷ lệ chuẩn mẫu thời trang); Ảnh #2 = form dáng, màu sắc & chất liệu trang phục (Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài)]. [KHÓA BỐI CẢNH CỐ ĐỊNH XUYÊN SUỐT: Hành lang studio thời trang hiện đại tối giản (tường trắng kem phẳng mịn, sàn bê tông mài bóng nhẹ phản chiếu ánh đèn softbox 5600K chuẩn tạp chí) cố định 100% xuyên suốt mọi cảnh] [KHÓA KHỚP MIỆNG (LIP-SYNC), BIỂU CẢM & TÔNG GIỌNG TỰ NHIÊN (@ModelCatwalkNu): Chỉ duy nhất nhân vật chính @ModelCatwalkNu (Ảnh tham chiếu #1) mở miệng nói đúng câu thoại đặt trong ngoặc kép với cử động môi khớp chính xác 100% từng âm tiết tiếng Việt; tông giọng nữ trẻ Việt Nam trong trẻo, tự nhiên, truyền cảm, ngắt nghỉ lấy hơi như người thật đang trò chuyện trực tiếp; biểu cảm ánh mắt giao tiếp ống kính sống động, nụ cười và cơ mặt mềm mại tự nhiên (ở các nhịp tạo dáng không thoại, nhân vật khép môi mỉm cười tự nhiên, tuyệt đối không nhép môi thừa).] [KHÓA CHÂN THẬT CHỐNG MÀU AI: Quay bằng camera iPhone 16 Pro Max / Sony FX3 4K 60fps thực tế đời thường, kết cấu da thật và ánh sáng vật lý chân thực 100%, tuyệt đối KHÔNG ám màu nhựa AI, KHÔNG làm mịn giả tạo]."
+      }
+    },
+    {
+      "id": "df7252e1-594c-4d04-a153-18b8524e6043",
+      "type": "generate-video",
+      "position": {
+        "x": -609,
+        "y": 432
+      },
+      "data": {
+        "videoMode": "reference-to-video",
+        "model": "Muse Video",
+        "ratio": "9:16",
+        "duration": 10,
+        "prompt": "SCENE 02 (10s - 20s · 10s · Trung cảnh xoay vai & giao tiếp ánh mắt (Medium Walk & Eye-Contact) — Direct Reference-to-Video): Nhân vật @ModelCatwalkNu (Người mẫu nữ trẻ châu Á 23 tuổi gương mặt thanh tú sắc sảo, làn da trắng mịn căng bóng, sống mũi cao, mái tóc dài đen suôn mượt bay nhẹ, vóc dáng cao 1m72 tỷ lệ chuẩn mẫu thời trang) giữ nguyên 100% gương mặt, biểu cảm tự nhiên và tông giọng thật từ Ảnh tham chiếu #1, mặc đúng 100% bộ trang phục tham chiếu từ Ảnh #2 (Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài) trong bối cảnh cố định (Hành lang studio thời trang hiện đại tối giản (tường trắng kem phẳng mịn, sàn bê tông mài bóng nhẹ phản chiếu ánh đèn softbox 5600K chuẩn tạp chí) cố định 100% xuyên suốt mọi cảnh). Chuyển động, biểu cảm gương mặt, tông giọng & góc quay liền mạch 10 giây không cắt cảnh (10s seamless continuous single-take shot, 60fps smooth natural motion) bám sát mẫu (Workflow Đi Bộ Tạo Dáng (5 Scenes)): Từ giây 0-3.5 [NHỊP BƯỚC XOAY VAI — @ModelCatwalkNu (Ảnh #1) KHÉP MÔI MỈM CƯỜI DUYÊN DÁNG]: Góc quay trung cảnh (medium shot) ngang thắt lưng trên cùng hành lang studio cố định khi nhân vật @ModelCatwalkNu bước chậm về phía trước rồi xoay nhẹ bờ vai 45 độ khoe trọn đường chiết eo tinh tế của bộ trang phục (Ảnh #2). Từ giây 3.5-7.0 [KHÓA KHỚP MIỆNG & BIỂU CẢM: CHỈ DUY NHẤT @ModelCatwalkNu (Ảnh #1) MỞ MIỆNG NÓI]: Nhân vật nghiêng đầu duyên dáng, tay chạm nhẹ lên ve cổ áo, ánh mắt giao tiếp ống kính sống động và cử động môi khớp lời thoại bằng tông giọng nữ tự nhiên truyền cảm: \"Chất vải đứng phom mà mặc lên người nhẹ tênh, cực kỳ tôn vòng eo luôn đó!\". Từ giây 7.0-10.0 [NHỊP POSE KHOE DÁNG — KHÉP MÔI MỈM CƯỜI]: Ánh sáng studio lướt qua bề mặt vải khi nhân vật khép môi nở nụ cười rạng rỡ nhìn thẳng camera.. | Chủ đề kịch bản: Trend TikTok Đi Bộ Tạo Dáng (Walk & Pose Catwalk) khoe trọn phom dáng trang phục mới qua 5 góc máy điện ảnh liền mạch [Khóa đồng nhất xuyên suốt 10s: Ảnh #1 = gương mặt, kiểu tóc, làn da, vóc dáng & giọng nói nhân vật @ModelCatwalkNu (Người mẫu nữ trẻ châu Á 23 tuổi gương mặt thanh tú sắc sảo, làn da trắng mịn căng bóng, sống mũi cao, mái tóc dài đen suôn mượt bay nhẹ, vóc dáng cao 1m72 tỷ lệ chuẩn mẫu thời trang); Ảnh #2 = form dáng, màu sắc & chất liệu trang phục (Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài)]. [KHÓA BỐI CẢNH CỐ ĐỊNH XUYÊN SUỐT: Hành lang studio thời trang hiện đại tối giản (tường trắng kem phẳng mịn, sàn bê tông mài bóng nhẹ phản chiếu ánh đèn softbox 5600K chuẩn tạp chí) cố định 100% xuyên suốt mọi cảnh] [KHÓA KHỚP MIỆNG (LIP-SYNC), BIỂU CẢM & TÔNG GIỌNG TỰ NHIÊN (@ModelCatwalkNu): Chỉ duy nhất nhân vật chính @ModelCatwalkNu (Ảnh tham chiếu #1) mở miệng nói đúng câu thoại đặt trong ngoặc kép với cử động môi khớp chính xác 100% từng âm tiết tiếng Việt; tông giọng nữ trẻ Việt Nam trong trẻo, tự nhiên, truyền cảm, ngắt nghỉ lấy hơi như người thật đang trò chuyện trực tiếp; biểu cảm ánh mắt giao tiếp ống kính sống động, nụ cười và cơ mặt mềm mại tự nhiên (ở các nhịp tạo dáng không thoại, nhân vật khép môi mỉm cười tự nhiên, tuyệt đối không nhép môi thừa).] [KHÓA CHÂN THẬT CHỐNG MÀU AI: Quay bằng camera iPhone 16 Pro Max / Sony FX3 4K 60fps thực tế đời thường, kết cấu da thật và ánh sáng vật lý chân thực 100%, tuyệt đối KHÔNG ám màu nhựa AI, KHÔNG làm mịn giả tạo].",
+        "batchLabel": "Tạo Video Scene 2 (10s)"
+      }
+    },
+    {
+      "id": "29c3000d-d3e4-4dad-915f-6b87914b5e80",
+      "type": "prompt",
+      "position": {
+        "x": -1073,
+        "y": 642
+      },
+      "data": {
+        "batchRole": "input",
+        "batchLabel": "Prompt Video Scene 3 (10s)",
+        "prompt": "SCENE 03 (20s - 30s · 10s · Cận cảnh đường cắt may & chất liệu trang phục (Close-up Outfit Texture) — Direct Reference-to-Video): Nhân vật @ModelCatwalkNu (Người mẫu nữ trẻ châu Á 23 tuổi gương mặt thanh tú sắc sảo, làn da trắng mịn căng bóng, sống mũi cao, mái tóc dài đen suôn mượt bay nhẹ, vóc dáng cao 1m72 tỷ lệ chuẩn mẫu thời trang) giữ nguyên 100% gương mặt, biểu cảm tự nhiên và tông giọng thật từ Ảnh tham chiếu #1, mặc đúng 100% bộ trang phục tham chiếu từ Ảnh #2 (Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài) trong bối cảnh cố định (Hành lang studio thời trang hiện đại tối giản (tường trắng kem phẳng mịn, sàn bê tông mài bóng nhẹ phản chiếu ánh đèn softbox 5600K chuẩn tạp chí) cố định 100% xuyên suốt mọi cảnh). Chuyển động, biểu cảm gương mặt, tông giọng & góc quay liền mạch 10 giây không cắt cảnh (10s seamless continuous single-take shot, 60fps smooth natural motion) bám sát mẫu (Workflow Đi Bộ Tạo Dáng (5 Scenes)): Từ giây 0-3.5 [NHỊP LƯỚT CẬN CẢNH CHẤT VẢI — @ModelCatwalkNu (Ảnh #1) KHÉP MÔI MỈM CƯỜI]: Camera dolly mượt từ phần cổ áo xuống hàng cúc và đường may chiết eo sắc nét của bộ trang phục (Ảnh #2) khi nhân vật chuyển động hông nhẹ nhàng, bàn tay thon dài vuốt nhẹ qua bề mặt vải để lộ phom dáng chuẩn xác. Từ giây 3.5-7.0 [KHÓA KHỚP MIỆNG & BIỂU CẢM: CHỈ DUY NHẤT @ModelCatwalkNu (Ảnh #1) MỞ MIỆNG NÓI]: Camera nâng mượt lên gương mặt xinh đẹp đồng nhất của @ModelCatwalkNu (Ảnh #1), nhân vật mỉm cười tự nhiên và cử động môi nói bằng tông giọng nữ trẻ cuốn hút: \"Từng đường kim mũi chỉ đều sắc nét chuẩn hàng thiết kế cao cấp nha mọi người!\". Từ giây 7.0-10.0 [NHỊP POSE GÓC NGHIÊNG — KHÉP MÔI NHÁY MẮT]: Nhân vật khép môi mỉm cười sang chảnh và nháy mắt tinh tế với ống kính.. | Chủ đề kịch bản: Trend TikTok Đi Bộ Tạo Dáng (Walk & Pose Catwalk) khoe trọn phom dáng trang phục mới qua 5 góc máy điện ảnh liền mạch [Khóa đồng nhất xuyên suốt 10s: Ảnh #1 = gương mặt, kiểu tóc, làn da, vóc dáng & giọng nói nhân vật @ModelCatwalkNu (Người mẫu nữ trẻ châu Á 23 tuổi gương mặt thanh tú sắc sảo, làn da trắng mịn căng bóng, sống mũi cao, mái tóc dài đen suôn mượt bay nhẹ, vóc dáng cao 1m72 tỷ lệ chuẩn mẫu thời trang); Ảnh #2 = form dáng, màu sắc & chất liệu trang phục (Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài)]. [KHÓA BỐI CẢNH CỐ ĐỊNH XUYÊN SUỐT: Hành lang studio thời trang hiện đại tối giản (tường trắng kem phẳng mịn, sàn bê tông mài bóng nhẹ phản chiếu ánh đèn softbox 5600K chuẩn tạp chí) cố định 100% xuyên suốt mọi cảnh] [KHÓA KHỚP MIỆNG (LIP-SYNC), BIỂU CẢM & TÔNG GIỌNG TỰ NHIÊN (@ModelCatwalkNu): Chỉ duy nhất nhân vật chính @ModelCatwalkNu (Ảnh tham chiếu #1) mở miệng nói đúng câu thoại đặt trong ngoặc kép với cử động môi khớp chính xác 100% từng âm tiết tiếng Việt; tông giọng nữ trẻ Việt Nam trong trẻo, tự nhiên, truyền cảm, ngắt nghỉ lấy hơi như người thật đang trò chuyện trực tiếp; biểu cảm ánh mắt giao tiếp ống kính sống động, nụ cười và cơ mặt mềm mại tự nhiên (ở các nhịp tạo dáng không thoại, nhân vật khép môi mỉm cười tự nhiên, tuyệt đối không nhép môi thừa).] [KHÓA CHÂN THẬT CHỐNG MÀU AI: Quay bằng camera iPhone 16 Pro Max / Sony FX3 4K 60fps thực tế đời thường, kết cấu da thật và ánh sáng vật lý chân thực 100%, tuyệt đối KHÔNG ám màu nhựa AI, KHÔNG làm mịn giả tạo]."
+      }
+    },
+    {
+      "id": "7e45647a-8cd4-4bd7-bc7e-847e07756416",
+      "type": "generate-video",
+      "position": {
+        "x": -600,
+        "y": 642
+      },
+      "data": {
+        "videoMode": "reference-to-video",
+        "model": "Muse Video",
+        "ratio": "9:16",
+        "duration": 10,
+        "prompt": "SCENE 03 (20s - 30s · 10s · Cận cảnh đường cắt may & chất liệu trang phục (Close-up Outfit Texture) — Direct Reference-to-Video): Nhân vật @ModelCatwalkNu (Người mẫu nữ trẻ châu Á 23 tuổi gương mặt thanh tú sắc sảo, làn da trắng mịn căng bóng, sống mũi cao, mái tóc dài đen suôn mượt bay nhẹ, vóc dáng cao 1m72 tỷ lệ chuẩn mẫu thời trang) giữ nguyên 100% gương mặt, biểu cảm tự nhiên và tông giọng thật từ Ảnh tham chiếu #1, mặc đúng 100% bộ trang phục tham chiếu từ Ảnh #2 (Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài) trong bối cảnh cố định (Hành lang studio thời trang hiện đại tối giản (tường trắng kem phẳng mịn, sàn bê tông mài bóng nhẹ phản chiếu ánh đèn softbox 5600K chuẩn tạp chí) cố định 100% xuyên suốt mọi cảnh). Chuyển động, biểu cảm gương mặt, tông giọng & góc quay liền mạch 10 giây không cắt cảnh (10s seamless continuous single-take shot, 60fps smooth natural motion) bám sát mẫu (Workflow Đi Bộ Tạo Dáng (5 Scenes)): Từ giây 0-3.5 [NHỊP LƯỚT CẬN CẢNH CHẤT VẢI — @ModelCatwalkNu (Ảnh #1) KHÉP MÔI MỈM CƯỜI]: Camera dolly mượt từ phần cổ áo xuống hàng cúc và đường may chiết eo sắc nét của bộ trang phục (Ảnh #2) khi nhân vật chuyển động hông nhẹ nhàng, bàn tay thon dài vuốt nhẹ qua bề mặt vải để lộ phom dáng chuẩn xác. Từ giây 3.5-7.0 [KHÓA KHỚP MIỆNG & BIỂU CẢM: CHỈ DUY NHẤT @ModelCatwalkNu (Ảnh #1) MỞ MIỆNG NÓI]: Camera nâng mượt lên gương mặt xinh đẹp đồng nhất của @ModelCatwalkNu (Ảnh #1), nhân vật mỉm cười tự nhiên và cử động môi nói bằng tông giọng nữ trẻ cuốn hút: \"Từng đường kim mũi chỉ đều sắc nét chuẩn hàng thiết kế cao cấp nha mọi người!\". Từ giây 7.0-10.0 [NHỊP POSE GÓC NGHIÊNG — KHÉP MÔI NHÁY MẮT]: Nhân vật khép môi mỉm cười sang chảnh và nháy mắt tinh tế với ống kính.. | Chủ đề kịch bản: Trend TikTok Đi Bộ Tạo Dáng (Walk & Pose Catwalk) khoe trọn phom dáng trang phục mới qua 5 góc máy điện ảnh liền mạch [Khóa đồng nhất xuyên suốt 10s: Ảnh #1 = gương mặt, kiểu tóc, làn da, vóc dáng & giọng nói nhân vật @ModelCatwalkNu (Người mẫu nữ trẻ châu Á 23 tuổi gương mặt thanh tú sắc sảo, làn da trắng mịn căng bóng, sống mũi cao, mái tóc dài đen suôn mượt bay nhẹ, vóc dáng cao 1m72 tỷ lệ chuẩn mẫu thời trang); Ảnh #2 = form dáng, màu sắc & chất liệu trang phục (Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài)]. [KHÓA BỐI CẢNH CỐ ĐỊNH XUYÊN SUỐT: Hành lang studio thời trang hiện đại tối giản (tường trắng kem phẳng mịn, sàn bê tông mài bóng nhẹ phản chiếu ánh đèn softbox 5600K chuẩn tạp chí) cố định 100% xuyên suốt mọi cảnh] [KHÓA KHỚP MIỆNG (LIP-SYNC), BIỂU CẢM & TÔNG GIỌNG TỰ NHIÊN (@ModelCatwalkNu): Chỉ duy nhất nhân vật chính @ModelCatwalkNu (Ảnh tham chiếu #1) mở miệng nói đúng câu thoại đặt trong ngoặc kép với cử động môi khớp chính xác 100% từng âm tiết tiếng Việt; tông giọng nữ trẻ Việt Nam trong trẻo, tự nhiên, truyền cảm, ngắt nghỉ lấy hơi như người thật đang trò chuyện trực tiếp; biểu cảm ánh mắt giao tiếp ống kính sống động, nụ cười và cơ mặt mềm mại tự nhiên (ở các nhịp tạo dáng không thoại, nhân vật khép môi mỉm cười tự nhiên, tuyệt đối không nhép môi thừa).] [KHÓA CHÂN THẬT CHỐNG MÀU AI: Quay bằng camera iPhone 16 Pro Max / Sony FX3 4K 60fps thực tế đời thường, kết cấu da thật và ánh sáng vật lý chân thực 100%, tuyệt đối KHÔNG ám màu nhựa AI, KHÔNG làm mịn giả tạo].",
+        "batchLabel": "Tạo Video Scene 3 (10s)"
+      }
+    },
+    {
+      "id": "0198c637-a54f-4634-aad9-6800cbb7dbb4",
+      "type": "prompt",
+      "position": {
+        "x": -716,
+        "y": -276
+      },
+      "data": {
+        "batchRole": "input",
+        "batchLabel": "Prompt Video Scene 4 (10s)",
+        "prompt": "SCENE 04 (30s - 40s · 10s · Góc nghiêng điện ảnh bước đi tôn chiều cao (45-Degree Low-Angle Stride) — Direct Reference-to-Video): Nhân vật @ModelCatwalkNu (Người mẫu nữ trẻ châu Á 23 tuổi gương mặt thanh tú sắc sảo, làn da trắng mịn căng bóng, sống mũi cao, mái tóc dài đen suôn mượt bay nhẹ, vóc dáng cao 1m72 tỷ lệ chuẩn mẫu thời trang) giữ nguyên 100% gương mặt, biểu cảm tự nhiên và tông giọng thật từ Ảnh tham chiếu #1, mặc đúng 100% bộ trang phục tham chiếu từ Ảnh #2 (Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài) trong bối cảnh cố định (Hành lang studio thời trang hiện đại tối giản (tường trắng kem phẳng mịn, sàn bê tông mài bóng nhẹ phản chiếu ánh đèn softbox 5600K chuẩn tạp chí) cố định 100% xuyên suốt mọi cảnh). Chuyển động, biểu cảm gương mặt, tông giọng & góc quay liền mạch 10 giây không cắt cảnh (10s seamless continuous single-take shot, 60fps smooth natural motion) bám sát mẫu (Workflow Đi Bộ Tạo Dáng (5 Scenes)): Từ giây 0-3.5 [NHỊP SẢI BƯỚC GÓC THẤP — @ModelCatwalkNu (Ảnh #1) KHÉP MÔI THẦN THÁI]: Góc máy 45 độ thấp (low-angle tracking) trên cùng hành lang studio ghi lại bước chân dài miên man của @ModelCatwalkNu trong bộ trang phục Ảnh #2 sải bước uyển chuyển dưới ánh đèn rim-light tạo chiều sâu điện ảnh. Từ giây 3.5-7.0 [KHÓA KHỚP MIỆNG & BIỂU CẢM: CHỈ DUY NHẤT @ModelCatwalkNu (Ảnh #1) MỞ MIỆNG NÓI]: Nhân vật vừa bước chậm vừa quay mặt nhìn thẳng ống kính với biểu cảm tự tin rạng ngời, cử động môi khớp lời thoại bằng tông giọng nữ trẻ trung: \"Set này diện đi làm hay đi dạo phố chụp hình góc nào cũng hack dáng đỉnh cao!\". Từ giây 7.0-10.0 [NHỊP DỪNG BƯỚC XOAY HÔNG — KHÉP MÔI MỈM CƯỜI]: Mái tóc dài bay nhẹ, nhân vật dừng bước khép môi mỉm cười quyến rũ.. | Chủ đề kịch bản: Trend TikTok Đi Bộ Tạo Dáng (Walk & Pose Catwalk) khoe trọn phom dáng trang phục mới qua 5 góc máy điện ảnh liền mạch [Khóa đồng nhất xuyên suốt 10s: Ảnh #1 = gương mặt, kiểu tóc, làn da, vóc dáng & giọng nói nhân vật @ModelCatwalkNu (Người mẫu nữ trẻ châu Á 23 tuổi gương mặt thanh tú sắc sảo, làn da trắng mịn căng bóng, sống mũi cao, mái tóc dài đen suôn mượt bay nhẹ, vóc dáng cao 1m72 tỷ lệ chuẩn mẫu thời trang); Ảnh #2 = form dáng, màu sắc & chất liệu trang phục (Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài)]. [KHÓA BỐI CẢNH CỐ ĐỊNH XUYÊN SUỐT: Hành lang studio thời trang hiện đại tối giản (tường trắng kem phẳng mịn, sàn bê tông mài bóng nhẹ phản chiếu ánh đèn softbox 5600K chuẩn tạp chí) cố định 100% xuyên suốt mọi cảnh] [KHÓA KHỚP MIỆNG (LIP-SYNC), BIỂU CẢM & TÔNG GIỌNG TỰ NHIÊN (@ModelCatwalkNu): Chỉ duy nhất nhân vật chính @ModelCatwalkNu (Ảnh tham chiếu #1) mở miệng nói đúng câu thoại đặt trong ngoặc kép với cử động môi khớp chính xác 100% từng âm tiết tiếng Việt; tông giọng nữ trẻ Việt Nam trong trẻo, tự nhiên, truyền cảm, ngắt nghỉ lấy hơi như người thật đang trò chuyện trực tiếp; biểu cảm ánh mắt giao tiếp ống kính sống động, nụ cười và cơ mặt mềm mại tự nhiên (ở các nhịp tạo dáng không thoại, nhân vật khép môi mỉm cười tự nhiên, tuyệt đối không nhép môi thừa).] [KHÓA CHÂN THẬT CHỐNG MÀU AI: Quay bằng camera iPhone 16 Pro Max / Sony FX3 4K 60fps thực tế đời thường, kết cấu da thật và ánh sáng vật lý chân thực 100%, tuyệt đối KHÔNG ám màu nhựa AI, KHÔNG làm mịn giả tạo]."
+      }
+    },
+    {
+      "id": "b52e0d9f-80c9-40ac-9120-e82fe47e4444",
+      "type": "generate-video",
+      "position": {
+        "x": -567,
+        "y": 182
+      },
+      "data": {
+        "videoMode": "reference-to-video",
+        "model": "Muse Video",
+        "ratio": "9:16",
+        "duration": 10,
+        "prompt": "SCENE 04 (30s - 40s · 10s · Góc nghiêng điện ảnh bước đi tôn chiều cao (45-Degree Low-Angle Stride) — Direct Reference-to-Video): Nhân vật @ModelCatwalkNu (Người mẫu nữ trẻ châu Á 23 tuổi gương mặt thanh tú sắc sảo, làn da trắng mịn căng bóng, sống mũi cao, mái tóc dài đen suôn mượt bay nhẹ, vóc dáng cao 1m72 tỷ lệ chuẩn mẫu thời trang) giữ nguyên 100% gương mặt, biểu cảm tự nhiên và tông giọng thật từ Ảnh tham chiếu #1, mặc đúng 100% bộ trang phục tham chiếu từ Ảnh #2 (Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài) trong bối cảnh cố định (Hành lang studio thời trang hiện đại tối giản (tường trắng kem phẳng mịn, sàn bê tông mài bóng nhẹ phản chiếu ánh đèn softbox 5600K chuẩn tạp chí) cố định 100% xuyên suốt mọi cảnh). Chuyển động, biểu cảm gương mặt, tông giọng & góc quay liền mạch 10 giây không cắt cảnh (10s seamless continuous single-take shot, 60fps smooth natural motion) bám sát mẫu (Workflow Đi Bộ Tạo Dáng (5 Scenes)): Từ giây 0-3.5 [NHỊP SẢI BƯỚC GÓC THẤP — @ModelCatwalkNu (Ảnh #1) KHÉP MÔI THẦN THÁI]: Góc máy 45 độ thấp (low-angle tracking) trên cùng hành lang studio ghi lại bước chân dài miên man của @ModelCatwalkNu trong bộ trang phục Ảnh #2 sải bước uyển chuyển dưới ánh đèn rim-light tạo chiều sâu điện ảnh. Từ giây 3.5-7.0 [KHÓA KHỚP MIỆNG & BIỂU CẢM: CHỈ DUY NHẤT @ModelCatwalkNu (Ảnh #1) MỞ MIỆNG NÓI]: Nhân vật vừa bước chậm vừa quay mặt nhìn thẳng ống kính với biểu cảm tự tin rạng ngời, cử động môi khớp lời thoại bằng tông giọng nữ trẻ trung: \"Set này diện đi làm hay đi dạo phố chụp hình góc nào cũng hack dáng đỉnh cao!\". Từ giây 7.0-10.0 [NHỊP DỪNG BƯỚC XOAY HÔNG — KHÉP MÔI MỈM CƯỜI]: Mái tóc dài bay nhẹ, nhân vật dừng bước khép môi mỉm cười quyến rũ.. | Chủ đề kịch bản: Trend TikTok Đi Bộ Tạo Dáng (Walk & Pose Catwalk) khoe trọn phom dáng trang phục mới qua 5 góc máy điện ảnh liền mạch [Khóa đồng nhất xuyên suốt 10s: Ảnh #1 = gương mặt, kiểu tóc, làn da, vóc dáng & giọng nói nhân vật @ModelCatwalkNu (Người mẫu nữ trẻ châu Á 23 tuổi gương mặt thanh tú sắc sảo, làn da trắng mịn căng bóng, sống mũi cao, mái tóc dài đen suôn mượt bay nhẹ, vóc dáng cao 1m72 tỷ lệ chuẩn mẫu thời trang); Ảnh #2 = form dáng, màu sắc & chất liệu trang phục (Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài)]. [KHÓA BỐI CẢNH CỐ ĐỊNH XUYÊN SUỐT: Hành lang studio thời trang hiện đại tối giản (tường trắng kem phẳng mịn, sàn bê tông mài bóng nhẹ phản chiếu ánh đèn softbox 5600K chuẩn tạp chí) cố định 100% xuyên suốt mọi cảnh] [KHÓA KHỚP MIỆNG (LIP-SYNC), BIỂU CẢM & TÔNG GIỌNG TỰ NHIÊN (@ModelCatwalkNu): Chỉ duy nhất nhân vật chính @ModelCatwalkNu (Ảnh tham chiếu #1) mở miệng nói đúng câu thoại đặt trong ngoặc kép với cử động môi khớp chính xác 100% từng âm tiết tiếng Việt; tông giọng nữ trẻ Việt Nam trong trẻo, tự nhiên, truyền cảm, ngắt nghỉ lấy hơi như người thật đang trò chuyện trực tiếp; biểu cảm ánh mắt giao tiếp ống kính sống động, nụ cười và cơ mặt mềm mại tự nhiên (ở các nhịp tạo dáng không thoại, nhân vật khép môi mỉm cười tự nhiên, tuyệt đối không nhép môi thừa).] [KHÓA CHÂN THẬT CHỐNG MÀU AI: Quay bằng camera iPhone 16 Pro Max / Sony FX3 4K 60fps thực tế đời thường, kết cấu da thật và ánh sáng vật lý chân thực 100%, tuyệt đối KHÔNG ám màu nhựa AI, KHÔNG làm mịn giả tạo].",
+        "batchLabel": "Tạo Video Scene 4 (10s)"
+      }
+    },
+    {
+      "id": "3f174c14-6f08-44f9-a59b-771362a8c7a8",
+      "type": "prompt",
+      "position": {
+        "x": -393,
+        "y": -275
+      },
+      "data": {
+        "batchRole": "input",
+        "batchLabel": "Prompt Video Scene 5 (10s)",
+        "prompt": "SCENE 05 (40s - 50s · 10s · Tạo dáng chốt hạ triệu view (Signature Hero Pose) — Direct Reference-to-Video): Nhân vật @ModelCatwalkNu (Người mẫu nữ trẻ châu Á 23 tuổi gương mặt thanh tú sắc sảo, làn da trắng mịn căng bóng, sống mũi cao, mái tóc dài đen suôn mượt bay nhẹ, vóc dáng cao 1m72 tỷ lệ chuẩn mẫu thời trang) giữ nguyên 100% gương mặt, biểu cảm tự nhiên và tông giọng thật từ Ảnh tham chiếu #1, mặc đúng 100% bộ trang phục tham chiếu từ Ảnh #2 (Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài) trong bối cảnh cố định (Hành lang studio thời trang hiện đại tối giản (tường trắng kem phẳng mịn, sàn bê tông mài bóng nhẹ phản chiếu ánh đèn softbox 5600K chuẩn tạp chí) cố định 100% xuyên suốt mọi cảnh). Chuyển động, biểu cảm gương mặt, tông giọng & góc quay liền mạch 10 giây không cắt cảnh (10s seamless continuous single-take shot, 60fps smooth natural motion) bám sát mẫu (Workflow Đi Bộ Tạo Dáng (5 Scenes)): Từ giây 0-3.5 [NHỊP XOAY 180 ĐỘ KHOE TRỌN SET ĐỒ — @ModelCatwalkNu (Ảnh #1) KHÉP MÔI TỰ TIN]: Nhân vật @ModelCatwalkNu bước 2 bước dứt khoát tới điểm vàng chính giữa hành lang studio, xoay người 180 độ mượt mà khoe trọn phom dáng 360 độ của bộ trang phục (Ảnh #2). Từ giây 3.5-7.0 [KHÓA KHỚP MIỆNG & BIỂU CẢM: CHỈ DUY NHẤT @ModelCatwalkNu (Ảnh #1) MỞ MIỆNG NÓI]: Nhân vật đặt tay lên hông tạo dáng Signature Hero Pose chuẩn mẫu tạp chí, biểu cảm tươi tắn và cử động môi chốt hạ bằng tông giọng nữ hào hứng tự nhiên: \"Chấm ngay mười trên mười điểm cho set đồ xuất sắc này nha!\". Từ giây 7.0-10.0 [NHỊP KHÓA KHUNG HÌNH KẾT — KHÉP MÔI MỈM CƯỜI]: Nhân vật giữ thần thái rạng ngời, nghiêng mặt mỉm cười quyến rũ khóa trọn khung hình kết.. | Chủ đề kịch bản: Trend TikTok Đi Bộ Tạo Dáng (Walk & Pose Catwalk) khoe trọn phom dáng trang phục mới qua 5 góc máy điện ảnh liền mạch [Khóa đồng nhất xuyên suốt 10s: Ảnh #1 = gương mặt, kiểu tóc, làn da, vóc dáng & giọng nói nhân vật @ModelCatwalkNu (Người mẫu nữ trẻ châu Á 23 tuổi gương mặt thanh tú sắc sảo, làn da trắng mịn căng bóng, sống mũi cao, mái tóc dài đen suôn mượt bay nhẹ, vóc dáng cao 1m72 tỷ lệ chuẩn mẫu thời trang); Ảnh #2 = form dáng, màu sắc & chất liệu trang phục (Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài)]. [KHÓA BỐI CẢNH CỐ ĐỊNH XUYÊN SUỐT: Hành lang studio thời trang hiện đại tối giản (tường trắng kem phẳng mịn, sàn bê tông mài bóng nhẹ phản chiếu ánh đèn softbox 5600K chuẩn tạp chí) cố định 100% xuyên suốt mọi cảnh] [KHÓA KHỚP MIỆNG (LIP-SYNC), BIỂU CẢM & TÔNG GIỌNG TỰ NHIÊN (@ModelCatwalkNu): Chỉ duy nhất nhân vật chính @ModelCatwalkNu (Ảnh tham chiếu #1) mở miệng nói đúng câu thoại đặt trong ngoặc kép với cử động môi khớp chính xác 100% từng âm tiết tiếng Việt; tông giọng nữ trẻ Việt Nam trong trẻo, tự nhiên, truyền cảm, ngắt nghỉ lấy hơi như người thật đang trò chuyện trực tiếp; biểu cảm ánh mắt giao tiếp ống kính sống động, nụ cười và cơ mặt mềm mại tự nhiên (ở các nhịp tạo dáng không thoại, nhân vật khép môi mỉm cười tự nhiên, tuyệt đối không nhép môi thừa).] [KHÓA CHÂN THẬT CHỐNG MÀU AI: Quay bằng camera iPhone 16 Pro Max / Sony FX3 4K 60fps thực tế đời thường, kết cấu da thật và ánh sáng vật lý chân thực 100%, tuyệt đối KHÔNG ám màu nhựa AI, KHÔNG làm mịn giả tạo]."
+      }
+    },
+    {
+      "id": "db00c80a-6ee2-4787-9b55-149366868962",
+      "type": "generate-video",
+      "position": {
+        "x": -336,
+        "y": 22
+      },
+      "data": {
+        "videoMode": "reference-to-video",
+        "model": "Muse Video",
+        "ratio": "9:16",
+        "duration": 10,
+        "prompt": "SCENE 05 (40s - 50s · 10s · Tạo dáng chốt hạ triệu view (Signature Hero Pose) — Direct Reference-to-Video): Nhân vật @ModelCatwalkNu (Người mẫu nữ trẻ châu Á 23 tuổi gương mặt thanh tú sắc sảo, làn da trắng mịn căng bóng, sống mũi cao, mái tóc dài đen suôn mượt bay nhẹ, vóc dáng cao 1m72 tỷ lệ chuẩn mẫu thời trang) giữ nguyên 100% gương mặt, biểu cảm tự nhiên và tông giọng thật từ Ảnh tham chiếu #1, mặc đúng 100% bộ trang phục tham chiếu từ Ảnh #2 (Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài) trong bối cảnh cố định (Hành lang studio thời trang hiện đại tối giản (tường trắng kem phẳng mịn, sàn bê tông mài bóng nhẹ phản chiếu ánh đèn softbox 5600K chuẩn tạp chí) cố định 100% xuyên suốt mọi cảnh). Chuyển động, biểu cảm gương mặt, tông giọng & góc quay liền mạch 10 giây không cắt cảnh (10s seamless continuous single-take shot, 60fps smooth natural motion) bám sát mẫu (Workflow Đi Bộ Tạo Dáng (5 Scenes)): Từ giây 0-3.5 [NHỊP XOAY 180 ĐỘ KHOE TRỌN SET ĐỒ — @ModelCatwalkNu (Ảnh #1) KHÉP MÔI TỰ TIN]: Nhân vật @ModelCatwalkNu bước 2 bước dứt khoát tới điểm vàng chính giữa hành lang studio, xoay người 180 độ mượt mà khoe trọn phom dáng 360 độ của bộ trang phục (Ảnh #2). Từ giây 3.5-7.0 [KHÓA KHỚP MIỆNG & BIỂU CẢM: CHỈ DUY NHẤT @ModelCatwalkNu (Ảnh #1) MỞ MIỆNG NÓI]: Nhân vật đặt tay lên hông tạo dáng Signature Hero Pose chuẩn mẫu tạp chí, biểu cảm tươi tắn và cử động môi chốt hạ bằng tông giọng nữ hào hứng tự nhiên: \"Chấm ngay mười trên mười điểm cho set đồ xuất sắc này nha!\". Từ giây 7.0-10.0 [NHỊP KHÓA KHUNG HÌNH KẾT — KHÉP MÔI MỈM CƯỜI]: Nhân vật giữ thần thái rạng ngời, nghiêng mặt mỉm cười quyến rũ khóa trọn khung hình kết.. | Chủ đề kịch bản: Trend TikTok Đi Bộ Tạo Dáng (Walk & Pose Catwalk) khoe trọn phom dáng trang phục mới qua 5 góc máy điện ảnh liền mạch [Khóa đồng nhất xuyên suốt 10s: Ảnh #1 = gương mặt, kiểu tóc, làn da, vóc dáng & giọng nói nhân vật @ModelCatwalkNu (Người mẫu nữ trẻ châu Á 23 tuổi gương mặt thanh tú sắc sảo, làn da trắng mịn căng bóng, sống mũi cao, mái tóc dài đen suôn mượt bay nhẹ, vóc dáng cao 1m72 tỷ lệ chuẩn mẫu thời trang); Ảnh #2 = form dáng, màu sắc & chất liệu trang phục (Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài)]. [KHÓA BỐI CẢNH CỐ ĐỊNH XUYÊN SUỐT: Hành lang studio thời trang hiện đại tối giản (tường trắng kem phẳng mịn, sàn bê tông mài bóng nhẹ phản chiếu ánh đèn softbox 5600K chuẩn tạp chí) cố định 100% xuyên suốt mọi cảnh] [KHÓA KHỚP MIỆNG (LIP-SYNC), BIỂU CẢM & TÔNG GIỌNG TỰ NHIÊN (@ModelCatwalkNu): Chỉ duy nhất nhân vật chính @ModelCatwalkNu (Ảnh tham chiếu #1) mở miệng nói đúng câu thoại đặt trong ngoặc kép với cử động môi khớp chính xác 100% từng âm tiết tiếng Việt; tông giọng nữ trẻ Việt Nam trong trẻo, tự nhiên, truyền cảm, ngắt nghỉ lấy hơi như người thật đang trò chuyện trực tiếp; biểu cảm ánh mắt giao tiếp ống kính sống động, nụ cười và cơ mặt mềm mại tự nhiên (ở các nhịp tạo dáng không thoại, nhân vật khép môi mỉm cười tự nhiên, tuyệt đối không nhép môi thừa).] [KHÓA CHÂN THẬT CHỐNG MÀU AI: Quay bằng camera iPhone 16 Pro Max / Sony FX3 4K 60fps thực tế đời thường, kết cấu da thật và ánh sáng vật lý chân thực 100%, tuyệt đối KHÔNG ám màu nhựa AI, KHÔNG làm mịn giả tạo].",
+        "batchLabel": "Tạo Video Scene 5 (10s)"
+      }
+    },
+    {
+      "id": "828300eb-7272-4e14-8cae-f11b9b929afb",
+      "type": "merge-video",
+      "position": {
+        "x": -173,
+        "y": 300
+      },
+      "data": {
+        "portCount": 5,
+        "batchRole": "output",
+        "batchLabel": "TIMELINE (GHÉP 5 CLIPS)",
+        "batchKey": "merge-timeline"
+      }
+    },
+    {
+      "id": "b14b944d-b14d-4915-bcfb-2572b0d33da1",
+      "type": "result",
+      "position": {
+        "x": 161,
+        "y": 265
+      },
+      "data": {
+        "batchRole": "output",
+        "batchLabel": "XUẤT VIDEO HOÀN CHỈNH (5 SCENES)",
+        "batchKey": "final-video"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "5af0327b-0b42-47d3-b61d-6992b8ce747e",
+      "source": "de64d06c-300c-49f3-ba7f-0ae884a9237b",
+      "sourceHandle": "image-out",
+      "target": "3f614f71-4a03-40a7-a0f4-3611f09c08e2",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "c2d1414c-17d3-46fc-b761-c775b1a9f948",
+      "source": "af4900a1-f7c7-4cf2-a293-9dec1220d77e",
+      "sourceHandle": "image-out",
+      "target": "3f614f71-4a03-40a7-a0f4-3611f09c08e2",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "babc1825-790e-4614-93cb-9cb6fc5c056e",
+      "source": "cbb64af1-cdd4-492e-a9ab-b44407cda181",
+      "sourceHandle": "text-out",
+      "target": "3f614f71-4a03-40a7-a0f4-3611f09c08e2",
+      "targetHandle": "text-in"
+    },
+    {
+      "id": "101f30cc-fc10-4ac1-815e-b742967e582f",
+      "source": "3f614f71-4a03-40a7-a0f4-3611f09c08e2",
+      "sourceHandle": "video-out",
+      "target": "828300eb-7272-4e14-8cae-f11b9b929afb",
+      "targetHandle": "video-in-0"
+    },
+    {
+      "id": "7dda3bca-29b3-4745-9fd1-c68d722a5245",
+      "source": "de64d06c-300c-49f3-ba7f-0ae884a9237b",
+      "sourceHandle": "image-out",
+      "target": "df7252e1-594c-4d04-a153-18b8524e6043",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "267b6800-82cb-4716-9316-79c81ea89f3f",
+      "source": "af4900a1-f7c7-4cf2-a293-9dec1220d77e",
+      "sourceHandle": "image-out",
+      "target": "df7252e1-594c-4d04-a153-18b8524e6043",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "37bf889f-d9ca-4ab4-ad8a-f92b17c15a60",
+      "source": "b3eacaff-c335-4ea5-94b4-b37916385cc0",
+      "sourceHandle": "text-out",
+      "target": "df7252e1-594c-4d04-a153-18b8524e6043",
+      "targetHandle": "text-in"
+    },
+    {
+      "id": "e6dbf16e-4e70-4d2c-b276-79376df96d22",
+      "source": "df7252e1-594c-4d04-a153-18b8524e6043",
+      "sourceHandle": "video-out",
+      "target": "828300eb-7272-4e14-8cae-f11b9b929afb",
+      "targetHandle": "video-in-1"
+    },
+    {
+      "id": "4e11762c-0006-471f-81fb-d022b013c548",
+      "source": "de64d06c-300c-49f3-ba7f-0ae884a9237b",
+      "sourceHandle": "image-out",
+      "target": "7e45647a-8cd4-4bd7-bc7e-847e07756416",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "b8c09ae4-9402-49bb-abdd-ed6ab5121ea8",
+      "source": "af4900a1-f7c7-4cf2-a293-9dec1220d77e",
+      "sourceHandle": "image-out",
+      "target": "7e45647a-8cd4-4bd7-bc7e-847e07756416",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "97f91bc5-1ee3-417b-a1e9-4ad6f5c6e239",
+      "source": "29c3000d-d3e4-4dad-915f-6b87914b5e80",
+      "sourceHandle": "text-out",
+      "target": "7e45647a-8cd4-4bd7-bc7e-847e07756416",
+      "targetHandle": "text-in"
+    },
+    {
+      "id": "491149f6-3279-43e3-8a6b-4974b078393a",
+      "source": "7e45647a-8cd4-4bd7-bc7e-847e07756416",
+      "sourceHandle": "video-out",
+      "target": "828300eb-7272-4e14-8cae-f11b9b929afb",
+      "targetHandle": "video-in-2"
+    },
+    {
+      "id": "8e3148b9-8045-403b-80d4-ea1838ec613e",
+      "source": "de64d06c-300c-49f3-ba7f-0ae884a9237b",
+      "sourceHandle": "image-out",
+      "target": "b52e0d9f-80c9-40ac-9120-e82fe47e4444",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "4eb0a7e6-3c2c-4cd1-9431-feb5da581f2b",
+      "source": "af4900a1-f7c7-4cf2-a293-9dec1220d77e",
+      "sourceHandle": "image-out",
+      "target": "b52e0d9f-80c9-40ac-9120-e82fe47e4444",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "fbc7bc91-8c49-4ac0-bb90-0e01f0e6417c",
+      "source": "0198c637-a54f-4634-aad9-6800cbb7dbb4",
+      "sourceHandle": "text-out",
+      "target": "b52e0d9f-80c9-40ac-9120-e82fe47e4444",
+      "targetHandle": "text-in"
+    },
+    {
+      "id": "3eb1a99e-6f70-4986-a381-9889a62c642e",
+      "source": "b52e0d9f-80c9-40ac-9120-e82fe47e4444",
+      "sourceHandle": "video-out",
+      "target": "828300eb-7272-4e14-8cae-f11b9b929afb",
+      "targetHandle": "video-in-3"
+    },
+    {
+      "id": "476954b7-4611-4550-93e6-5f4b6280c90f",
+      "source": "de64d06c-300c-49f3-ba7f-0ae884a9237b",
+      "sourceHandle": "image-out",
+      "target": "db00c80a-6ee2-4787-9b55-149366868962",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "fb09d6c2-dab0-47e2-8160-8efa85f46cfd",
+      "source": "af4900a1-f7c7-4cf2-a293-9dec1220d77e",
+      "sourceHandle": "image-out",
+      "target": "db00c80a-6ee2-4787-9b55-149366868962",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "2b1b17ec-f89e-4c77-96a3-881f27c162e5",
+      "source": "3f174c14-6f08-44f9-a59b-771362a8c7a8",
+      "sourceHandle": "text-out",
+      "target": "db00c80a-6ee2-4787-9b55-149366868962",
+      "targetHandle": "text-in"
+    },
+    {
+      "id": "3e5d27fa-5bb5-4ea7-9bed-d737eef69345",
+      "source": "db00c80a-6ee2-4787-9b55-149366868962",
+      "sourceHandle": "video-out",
+      "target": "828300eb-7272-4e14-8cae-f11b9b929afb",
+      "targetHandle": "video-in-4"
+    },
+    {
+      "id": "774d37ac-8bae-483d-a4bb-c5dad104e56b",
+      "source": "828300eb-7272-4e14-8cae-f11b9b929afb",
+      "sourceHandle": "video-out",
+      "target": "b14b944d-b14d-4915-bcfb-2572b0d33da1",
+      "targetHandle": "video-in"
+    }
+  ],
+  "templateStyle": "walk_pose",
+  "syncConfig": {
+    "characterId": "",
+    "characterName": "Bố",
+    "characterDesc": "Bố trẻ Việt Nam ~30 tuổi khuôn mặt điển trai hiền lành ấm áp, đeo kính cận gọng mảnh, tóc ngắn vuốt gọn gàng, mặc áo polo sáng màu và quần short kaki lịch sự ở nhà",
+    "characterPath": "",
+    "fatherDesc": "",
+    "fatherPath": "",
+    "motherDesc": "",
+    "motherPath": "",
+    "sonDesc": "",
+    "sonPath": "",
+    "childDesc": "",
+    "childPath": "",
+    "babyDesc": "",
+    "babyPath": "",
+    "customCharacters": [
+      {
+        "role": "father",
+        "name": "Bố",
+        "tag": "@BoGiaDinh",
+        "path": "",
+        "desc": "Bố trẻ Việt Nam ~30 tuổi khuôn mặt điển trai hiền lành ấm áp, đeo kính cận gọng mảnh, tóc ngắn vuốt gọn gàng, mặc áo polo sáng màu và quần short kaki lịch sự ở nhà"
+      }
+    ],
+    "customCharactersLocked": true,
+    "familyCount": "1",
+    "includeBaby": false,
+    "graphMode": "",
+    "preserveCustomGraph": false,
+    "outfitDesc": "Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài",
+    "outfitPath": "",
+    "productName": "",
+    "productDesc": "",
+    "productPath": "",
+    "userIdea": "Trend TikTok Đi Bộ Tạo Dáng (Walk & Pose Catwalk) khoe trọn phom dáng trang phục mới qua 5 góc máy điện ảnh liền mạch",
+    "templateStyle": "walk_pose",
+    "pillarsMode": "character_outfit",
+    "familyTopicId": 0,
+    "familyCastMode": "full_family",
+    "affiliateMode": "no",
+    "totalDurationSec": 50,
+    "sceneDurationSec": 10,
+    "sceneCount": 5,
+    "characterSheetPrompt": "Single-Frame Solo Portrait Photo — ONE PERSON ONLY in ONE SINGLE UNDIVIDED FRAME (@ModelCatwalkNu): Người mẫu nữ trẻ châu Á 23 tuổi gương mặt thanh tú sắc sảo, làn da trắng mịn căng bóng, sống mũi cao, mái tóc dài đen suôn mượt bay nhẹ, vóc dáng cao 1m72 tỷ lệ chuẩn mẫu thời trang. Mặc đúng bộ trang phục tham chiếu: Set blazer lửng croptop chiết eo phối chân váy xếp ly cạp cao màu trắng kem (ivory) chất liệu tweed dệt ánh kim nhẹ, tôn vòng eo thon và đôi chân dài. QUY TẮC BẮT BUỘC: Ảnh chụp chân dung bán thân/toàn thân 1 người duy nhất trong 1 khung hình đơn liền mạch. TUYỆT ĐỐI KHÔNG chia ô (NO split-screen), KHÔNG ghép nhiều ảnh/nhiều mặt (NO collage, NO grid, NO character sheet, NO multiple angles). Nhìn thẳng ống kính với biểu cảm tự nhiên, ánh sáng 4K chân thực, da người thật, không có chữ viết trên ảnh.",
+    "videoUrl": "https://www.youtube.com/shorts/U3DvkfHEps4",
+    "tiktokUrl": "https://www.tiktok.com/tag/catwalktrend",
+    "autoAiOnRun": true
+  },
+  "updatedAt": "2026-11-09T08:20:34.178311+00:00",
+  "templateId": "nghia_mmo_super_flow_id",
+  "youtubeUrl": "https://www.youtube.com/shorts/U3DvkfHEps4",
+  "tiktokUrl": "https://www.tiktok.com/tag/catwalktrend",
+  "videoUrl": "https://www.youtube.com/shorts/U3DvkfHEps4"
+}

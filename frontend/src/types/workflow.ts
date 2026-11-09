@@ -32,6 +32,26 @@ export interface WorkflowTemplate {
   splitDialogue?: boolean;
   /** Nhân vật chưa có ảnh thì AI tự vẽ chân dung (lưu vào thư viện nhân vật) — mặc định bật */
   autoPortrait?: boolean;
+  /**
+   * Dàn nhân vật cố định của workflow (chọn từ thư viện hoặc tải ảnh lên ở khối 👤 Nhân vật).
+   * Nhân vật đầu tiên là nhân vật chính khi dòng không chọn nhân vật. Trống = chỉ dùng nhân vật của dòng.
+   */
+  characterIds?: string[];
+  /**
+   * Trang phục cố định (khối 👗 Trang phục): ảnh tải lên, hoặc chỉ mô tả để AI tự tạo
+   * ảnh trang phục 1 lần mỗi lượt chạy rồi gửi kèm mọi cảnh (như HND Muse AI).
+   */
+  outfit?: { image?: string; description: string };
+  /**
+   * Cách gửi ảnh cho muse-video:
+   * - reference (mặc định): mọi ảnh chỉ là tham chiếu + bảng ánh xạ "Ảnh #N" (Direct Reference-to-Video, như HND)
+   * - firstframe: ảnh đầu (nhân vật) làm khung mở đầu video (cách cũ)
+   */
+  refMode?: 'reference' | 'firstframe';
+  /** Bối cảnh cố định chèn vào mọi cảnh để các cảnh render song song vẫn khớp nhau */
+  setting?: string;
+  /** Khóa chân thật chống "màu nhựa AI" (mặc định bật) */
+  realismLock?: boolean;
   /** Prompt cảnh nhập tay: có thì bỏ qua AI viết kịch bản */
   manualScenes?: string[];
   /** Hậu kỳ clip cuối: nâng cạnh ngắn lên N px (0 = tắt) */
@@ -81,6 +101,8 @@ export interface WorkflowRow {
   merged?: { url: string; path: string };
   /** Clip sau hậu kỳ (nâng độ phân giải / làm mờ logo) */
   final?: { url: string; path: string };
+  /** Ảnh trang phục AI tự tạo cho lượt chạy này (khi khối Trang phục chỉ có mô tả) */
+  outfitImage?: string;
   /** Thư mục (tên dự án) chứa file của dòng này */
   project?: string;
   /** Mốc thời gian lần chạy, dùng đặt tên file không trùng */

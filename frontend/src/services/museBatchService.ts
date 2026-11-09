@@ -617,7 +617,8 @@ export const createMuseVideoTask = async (
       prompt,
       size: config.aspectRatio,
       duration: config.duration,
-      image: firstFrameDataUrl,
+      // Trống = Reference-to-Video: mọi ảnh chỉ là tham chiếu, không ép khung mở đầu
+      image: firstFrameDataUrl || undefined,
       // Ảnh sản phẩm / trang phục gửi kèm cùng tin nhắn (tối đa 3)
       reference_images: referenceImages.slice(0, 3),
       // Một giọng cố định cho cả lô để các cảnh không bị đổi giọng

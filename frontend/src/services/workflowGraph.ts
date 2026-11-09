@@ -7,6 +7,7 @@ import type { ScriptMode } from './productService';
 export type BlockKind =
   | 'product'
   | 'character'
+  | 'outfit'
   | 'script'
   | 'prompts'
   | 'dialogue'
@@ -15,6 +16,8 @@ export type BlockKind =
   | 'blur'
   | 'upscale'
   | 'result';
+
+export type CharSource = 'library' | 'upload' | 'row';
 
 export interface BlockData {
   kind: BlockKind;
@@ -28,12 +31,28 @@ export interface BlockData {
   prompts?: string;
   // character
   autoPortrait?: boolean;
+  /**
+   * Nguồn nhân vật của khối:
+   * - library: chọn nhân vật đã cấu hình trong Cài đặt
+   * - upload: tải ảnh lên ngay trong khối (tự lưu thành nhân vật mới trong thư viện)
+   * - row: lấy nhân vật của từng dòng (cách cũ)
+   */
+  charSource?: CharSource;
+  /** Nhân vật trong thư viện (nguồn library / upload) */
+  characterId?: string;
+  // outfit
+  /** Ảnh trang phục tải lên (data URL); trống = AI tự tạo theo mô tả lúc chạy */
+  outfitImage?: string;
+  outfitDesc?: string;
   // render
   duration?: number;
   aspectRatio?: string;
   cameraMotion?: string;
   chainEndFrame?: boolean;
   rotateProductImages?: boolean;
+  refMode?: 'reference' | 'firstframe';
+  setting?: string;
+  realismLock?: boolean;
   // upscale
   shortSide?: number;
   // blur
@@ -56,7 +75,8 @@ export interface GraphEdge {
 
 export const BLOCKS: Record<BlockKind, { icon: string; label: string; hint: string; color: string }> = {
   product: { icon: '🛒', label: 'Sản phẩm', hint: 'Lấy từ dòng: thư viện hoặc link Shopee/TikTok', color: '#0ea5e9' },
-  character: { icon: '👤', label: 'Nhân vật', hint: 'Nhân vật của dòng (khóa mặt + giọng)', color: '#a855f7' },
+  character: { icon: '👤', label: 'Nhân vật', hint: 'Chọn từ thư viện / tải ảnh lên / theo dòng (khóa mặt + giọng)', color: '#a855f7' },
+  outfit: { icon: '👗', label: 'Trang phục', hint: 'Ảnh trang phục, hoặc mô tả để AI tự tạo ảnh — gửi kèm mọi cảnh', color: '#ec4899' },
   script: { icon: '✍️', label: 'AI viết kịch bản', hint: 'Gemini / OpenAI / muse-chat', color: '#6366f1' },
   prompts: { icon: '📝', label: 'Prompt nhập tay', hint: 'Mỗi dòng 1 cảnh, {product} = tên SP', color: '#6366f1' },
   dialogue: { icon: '🎭', label: 'Tách vai lời thoại', hint: 'Mỗi lượt thoại 1 shot đúng giọng', color: '#d946ef' },
@@ -71,6 +91,7 @@ export const BLOCKS: Record<BlockKind, { icon: string; label: string; hint: stri
 const ALLOWED: Record<BlockKind, BlockKind[]> = {
   product: ['script', 'prompts', 'render'],
   character: ['script', 'prompts', 'render'],
+  outfit: ['script', 'prompts', 'render'],
   script: ['dialogue', 'render'],
   prompts: ['dialogue', 'render'],
   dialogue: ['render'],
@@ -82,7 +103,7 @@ const ALLOWED: Record<BlockKind, BlockKind[]> = {
 };
 
 export const canConnect = (from?: BlockKind, to?: BlockKind) => !!from && !!to && ALLOWED[from].includes(to);
-export const hasInput = (k: BlockKind) => k !== 'product' && k !== 'character';
+export const hasInput = (k: BlockKind) => k !== 'product' && k !== 'character' && k !== 'outfit';
 export const hasOutput = (k: BlockKind) => k !== 'result';
 
 export const WATERMARK_SPOTS: { id: string; label: string; region: { x: number; y: number; w: number; h: number } }[] = [
@@ -99,9 +120,21 @@ export const defaultData = (kind: BlockKind): BlockData => {
     case 'prompts':
       return { kind, prompts: 'Cận cảnh {product} trên bàn gỗ, ánh sáng ấm\nNhân vật cầm {product} giới thiệu' };
     case 'character':
-      return { kind, autoPortrait: true };
+      return { kind, charSource: 'library', characterId: '', autoPortrait: true };
+    case 'outfit':
+      return { kind, outfitImage: '', outfitDesc: '' };
     case 'render':
-      return { kind, duration: 8, aspectRatio: '9:16', cameraMotion: '', chainEndFrame: false, rotateProductImages: false };
+      return {
+        kind,
+        duration: 8,
+        aspectRatio: '9:16',
+        cameraMotion: '',
+        chainEndFrame: false,
+        rotateProductImages: false,
+        refMode: 'reference',
+        setting: '',
+        realismLock: true,
+      };
     case 'upscale':
       return { kind, shortSide: 1080 };
     case 'blur':
@@ -126,7 +159,12 @@ export const templateToGraph = (tpl: WorkflowTemplate): { nodes: GraphNode[]; ed
   };
   const link = (a: string, b: string) => edges.push({ id: `e_${a}_${b}`, source: a, target: b });
   const prod = add({ kind: 'product' }, 0, 0);
-  const ch = tpl.faceless ? '' : add({ kind: 'character', autoPortrait: tpl.autoPortrait !== false }, 0, 220);
+  const autoPortrait = tpl.autoPortrait !== false;
+  const chars = tpl.faceless
+    ? []
+    : tpl.characterIds?.length
+      ? tpl.characterIds.map((id, k) => add({ kind: 'character', charSource: 'library', characterId: id, autoPortrait }, 0, 220 + k * 230))
+      : [add({ kind: 'character', charSource: 'row', autoPortrait }, 0, 220)];
   const src = tpl.manualScenes?.length
     ? add({ kind: 'prompts', prompts: tpl.manualScenes.join('\n') }, 300, 60)
     : add(
@@ -142,7 +180,11 @@ export const templateToGraph = (tpl: WorkflowTemplate): { nodes: GraphNode[]; ed
         60
       );
   link(prod, src);
-  if (ch) link(ch, src);
+  chars.forEach((ch) => link(ch, src));
+  if (tpl.outfit) {
+    const o = add({ kind: 'outfit', outfitImage: tpl.outfit.image || '', outfitDesc: tpl.outfit.description }, 0, 220 + chars.length * 230);
+    link(o, src);
+  }
   let x = 620;
   let prev = src;
   if (tpl.splitDialogue) {
@@ -159,6 +201,9 @@ export const templateToGraph = (tpl: WorkflowTemplate): { nodes: GraphNode[]; ed
       cameraMotion: tpl.cameraMotion,
       chainEndFrame: tpl.chainEndFrame,
       rotateProductImages: tpl.rotateProductImages,
+      refMode: tpl.refMode ?? 'reference',
+      setting: tpl.setting ?? '',
+      realismLock: tpl.realismLock !== false,
     },
     x,
     60
@@ -229,7 +274,33 @@ export const compileGraph = (
   const src = sources[0];
   const feeders = [...ins(src.id), ...ins(render.id)];
   const product = feeders.find((n) => n.data.kind === 'product');
-  const character = feeders.find((n) => n.data.kind === 'character');
+  const charBlocks = [...new Set(feeders.filter((n) => n.data.kind === 'character'))];
+  const charSourceOf = (n: GraphNode): CharSource => (n.data.charSource as CharSource) || 'row';
+  const characterIds: string[] = [];
+  charBlocks.forEach((n) => {
+    if (charSourceOf(n) === 'row') return;
+    const id = String(n.data.characterId || '');
+    if (!id) {
+      errors.push(
+        charSourceOf(n) === 'upload'
+          ? 'Khối 👤 Nhân vật (tải ảnh lên) chưa có ảnh.'
+          : 'Khối 👤 Nhân vật (thư viện) chưa chọn nhân vật.'
+      );
+    } else if (characterIds.includes(id)) {
+      warnings.push('Có 2 khối Nhân vật trùng cùng một nhân vật — chỉ tính 1 lần.');
+    } else {
+      characterIds.push(id);
+    }
+  });
+  const outfits = [...new Set(feeders.filter((n) => n.data.kind === 'outfit'))];
+  if (outfits.length > 1) errors.push('Chỉ được nối 1 khối 👗 Trang phục.');
+  const outfitBlock = outfits[0];
+  if (outfitBlock && !outfitBlock.data.outfitImage && !String(outfitBlock.data.outfitDesc || '').trim()) {
+    errors.push('Khối 👗 Trang phục cần ảnh hoặc mô tả (để AI tự tạo ảnh).');
+  }
+  if (charBlocks.filter((n) => charSourceOf(n) === 'row').length > 1) {
+    warnings.push('Có nhiều khối Nhân vật "theo dòng" — chỉ cần 1 khối.');
+  }
   if (src.data.kind === 'script' && !product) errors.push('AI viết kịch bản cần khối 🛒 Sản phẩm nối vào.');
   const manual = src.data.kind === 'prompts' ? String(src.data.prompts || '').split('\n').map((l) => l.trim()).filter(Boolean) : [];
   if (src.data.kind === 'prompts' && !manual.length) errors.push('Khối Prompt nhập tay chưa có dòng nào.');
@@ -277,8 +348,18 @@ export const compileGraph = (
     cameraMotion: String(r.cameraMotion || ''),
     chainEndFrame: !!r.chainEndFrame,
     rotateProductImages: !!r.rotateProductImages,
-    faceless: !character,
-    autoPortrait: character ? character.data.autoPortrait !== false : false,
+    refMode: r.refMode === 'firstframe' ? 'firstframe' : 'reference',
+    setting: String(r.setting || '').trim() || undefined,
+    realismLock: r.realismLock !== false,
+    faceless: !charBlocks.length,
+    autoPortrait: charBlocks.some((n) => n.data.autoPortrait !== false),
+    characterIds: characterIds.length ? characterIds : undefined,
+    outfit: outfitBlock
+      ? {
+          image: String(outfitBlock.data.outfitImage || '') || undefined,
+          description: String(outfitBlock.data.outfitDesc || '').trim(),
+        }
+      : undefined,
     splitDialogue: !!dialogue,
     autoMerge: after.some((n) => n.data.kind === 'merge'),
     postUpscale: up ? Number(up.data.shortSide) || 1080 : 0,
