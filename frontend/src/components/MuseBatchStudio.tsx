@@ -22,9 +22,17 @@ import { EMPTY_PRODUCT, ProductInfo } from '../services/productService';
 import { ProductScriptPanel } from './ProductScriptPanel';
 import { usePersistentState } from '../hooks/usePersistentState';
 import { extractLastFrameAsDataUrl } from '../utils/videoFrameExtractor';
+import type { ImageRole } from '../services/museBatchService';
+import { fileToResizedDataUrl } from '../utils/image';
 import { downloadAll, downloadFile } from '../utils/download';
 import { VideoHistory } from './VideoHistory';
 import { MuseAccountsState } from '../hooks/useMuseAccounts';
+import { StudioLibraryState } from '../hooks/useStudioLibrary';
+import { StudioCharacter, StudioProduct, characterInPrompt, newLibraryId } from '../types/library';
+import { buildVoiceInfo, resolveVoice } from '../data/voicePresets';
+import { VoiceBadge, VoiceSelect } from './VoicePicker';
+import { aspectClass, sceneGridClass } from '../utils/image';
+import { urlToDataUrl } from '../services/productService';
 
 const DEFAULT_PROMPTS =
   'Nhân vật mỉm cười tự nhiên trước ống kính, tay nâng sản phẩm lên ngang ngực, ánh sáng studio ấm áp\nNhân vật xoay nhẹ góc nghiêng 45 độ, chỉ tay vào chi tiết trên sản phẩm, chuyển động mượt mà\nCận cảnh sản phẩm trên tay nhân vật, camera đẩy nhẹ vào, giữ nguyên trang phục và khuôn mặt';
@@ -34,6 +42,29 @@ const CAMERA_OPTIONS = [
   { value: 'Medium Close-up, Static Tripod Shot', label: 'Trung cận cố định (giữ sản phẩm nét nhất)' },
   { value: 'Close-up Shot, Slow Dolly In', label: 'Cận cảnh đẩy nhẹ vào (chi tiết / biểu cảm)' },
   { value: 'Medium Shot, Gentle Handheld Movement', label: 'Trung cảnh chuyển động tự nhiên (drama)' },
+];
+
+const REF_MODES: { id: MuseConfig['refMode']; label: string; hint: string }[] = [
+  {
+    id: 'shared',
+    label: '🔁 Dùng chung cho mọi cảnh',
+    hint: 'Mọi cảnh gửi cùng bộ ảnh Nhân vật / Trang phục / Sản phẩm ở khối 2.',
+  },
+  {
+    id: 'group',
+    label: '🧩 Ghép theo nhóm',
+    hint: 'Kho ảnh được chia nhóm theo thứ tự: cảnh 1 dùng nhóm 1, cảnh 2 dùng nhóm 2... (hết nhóm thì quay lại nhóm đầu). Ảnh khối 2 vẫn gửi kèm.',
+  },
+  {
+    id: 'firstLast',
+    label: '🎞 Khung đầu → khung cuối',
+    hint: 'Cảnh 1 đi từ ảnh 1 tới ảnh 2, cảnh 2 từ ảnh 2 tới ảnh 3... Hợp với chuyển cảnh mượt giữa các tư thế / trang phục.',
+  },
+  {
+    id: 'rotate',
+    label: '👗 Khóa người mẫu + xoay vòng SP',
+    hint: 'Giữ cố định ảnh người mẫu ở khối 2, mỗi cảnh thay một sản phẩm / trang phục lấy lần lượt từ kho ảnh. Hợp video thời trang, lookbook nhiều sản phẩm.',
+  },
 ];
 
 const ACTIVE_STATUSES: BatchSceneItem['status'][] = ['queued', 'generating_keyframe', 'rendering_video'];
@@ -60,8 +91,13 @@ const serializeScenes = (scenes: BatchSceneItem[]) => scenes.map(({ keyframeUrl,
 
 export const MuseBatchStudio: React.FC<{
   accountsState: MuseAccountsState;
+  library: StudioLibraryState;
   onManageAccounts: () => void;
-}> = ({ accountsState, onManageAccounts }) => {
+}> = ({ accountsState, library, onManageAccounts }) => {
+  // Đọc thư viện mới nhất bên trong các luồng đang chạy
+  const libraryRef = useRef(library);
+  libraryRef.current = library;
+  const { characters, products, museVoiceNames } = library;
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { accounts, usableCount, totalThreads, runningThreads } = accountsState;
 
@@ -76,6 +112,14 @@ export const MuseBatchStudio: React.FC<{
   const [references, setReferences] = usePersistentState<ReferenceImage[]>('references.v1', [], {
     server: true,
   });
+  /** Kho ảnh cho các chế độ ghép theo nhóm / khung đầu→cuối / xoay vòng */
+  const [refPool, setRefPool] = usePersistentState<{ id: string; dataUrl: string; name: string }[]>(
+    'refPool.v1',
+    [],
+    { server: true }
+  );
+  const refPoolRef = useRef(refPool);
+  refPoolRef.current = refPool;
   const [scenes, setScenes] = usePersistentState<BatchSceneItem[]>('scenes.v1', [], {
     serialize: serializeScenes,
     server: true,
@@ -206,6 +250,38 @@ export const MuseBatchStudio: React.FC<{
     }
   };
 
+  /** Nhân vật của cảnh: nhân vật được nhắc trong prompt, nếu không thì nhân vật chính. */
+  const characterForScene = (rawPrompt: string, cfg: MuseConfig): StudioCharacter | undefined => {
+    const lib = libraryRef.current.characters;
+    return characterInPrompt(rawPrompt, lib) ?? lib.find((c) => c.id === cfg.characterId);
+  };
+
+  /** Giọng của cảnh: giọng cố định của nhân vật, nếu không có nhân vật thì giọng mặc định của lô. */
+  const voiceForScene = (rawPrompt: string, cfg: MuseConfig) => {
+    const ch = characterForScene(rawPrompt, cfg);
+    const names = libraryRef.current.museVoiceNames;
+    if (ch && (ch.voicePresetId || ch.museVoiceOverride)) {
+      return { character: ch, voice: resolveVoice(ch.voicePresetId, ch.museVoiceOverride, names) };
+    }
+    return { character: ch, voice: resolveVoice(cfg.voice, null, names) };
+  };
+
+  /** Ảnh tham chiếu của cảnh: thay ảnh nhân vật (và trang phục) bằng ảnh của nhân vật trong cảnh. */
+  const refsForScene = (refs: ReferenceImage[], ch?: StudioCharacter): ReferenceImage[] => {
+    if (!ch?.images.length) return refs;
+    let out = [
+      ...refs.filter((r) => r.role !== 'character'),
+      { id: `char_${ch.id}`, role: 'character' as const, dataUrl: ch.images[0], name: ch.name },
+    ];
+    if (ch.outfitImage) {
+      out = [
+        ...out.filter((r) => r.role !== 'outfit'),
+        { id: `outfit_${ch.id}`, role: 'outfit' as const, dataUrl: ch.outfitImage, name: `${ch.name} outfit` },
+      ];
+    }
+    return out;
+  };
+
   /**
    * Chạy trọn 1 cảnh. Khi bật nối End-frame, frame mở đầu lấy từ video của cảnh LIỀN TRƯỚC
    * (theo số thứ tự) nếu cảnh đó đã xong. Trả về URL video, hoặc null nếu thất bại.
@@ -217,6 +293,20 @@ export const MuseBatchStudio: React.FC<{
   ): Promise<string | null> => {
     if (stopSignalRef.current) return null;
     const current = scenesRef.current.find((s) => s.id === scene.id) ?? scene;
+    // Prompt mới nhất của cảnh (có thể vừa sửa trên thẻ cảnh)
+    const rawPrompt = current.rawPrompt;
+    const { character: sceneCharacter, voice: sceneVoice } = voiceForScene(rawPrompt, cfg);
+    refs = refsForScene(refs, sceneCharacter);
+    const pool = refPoolRef.current;
+    const sceneNo = scene.index - 1;
+    if (cfg.refMode === 'rotate' && pool.length) {
+      // Khóa người mẫu, xoay vòng sản phẩm / trang phục: cảnh i dùng ảnh thứ i trong kho
+      const item = pool[sceneNo % pool.length];
+      refs = [
+        ...refs.filter((r) => r.role !== cfg.rotateRole),
+        { id: item.id, role: cfg.rotateRole, dataUrl: item.dataUrl, name: item.name },
+      ];
+    }
     // Tạo lại một cảnh đã có video: giữ bản cũ trong lịch sử của cảnh
     const history = current.videoUrl
       ? [
@@ -245,9 +335,21 @@ export const MuseBatchStudio: React.FC<{
       // ảnh nhân vật nên muse.ai không thấy sản phẩm thật và tự bịa ra sản phẩm khác).
       const roles = orderedReferenceRoles(refs);
       const urlOf = (role: ReferenceImage['role']) => refs.find((r) => r.role === role)!.dataUrl;
-      let inputFrameUrl = urlOf(roles[0]);
-      let imageRoles: (ReferenceImage['role'] | 'keyframe')[] = [...roles];
-      let extraRefs = roles.slice(1).map(urlOf);
+      let items: { url: string; role: ImageRole }[] = roles.map((role) => ({ url: urlOf(role), role }));
+      if (cfg.refMode === 'group' && pool.length) {
+        // Ghép theo nhóm: cảnh i dùng nhóm thứ i (hết nhóm thì quay lại nhóm đầu)
+        const size = Math.max(1, cfg.groupSize);
+        const groups = Math.ceil(pool.length / size);
+        const start = (sceneNo % groups) * size;
+        const group = pool.slice(start, start + size).map((p) => ({ url: p.dataUrl, role: 'shotref' as const }));
+        items = [...group, ...items];
+      } else if (cfg.refMode === 'firstLast' && sceneNo < pool.length) {
+        // Khung đầu -> khung cuối: cảnh i đi từ ảnh i tới ảnh i+1 của kho
+        const first = { url: pool[sceneNo].dataUrl, role: 'keyframe' as const };
+        const last = pool[sceneNo + 1] ? [{ url: pool[sceneNo + 1].dataUrl, role: 'endframe' as const }] : [];
+        items = [first, ...last, ...items];
+      }
+      if (!items.length) throw new Error('Cảnh này không có ảnh tham chiếu nào (thêm ảnh ở khối 2).');
 
       let generatedFrame: string | null = null;
       if (cfg.chainEndFrame && chainFromVideoUrl) {
@@ -258,28 +360,39 @@ export const MuseBatchStudio: React.FC<{
         }
       } else if (cfg.useTwoStepKeyframe && refs.length > 1) {
         updateScene(scene.id, { status: 'generating_keyframe' });
-        generatedFrame = await generateMuseKeyframe(cfg, scene.rawPrompt, refs);
+        generatedFrame = await generateMuseKeyframe(cfg, rawPrompt, refs);
         updateScene(scene.id, { keyframeUrl: generatedFrame });
       }
       if (generatedFrame) {
         // Frame mở đầu là ảnh ghép/frame cuối; vẫn gửi kèm ảnh gốc (tối đa 3) để giữ đúng chi tiết
-        inputFrameUrl = generatedFrame;
-        const keep = roles.slice(0, 3);
-        imageRoles = ['keyframe', ...keep];
-        extraRefs = keep.map(urlOf);
+        items = [{ url: generatedFrame, role: 'keyframe' }, ...items.filter((it) => it.role !== 'keyframe')];
       }
+      // muse.ai nhận tối đa 4 ảnh / tin nhắn: 1 khung mở đầu + 3 ảnh tham chiếu
+      items = items.slice(0, 4);
+      const inputFrameUrl = items[0].url;
+      const imageRoles = items.map((it) => it.role);
+      const extraRefs = items.slice(1).map((it) => it.url);
 
       updateScene(scene.id, { status: 'rendering_video' });
       const prod = productRef.current;
+      // Mô tả nhân vật + [Voice Profile] đặt TRƯỚC câu thoại để giọng giống nhau ở mọi cảnh
+      const charTag = sceneCharacter?.description
+        ? `[CHARACTER ${sceneCharacter.name}: ${sceneCharacter.description}]`
+        : '';
+      const voiceInfo = buildVoiceInfo(sceneVoice, {
+        emotion: sceneCharacter?.emotion,
+        characterName: sceneCharacter?.name,
+      });
       const lockedPrompt = buildLockedPrompt(
-        scene.rawPrompt,
+        [charTag, voiceInfo, rawPrompt].filter(Boolean).join(' '),
         refs,
         cfg.cameraMotion,
         { name: prod.name, visual: prod.visual },
         imageRoles
       );
       const videoUrl = await createAndPollMuseVideo(
-        cfg,
+        // Gateway đặt giọng gốc Muse của cảnh cho tài khoản trước khi tạo video
+        { ...cfg, voice: sceneVoice.museVoiceId || '' },
         lockedPrompt,
         inputFrameUrl,
         (taskId) => updateScene(scene.id, { videoTaskId: taskId }),
@@ -324,6 +437,97 @@ export const MuseBatchStudio: React.FC<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /** Chọn nhân vật chính từ thư viện: điền ảnh nhân vật (+ trang phục) vào khối ảnh tham chiếu. */
+  const pickCharacter = (id: string) => {
+    setConfig((c) => ({ ...c, characterId: id }));
+    const ch = characters.find((c) => c.id === id);
+    if (!ch) return;
+    setReferences((prev) => {
+      let next = prev;
+      if (ch.images[0]) {
+        next = [...next.filter((r) => r.role !== 'character'),
+          { id: `char_${ch.id}`, role: 'character', dataUrl: ch.images[0], name: ch.name }];
+      }
+      if (ch.outfitImage) {
+        next = [...next.filter((r) => r.role !== 'outfit'),
+          { id: `outfit_${ch.id}`, role: 'outfit', dataUrl: ch.outfitImage, name: `${ch.name} outfit` }];
+      }
+      return next;
+    });
+  };
+
+  /** Chọn sản phẩm từ thư viện: điền thông tin sản phẩm + ảnh sản phẩm. */
+  const pickProduct = (id: string) => {
+    setConfig((c) => ({ ...c, productId: id }));
+    const p = products.find((x) => x.id === id);
+    if (!p) return;
+    setProduct((cur) => ({
+      ...cur,
+      url: p.url,
+      name: p.name,
+      price: p.price,
+      description: p.description,
+      visual: p.visual,
+      images: p.images,
+      pageText: '',
+    }));
+    if (p.images[0]) {
+      setReferences((prev) => [
+        ...prev.filter((r) => r.role !== 'product'),
+        { id: `prd_${p.id}`, role: 'product', dataUrl: p.images[0], name: p.name },
+      ]);
+    }
+  };
+
+  /** Lưu sản phẩm đang dùng (vd. vừa đọc từ link) vào thư viện; ảnh được đổi sang data URL. */
+  const saveProductToLibrary = async () => {
+    if (!product.name.trim()) return alert('Sản phẩm chưa có tên.');
+    const images: string[] = [];
+    for (const url of product.images.slice(0, 8)) {
+      try {
+        images.push(url.startsWith('data:') ? url : await urlToDataUrl(url));
+      } catch {
+        /* bỏ ảnh tải lỗi */
+      }
+    }
+    const item: StudioProduct = {
+      id: newLibraryId('prd'),
+      name: product.name.trim(),
+      price: product.price,
+      url: product.url,
+      description: product.description,
+      visual: product.visual,
+      images,
+      createdAt: Date.now(),
+    };
+    library.setProducts((prev) => [...prev, item]);
+    setConfig((c) => ({ ...c, productId: item.id }));
+    alert(`Đã lưu "${item.name}" vào thư viện sản phẩm (${images.length} ảnh).`);
+  };
+
+  /** Số giọng Muse khác nhau mà lô hiện tại sẽ dùng (cảnh theo nhân vật hoặc giọng mặc định). */
+  const mixedVoices = (() => {
+    const lines = batchPromptText.split('\n').map((l) => l.trim()).filter(Boolean);
+    const ids = new Set(lines.map((l) => voiceForScene(l, config).voice.museVoiceId || ''));
+    const multiThread = accounts.some((a) => a.max_concurrency > 1);
+    return ids.size > 1 && multiThread ? ids.size : 0;
+  })();
+
+  /** Mô tả ngắn cách kho ảnh được chia cho các cảnh của lô hiện tại. */
+  const refModeSummary = (() => {
+    const n = refPool.length;
+    const scenesCount = batchPromptText.split('\n').filter((l) => l.trim()).length;
+    if (!n) return 'Kho ảnh trống — thêm ảnh bên dưới.';
+    if (config.refMode === 'group') {
+      const groups = Math.ceil(n / Math.max(1, config.groupSize));
+      return `${n} ảnh → ${groups} nhóm cho ${scenesCount} cảnh${scenesCount > groups ? ' (một số nhóm được dùng lại)' : ''}.`;
+    }
+    if (config.refMode === 'firstLast') {
+      return `${n} ảnh → ${Math.max(0, n - 1)} đoạn chuyển cảnh${scenesCount > n ? `; cảnh ${n + 1} trở đi dùng ảnh chung` : ''}.`;
+    }
+    return `${n} ${config.rotateRole === 'outfit' ? 'trang phục' : 'sản phẩm'} xoay vòng qua ${scenesCount} cảnh.`;
+  })();
+
   const handleUploadReference = (e: React.ChangeEvent<HTMLInputElement>, role: ReferenceImage['role']) => {
     const file = e.target.files?.[0];
     e.target.value = ''; // cho phép chọn lại cùng 1 file
@@ -347,7 +551,9 @@ export const MuseBatchStudio: React.FC<{
       .filter(Boolean);
 
     if (lines.length === 0) return alert('Vui lòng nhập ít nhất 1 dòng Prompt!');
-    if (references.length === 0) return alert('Vui lòng tải lên ít nhất 1 ảnh tham chiếu (Nhân vật hoặc Sản phẩm)!');
+    if (references.length === 0 && !(config.refMode !== 'shared' && refPool.length)) {
+      return alert('Vui lòng tải lên ít nhất 1 ảnh tham chiếu (Nhân vật hoặc Sản phẩm) hoặc ảnh vào kho ảnh ghép!');
+    }
     if (accountsState.loaded && usableCount === 0) {
       return alert('Chưa có tài khoản Muse nào dùng được. Vào "Dàn tài khoản Muse" để đăng nhập.');
     }
@@ -400,7 +606,8 @@ export const MuseBatchStudio: React.FC<{
     });
 
   const handleRetryScene = (scene: BatchSceneItem) => {
-    if (references.length === 0) return alert('Cần ít nhất 1 ảnh tham chiếu để chạy lại!');
+    if (references.length === 0 && !(config.refMode !== 'shared' && refPool.length))
+      return alert('Cần ít nhất 1 ảnh tham chiếu để chạy lại!');
     stopSignalRef.current = false;
     softStopRef.current = false;
     reopenTiming();
@@ -411,7 +618,8 @@ export const MuseBatchStudio: React.FC<{
   const completedScenes = scenes.filter((s) => s.status === 'completed' && s.videoUrl);
 
   const handleRetryAllFailed = () => {
-    if (references.length === 0) return alert('Cần ít nhất 1 ảnh tham chiếu để chạy lại!');
+    if (references.length === 0 && !(config.refMode !== 'shared' && refPool.length))
+      return alert('Cần ít nhất 1 ảnh tham chiếu để chạy lại!');
     stopSignalRef.current = false;
     softStopRef.current = false;
     reopenTiming();
@@ -488,6 +696,13 @@ export const MuseBatchStudio: React.FC<{
             <ProductScriptPanel
               product={product}
               setProduct={setProduct}
+              characters={characters
+                .filter((c) => c.name.trim())
+                .map((c) => ({
+                  name: c.name.trim(),
+                  description: c.description,
+                  voice: resolveVoice(c.voicePresetId, c.museVoiceOverride, museVoiceNames).preset?.label,
+                }))}
               references={references}
               secondsPerScene={config.duration}
               onUseImage={(dataUrl, role, name) =>
@@ -498,12 +713,62 @@ export const MuseBatchStudio: React.FC<{
               }
               onApplyScenes={(lines) => setBatchPromptText(lines.join('\n'))}
             />
+            {product.name.trim() && !products.some((p) => p.name === product.name.trim()) && (
+              <button
+                onClick={saveProductToLibrary}
+                className="w-full -mt-2 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs text-slate-300"
+              >
+                💾 Lưu "{product.name.trim()}" vào thư viện sản phẩm
+              </button>
+            )}
 
             {/* Khối 2: Ảnh tham chiếu */}
             <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
               <h3 className="text-sm font-bold text-indigo-400">
                 2. Ảnh Tham Chiếu Cố Định (Nhân Vật • Trang Phục • Sản Phẩm)
               </h3>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Nhân vật chính (thư viện)</label>
+                  <select
+                    value={config.characterId}
+                    onChange={(e) => pickCharacter(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-xs"
+                  >
+                    <option value="">— Không dùng —</option>
+                    {characters.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name || 'Chưa đặt tên'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Sản phẩm (thư viện)</label>
+                  <select
+                    value={config.productId}
+                    onChange={(e) => pickProduct(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-xs"
+                  >
+                    <option value="">— Không dùng —</option>
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name || 'Chưa đặt tên'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {characters.length + products.length === 0 && (
+                <p className="text-[11px] text-slate-500">
+                  Định nghĩa nhân vật (ảnh + giọng cố định) và sản phẩm ở{' '}
+                  <button onClick={onManageAccounts} className="text-indigo-300 hover:underline">
+                    ⚙️ Cài đặt
+                  </button>
+                  . Prompt nhắc tên nhân vật nào thì cảnh đó tự dùng ảnh và giọng của nhân vật đó.
+                </p>
+              )}
 
               <div className="grid grid-cols-3 gap-2.5">
                 {(['character', 'outfit', 'product'] as const).map((role) => {
@@ -512,7 +777,7 @@ export const MuseBatchStudio: React.FC<{
                   return (
                     <div
                       key={role}
-                      className="relative h-28 border border-dashed border-slate-700 rounded-lg bg-slate-900 flex items-center justify-center overflow-hidden hover:border-indigo-500 transition"
+                      className="relative aspect-[9/16] border border-dashed border-slate-700 rounded-lg bg-slate-900 flex items-center justify-center overflow-hidden hover:border-indigo-500 transition"
                     >
                       {found ? (
                         <>
@@ -565,6 +830,126 @@ export const MuseBatchStudio: React.FC<{
                   Nối tiếp End-Frame (Cắt frame cuối cảnh trước làm frame đầu cảnh sau, chạy 1 luồng)
                 </label>
               </div>
+            </div>
+
+            {/* Khối 2b: Chế độ ghép ảnh tham chiếu */}
+            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+              <h3 className="text-sm font-bold text-indigo-400">2b. Cách ghép ảnh tham chiếu cho từng cảnh</h3>
+              <div className="grid grid-cols-2 gap-1.5">
+                {REF_MODES.map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => setConfig({ ...config, refMode: m.id })}
+                    title={m.hint}
+                    className={`px-2 py-1.5 rounded-lg text-[11px] font-semibold text-left border transition ${
+                      config.refMode === m.id
+                        ? 'bg-indigo-600/30 border-indigo-500 text-indigo-100'
+                        : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-600'
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-slate-400">{REF_MODES.find((m) => m.id === config.refMode)?.hint}</p>
+
+              {config.refMode !== 'shared' && (
+                <>
+                  <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                    {config.refMode === 'group' && (
+                      <label className="flex items-center gap-1.5 text-slate-300">
+                        Số ảnh mỗi nhóm
+                        <input
+                          type="number"
+                          min={1}
+                          max={3}
+                          value={config.groupSize}
+                          onChange={(e) =>
+                            setConfig({ ...config, groupSize: Math.min(3, Math.max(1, Number(e.target.value) || 1)) })
+                          }
+                          className="w-14 bg-slate-900 border border-slate-700 rounded p-1 text-xs"
+                        />
+                      </label>
+                    )}
+                    {config.refMode === 'rotate' && (
+                      <label className="flex items-center gap-1.5 text-slate-300">
+                        Ảnh xoay vòng là
+                        <select
+                          value={config.rotateRole}
+                          onChange={(e) =>
+                            setConfig({ ...config, rotateRole: e.target.value as MuseConfig['rotateRole'] })
+                          }
+                          className="bg-slate-900 border border-slate-700 rounded p-1 text-xs"
+                        >
+                          <option value="product">Sản phẩm</option>
+                          <option value="outfit">Trang phục (lookbook)</option>
+                        </select>
+                      </label>
+                    )}
+                    <span className="text-slate-500">{refModeSummary}</span>
+                    <span className="flex-1" />
+                    {refPool.length > 0 && (
+                      <button onClick={() => setRefPool([])} className="text-red-300 hover:text-red-200">
+                        Xóa kho ảnh
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-5 gap-1.5 max-h-72 overflow-y-auto pr-1">
+                    {refPool.map((img, i) => (
+                      <div
+                        key={img.id}
+                        className="relative group aspect-[9/16] rounded-md overflow-hidden border border-slate-800 bg-slate-900"
+                      >
+                        <img src={img.dataUrl} alt={img.name} className="w-full h-full object-cover" />
+                        <span className="absolute top-0.5 left-0.5 bg-black/75 text-[9px] px-1 rounded">{i + 1}</span>
+                        <div className="absolute inset-x-0 bottom-0 flex opacity-0 group-hover:opacity-100 bg-black/70">
+                          <button
+                            disabled={i === 0}
+                            onClick={() =>
+                              setRefPool((prev) => {
+                                const next = [...prev];
+                                [next[i - 1], next[i]] = [next[i], next[i - 1]];
+                                return next;
+                              })
+                            }
+                            className="flex-1 text-[10px] disabled:opacity-30"
+                          >
+                            ◀
+                          </button>
+                          <button
+                            onClick={() => setRefPool((prev) => prev.filter((p) => p.id !== img.id))}
+                            className="flex-1 text-[10px] text-red-300"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    <label className="aspect-[9/16] rounded-md border border-dashed border-slate-700 hover:border-indigo-500 flex flex-col items-center justify-center cursor-pointer text-[10px] text-slate-400 text-center">
+                      <span className="text-lg">+</span>
+                      Thêm ảnh
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={async (e) => {
+                          const files = Array.from(e.target.files || []);
+                          e.target.value = '';
+                          const added = await Promise.all(
+                            files.map(async (f) => ({
+                              id: `pool_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                              dataUrl: await fileToResizedDataUrl(f),
+                              name: f.name,
+                            }))
+                          );
+                          setRefPool((prev) => [...prev, ...added]);
+                        }}
+                      />
+                    </label>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Khối 3: Danh sách Prompt */}
@@ -655,23 +1040,26 @@ export const MuseBatchStudio: React.FC<{
               </div>
 
               <div>
-                <label className="block text-[11px] text-slate-400 mb-1">Giọng đọc Muse (dùng cho mọi cảnh)</label>
-                <select
+                <label className="block text-[11px] text-slate-400 mb-1">
+                  Giọng đọc mặc định (cảnh không gắn nhân vật trong thư viện)
+                </label>
+                <VoiceSelect
                   value={config.voice}
-                  onChange={(e) => setConfig({ ...config, voice: e.target.value })}
+                  onChange={(voice) => setConfig({ ...config, voice })}
+                  emptyLabel="Giữ giọng mặc định của tài khoản"
                   className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-xs"
-                >
-                  <option value="">Giữ giọng mặc định của tài khoản</option>
-                  {voiceGroups.map(([group, list]) => (
-                    <optgroup key={group} label={group}>
-                      {list.map((v) => (
-                        <option key={v.id} value={v.id}>
-                          {v.name} · {v.gender === 'female' ? 'Nữ' : v.gender === 'male' ? 'Nam' : v.gender}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
+                />
+                {config.voice && !config.voice.startsWith('voice_') && (
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Đang dùng giọng gốc Muse đã chọn trước đây: {museVoiceNames[config.voice] || config.voice}
+                  </p>
+                )}
+                {mixedVoices && (
+                  <p className="text-[10px] text-amber-300 mt-1">
+                    ⚠ Lô này dùng {mixedVoices} giọng khác nhau. Muse đặt giọng theo tài khoản, nên khi trộn giọng
+                    hãy để 1 luồng / tài khoản (Cài đặt ➔ Tài khoản) để giọng không bị lẫn giữa các cảnh.
+                  </p>
+                )}
                 <p className="text-[10px] text-slate-500 mt-1">
                   Khóa 1 giọng cho cả lô để cảnh sau không bị đổi giọng (nam ↔ nữ) so với cảnh trước.
                 </p>
@@ -827,7 +1215,7 @@ export const MuseBatchStudio: React.FC<{
           {mergeState && <p className="text-xs text-slate-300 mb-3">{mergeState}</p>}
           {merged && (
             <div className="mb-4 bg-fuchsia-950/40 border border-fuchsia-800 rounded-xl p-3 flex flex-col md:flex-row gap-3">
-              <video src={merged.url} controls className="w-full md:w-64 h-40 bg-black rounded-lg object-contain" />
+              <video src={merged.url} controls className={`w-full md:w-56 ${aspectClass(config.aspectRatio)} bg-black rounded-lg object-contain`} />
               <div className="text-xs space-y-1">
                 <p className="font-bold text-fuchsia-200">🎞 Video hoàn chỉnh ({merged.sceneCount} cảnh)</p>
                 <p className="text-slate-300 break-all">{merged.path}</p>
@@ -841,7 +1229,7 @@ export const MuseBatchStudio: React.FC<{
               Hãy nạp Cookie Muse.ai, tải lên ảnh Nhân vật / Sản phẩm và nhấn "Bắt đầu Tạo Hàng Loạt".
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto max-h-[80vh] pr-1">
+            <div className={`${sceneGridClass(config.aspectRatio)} overflow-y-auto max-h-[80vh] pr-1`}>
               {scenes.map((scene) => (
                 <div
                   key={scene.id}
@@ -870,6 +1258,10 @@ export const MuseBatchStudio: React.FC<{
                         className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-lg p-1.5 text-xs text-slate-200 focus:outline-none"
                       />
                     )}
+                    {(() => {
+                      const sv = voiceForScene(scene.rawPrompt, config);
+                      return <VoiceBadge voice={sv.voice} characterName={sv.character?.name} compact />;
+                    })()}
                     {(scene.accountId || scene.startedAt) && (
                       <div className="flex flex-wrap gap-x-3 text-[11px] text-slate-500">
                         {scene.accountId && <span>👤 {accountLabel(scene.accountId)}</span>}
@@ -882,7 +1274,11 @@ export const MuseBatchStudio: React.FC<{
 
                   {scene.videoUrl ? (
                     <div className="space-y-2">
-                      <video src={scene.videoUrl} controls className="w-full h-48 bg-black rounded-lg object-contain" />
+                      <video
+                        src={scene.videoUrl}
+                        controls
+                        className={`w-full ${aspectClass(config.aspectRatio)} bg-black rounded-lg object-contain`}
+                      />
                       <button
                         onClick={() =>
                           downloadFile(scene.videoUrl!, `Muse_Shot_${scene.index}.mp4`).catch((e) => alert(e.message))
@@ -893,9 +1289,9 @@ export const MuseBatchStudio: React.FC<{
                       </button>
                     </div>
                   ) : (
-                    <div className="h-48 bg-slate-900/60 border border-dashed border-slate-800 rounded-lg flex flex-col items-center justify-center gap-2 text-xs text-slate-500 p-4 text-center">
+                    <div className={`w-full ${aspectClass(config.aspectRatio)} bg-slate-900/60 border border-dashed border-slate-800 rounded-lg flex flex-col items-center justify-center gap-2 text-xs text-slate-500 p-4 text-center`}>
                       {scene.keyframeUrl && !scene.error && (
-                        <img src={scene.keyframeUrl} alt="keyframe" className="h-28 object-contain rounded" />
+                        <img src={scene.keyframeUrl} alt="keyframe" className="max-h-[60%] object-contain rounded" />
                       )}
                       {scene.error ? (
                         <span className="text-red-400 line-clamp-4">{scene.error}</span>

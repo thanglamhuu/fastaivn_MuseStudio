@@ -101,3 +101,12 @@ def test_merge_clips_with_and_without_audio(tmp_path):
     target = studio_media.merge_clips(ffmpeg, clips, tmp_path / "out" / "full.mp4")
     info = studio_media.probe(ffmpeg, target)
     assert info["audio"] and 1.8 < info["seconds"] < 2.4 and (info["w"], info["h"]) == (320, 240)
+
+
+def test_guess_price_from_page_text():
+    import studio_product
+
+    assert studio_product.guess_price("Áo thun nam\n₫199.000\nĐã bán 2k") == "199.000 ₫"
+    assert studio_product.guess_price("Giá 1.250.000đ freeship") == "1.250.000 ₫"
+    assert studio_product.guess_price("₫99.000 - ₫149.000 còn hàng") == "99.000 - 149.000 ₫"
+    assert studio_product.guess_price("Sale 50% chỉ hôm nay") == ""

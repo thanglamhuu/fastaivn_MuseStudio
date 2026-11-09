@@ -19,6 +19,9 @@ app.include_router(product_router)
 from studio_media import router as media_router  # noqa: E402
 
 app.include_router(media_router)
+from studio_ai import router as ai_router  # noqa: E402
+
+app.include_router(ai_router)
 
 # Bật CORS để Vite dev server (http://localhost:5173) gọi được Gateway
 app.add_middleware(

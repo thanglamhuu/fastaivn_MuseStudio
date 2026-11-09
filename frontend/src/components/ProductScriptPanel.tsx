@@ -5,6 +5,9 @@ import {
   GeneratedScript,
   ProductInfo,
   generateScript,
+  describeScriptSource,
+  SCRIPT_MODES,
+  ScriptMode,
   getScrapeStatus,
   getShopLoginState,
   openShopLogin,
@@ -30,7 +33,10 @@ export const ProductScriptPanel: React.FC<{
   onUseImage: (dataUrl: string, role: ReferenceImage['role'], name: string) => void;
   secondsPerScene: number;
   onApplyScenes: (lines: string[]) => void;
-}> = ({ product, setProduct, references, onUseImage, secondsPerScene, onApplyScenes }) => {
+  /** Nhân vật trong thư viện (Cài đặt) để kịch bản dùng đúng tên */
+  characters?: { name: string; description: string; voice?: string }[];
+}> = ({ product, setProduct, references, onUseImage, secondsPerScene, onApplyScenes, characters = [] }) => {
+  const [scriptMode, setScriptMode] = usePersistentState<ScriptMode>('script.mode.v1', 'template');
   const [link, setLink] = useState(product.url);
   const [scraping, setScraping] = useState(false);
   const [scrapeNote, setScrapeNote] = useState('');
@@ -142,8 +148,12 @@ export const ProductScriptPanel: React.FC<{
   };
 
   const handleWriteScript = async () => {
-    if (!product.name.trim() && !productRef && product.images.length === 0) {
+    const noProduct = !product.name.trim() && !productRef && product.images.length === 0;
+    if (noProduct && scriptMode !== 'short_film') {
       return setScriptNote('Cần tên sản phẩm hoặc ảnh sản phẩm để AI viết đúng kịch bản.');
+    }
+    if (noProduct && !extraNote.trim()) {
+      return setScriptNote('Phim ngắn không có sản phẩm: nhập ý tưởng câu chuyện vào ô "Yêu cầu thêm".');
     }
     setWriting(true);
     setScriptNote('AI đang xem ảnh sản phẩm và viết kịch bản (30-90 giây)...');
@@ -161,6 +171,8 @@ export const ProductScriptPanel: React.FC<{
       const result = await generateScript({
         product,
         template,
+        mode: scriptMode,
+        characters,
         sceneCount,
         secondsPerScene,
         withDialogue: withDialogue && true,
@@ -174,7 +186,9 @@ export const ProductScriptPanel: React.FC<{
         visual: result.product.visual || prev.visual,
       }));
       onApplyScenes(result.scenes.map(sceneToPromptLine));
-      setScriptNote(`✅ Đã viết ${result.scenes.length} cảnh và đưa vào danh sách prompt bên dưới.`);
+      setScriptNote(
+        `✅ Đã viết ${result.scenes.length} cảnh và đưa vào danh sách prompt bên dưới. Nguồn: ${describeScriptSource(result.source)}`
+      );
     } catch (err: any) {
       setScriptNote(`❌ ${err.message}`);
     } finally {
@@ -286,7 +300,7 @@ export const ProductScriptPanel: React.FC<{
           <div className="grid grid-cols-4 gap-2 max-h-56 overflow-y-auto pr-1">
             {product.images.map((url) => (
               <div key={url} className="relative group rounded-lg overflow-hidden border border-slate-800 bg-slate-900">
-                <img src={url} alt="" className="w-full h-20 object-cover" loading="lazy" />
+                <img src={url} alt="" className="w-full aspect-[9/16] object-contain bg-slate-950" loading="lazy" />
                 <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center gap-1">
                   <button onClick={() => useImage(url, 'product')} className="px-1.5 py-0.5 bg-indigo-600 rounded text-[10px]">
                     Dùng làm ảnh SP
@@ -308,6 +322,17 @@ export const ProductScriptPanel: React.FC<{
       <div className="space-y-2 border-t border-slate-800 pt-3">
         <div className="grid grid-cols-2 gap-2">
           <div className="col-span-2">
+            <label className="block text-[11px] text-slate-400 mb-1">Kiểu kịch bản</label>
+            <select value={scriptMode} onChange={(e) => setScriptMode(e.target.value as ScriptMode)} className={field}>
+              {SCRIPT_MODES.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-[10px] text-slate-500 mt-1">{SCRIPT_MODES.find((m) => m.id === scriptMode)?.hint}</p>
+          </div>
+          <div className={`col-span-2 ${scriptMode === 'template' ? '' : 'hidden'}`}>
             <label className="block text-[11px] text-slate-400 mb-1">Mẫu kịch bản ({SCRIPT_TEMPLATES.length} mẫu)</label>
             <select value={template.id} onChange={(e) => setTemplateId(e.target.value)} className={field}>
               {TEMPLATE_GROUPS.map((g) => (
@@ -359,6 +384,11 @@ export const ProductScriptPanel: React.FC<{
         </button>
         {scriptNote && <p className="text-[11px] text-slate-300">{scriptNote}</p>}
 
+        {script?.source && (
+          <p className="text-[10px] text-slate-500">
+            🤖 Kịch bản tạo bởi: <span className="text-slate-300">{describeScriptSource(script.source)}</span>
+          </p>
+        )}
         {script && script.scenes.length > 0 && (
           <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
             {script.scenes.map((s, i) => (

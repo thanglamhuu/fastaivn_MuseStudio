@@ -46,10 +46,65 @@ export interface ScriptScene {
   prompt: string;
 }
 
+/** Kịch bản do ai viết: Gemini / endpoint OpenAI (cấu hình ở Cài đặt) hay muse-chat (dự phòng). */
+export interface ScriptSource {
+  provider: 'gemini' | 'openai' | 'muse';
+  model?: string;
+  keyIndex?: number | null;
+  /** Lý do phải dùng muse-chat (Gemini/OpenAI chưa cấu hình hoặc lỗi) */
+  fallbackReason?: string;
+}
+
 export interface GeneratedScript {
   product: { name?: string; category?: string; key_points?: string[]; visual?: string };
   scenes: ScriptScene[];
+  source?: ScriptSource;
 }
+
+export const describeScriptSource = (s?: ScriptSource): string => {
+  if (!s) return '';
+  if (s.provider === 'gemini') return `Gemini (${s.model}${s.keyIndex ? `, key #${s.keyIndex}` : ''})`;
+  if (s.provider === 'openai') return `Endpoint OpenAI (${s.model})`;
+  return `muse-chat (dự phòng${s.fallbackReason ? `: ${s.fallbackReason}` : ''})`;
+};
+
+/** Kiểu kịch bản. "template" = dùng 1 trong các mẫu có sẵn. */
+export type ScriptMode = 'template' | 'tvc5' | 'short_film' | 'pov_aff';
+
+export const SCRIPT_MODES: { id: ScriptMode; label: string; hint: string }[] = [
+  { id: 'template', label: 'Theo mẫu có sẵn', hint: 'Chọn 1 trong các mẫu kịch bản bán hàng bên dưới.' },
+  {
+    id: 'tvc5',
+    label: 'TVC / Review 5 bước',
+    hint: 'Hook 3 giây → Giới thiệu tổng quan → Cận cảnh chi tiết → Trải nghiệm thực tế → Chốt đơn (CTA).',
+  },
+  {
+    id: 'short_film',
+    label: 'Phim ngắn / Cốt truyện',
+    hint: 'Thiết lập nhân vật → Khởi đầu sự việc → Diễn biến & cao trào → Kết. Dùng tên nhân vật trong thư viện.',
+  },
+  {
+    id: 'pov_aff',
+    label: 'POV Affiliate (giấu mặt)',
+    hint: 'Góc nhìn thứ nhất, chỉ thấy tay thao tác với sản phẩm; hợp unbox / review đồ ăn, gia dụng, công nghệ.',
+  },
+];
+
+const MODE_INSTRUCTIONS: Record<Exclude<ScriptMode, 'template'>, string> = {
+  tvc5:
+    'KIỂU KỊCH BẢN: TVC / Review sản phẩm chuẩn 5 bước chuyển đổi affiliate, chia đều các cảnh theo thứ tự: ' +
+    '(1) Hook gây ấn tượng thị giác mạnh trong 3 giây đầu; (2) Giới thiệu tổng quan sản phẩm và nhân vật; ' +
+    '(3) Cận cảnh chi tiết (macro chất liệu, bao bì, kết cấu); (4) Trải nghiệm thực tế, nhân vật dùng sản phẩm; ' +
+    '(5) Chốt đơn: khẳng định chất lượng và kêu gọi mua. Ít cảnh hơn 5 thì gộp bước, nhiều hơn thì kéo dài bước 3-4.',
+  short_film:
+    'KIỂU KỊCH BẢN: Phim ngắn có cốt truyện liền mạch: thiết lập thế giới & nhân vật → khởi đầu sự việc → ' +
+    'diễn biến & cao trào → giải quyết nút thắt & kết. Mỗi cảnh nối tiếp cảnh trước (cùng nhân vật, trang phục, bối cảnh). ' +
+    'Có hội thoại thì ghi rõ ai nói, giữ đúng tính cách mỗi nhân vật. Sản phẩm (nếu có) xuất hiện tự nhiên trong truyện.',
+  pov_aff:
+    'KIỂU KỊCH BẢN: POV Affiliate — camera ở tầm mắt người xem, KHÔNG lộ mặt, chỉ thấy bàn tay tương tác với sản phẩm ' +
+    '(1 tay giữ, 1 tay mở hộp / thao tác). Nhịp nhanh, cận cảnh, lời thoại như người thật đang review. ' +
+    'Cấu trúc: hook → mở hộp / cầm thử → chi tiết nổi bật → dùng thử → chốt đơn.',
+};
 
 const call = async (path: string, init: RequestInit = {}) => {
   const headers = new Headers(init.headers);
@@ -142,6 +197,9 @@ export const extractJson = (text: string): any => {
 export interface ScriptRequest {
   product: ProductInfo;
   template: ScriptTemplate;
+  mode: ScriptMode;
+  /** Nhân vật trong thư viện (tên + mô tả) để kịch bản gọi đúng tên -> app tự gắn ảnh + giọng */
+  characters: { name: string; description: string; voice?: string }[];
   sceneCount: number;
   secondsPerScene: number;
   withDialogue: boolean;
@@ -164,14 +222,28 @@ export const generateScript = async (req: ScriptRequest): Promise<GeneratedScrip
     .filter(Boolean)
     .join('\n');
 
+  const modeBlock =
+    req.mode === 'template'
+      ? `MẪU KỊCH BẢN: "${req.template.name}" — ${req.template.guide}\n${
+          req.template.faceless
+            ? 'Video KHÔNG lộ mặt người: chỉ quay tay và sản phẩm.'
+            : 'Có một nhân vật dẫn (người mẫu trong ảnh nhân vật tham chiếu) xuất hiện xuyên suốt.'
+        }`
+      : MODE_INSTRUCTIONS[req.mode];
+  const characterBlock =
+    req.mode !== 'pov_aff' && req.characters.length
+      ? `NHÂN VẬT CÓ SẴN (dùng ĐÚNG tên này trong "prompt" mỗi khi nhân vật xuất hiện, để app tự gửi ảnh và giọng của họ):\n${req.characters
+          .map((c) => `- ${c.name}${c.description ? `: ${c.description}` : ''}${c.voice ? ` (giọng: ${c.voice})` : ''}`)
+          .join('\n')}`
+      : '';
   const instruction = `Bạn là biên kịch video bán hàng ngắn (TikTok/Reels, khung dọc) tiếng Việt.
 Ảnh đính kèm là ẢNH THẬT của sản phẩm cần bán. Hãy nhìn kỹ ảnh để biết đúng sản phẩm là gì (loại, màu, chất liệu, hình dáng). TUYỆT ĐỐI không đổi sang sản phẩm khác.
 
 THÔNG TIN SẢN PHẨM:
 ${productBlock || '(không có chữ, chỉ dựa vào ảnh)'}
 
-MẪU KỊCH BẢN: "${req.template.name}" — ${req.template.guide}
-${req.template.faceless ? 'Video KHÔNG lộ mặt người: chỉ quay tay và sản phẩm.' : 'Có một nhân vật dẫn (người mẫu trong ảnh nhân vật tham chiếu) xuất hiện xuyên suốt.'}
+${modeBlock}
+${characterBlock}
 ${req.extraNote ? `Yêu cầu thêm: ${req.extraNote}` : ''}
 
 YÊU CẦU:
@@ -186,12 +258,32 @@ CHỈ trả về JSON hợp lệ, không giải thích, đúng dạng:
   const content: any[] = [{ type: 'text', text: instruction }];
   req.productImages.slice(0, 3).forEach((url) => content.push({ type: 'image_url', image_url: { url } }));
 
-  const data = await call('/v1/chat/completions', {
-    method: 'POST',
-    body: JSON.stringify({ model: 'muse-chat', stream: false, messages: [{ role: 'user', content }] }),
-  });
-  const text: string = data.choices?.[0]?.message?.content || '';
-  const parsed = extractJson(text);
+  // Ưu tiên Gemini / endpoint OpenAI (Cài đặt ➔ Trợ lý AI); lỗi hoặc chưa cấu hình thì dùng muse-chat
+  let text = '';
+  let source: ScriptSource;
+  let parsed: any = null;
+  try {
+    const ai = await call('/studio/ai/chat', {
+      method: 'POST',
+      body: JSON.stringify({ prompt: instruction, images: req.productImages.slice(0, 3), json_output: true }),
+    });
+    text = ai.text || '';
+    parsed = extractJson(text);
+    source = { provider: ai.source, model: ai.model, keyIndex: ai.key_index };
+  } catch (err: any) {
+    const reason = String(err?.message || err).slice(0, 160);
+    const data = await call('/v1/chat/completions', {
+      method: 'POST',
+      body: JSON.stringify({ model: 'muse-chat', stream: false, messages: [{ role: 'user', content }] }),
+    });
+    text = data.choices?.[0]?.message?.content || '';
+    parsed = extractJson(text);
+    source = {
+      provider: 'muse',
+      model: 'muse-chat',
+      fallbackReason: /Chưa cấu hình|no_ai_provider|muse-chat/i.test(reason) ? 'chưa cấu hình Gemini/OpenAI' : reason,
+    };
+  }
   const scenes: ScriptScene[] = (parsed.scenes || [])
     .map((s: any) => ({
       title: String(s.title || '').trim(),
@@ -200,7 +292,7 @@ CHỈ trả về JSON hợp lệ, không giải thích, đúng dạng:
     }))
     .filter((s: ScriptScene) => s.prompt);
   if (scenes.length === 0) throw new Error('AI trả về kịch bản rỗng. Hãy thử lại.');
-  return { product: parsed.product || {}, scenes };
+  return { product: parsed.product || {}, scenes, source };
 };
 
 /** Gộp 1 cảnh thành 1 dòng prompt cho danh sách chạy hàng loạt. */

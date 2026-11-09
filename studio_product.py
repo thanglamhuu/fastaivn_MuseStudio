@@ -89,7 +89,8 @@ EXTRACT_JS = r"""
       return cands.find((x) => x.length > 3 && !generic.test(x)) || '';
     })(),
     description: product.description || meta('og:description') || meta('description') || '',
-    price: offer.price ? `${offer.price} ${offer.priceCurrency || ''}`.trim() : '',
+    price: offer.price ? `${offer.price} ${offer.priceCurrency || ''}`.trim()
+      : (meta('product:price:amount') ? `${meta('product:price:amount')} ${meta('product:price:currency')}`.trim() : ''),
     brand: typeof brand === 'string' ? brand : '',
     images: [...imgs.entries()].sort((a, b) => b[1] - a[1]).map((e) => e[0]).slice(0, 40),
     text: (main.innerText || '').replace(/\n{3,}/g, '\n\n').slice(0, 6000),
@@ -159,6 +160,28 @@ async def _kill_profile_chrome(profile: Path) -> None:
     await asyncio.sleep(0.8)  # chờ Chrome nhả khóa profile
 
 
+_PRICE_RE = re.compile(
+    r"(?:₫|đ|vnđ|vnd)\s?(\d{1,3}(?:[.,]\d{3})+|\d{4,})"   # ₫199.000
+    r"|(\d{1,3}(?:[.,]\d{3})+|\d{4,})\s?(?:₫|đ(?!\w)|vnđ|vnd)",  # 199.000đ
+    re.IGNORECASE,
+)
+
+
+def guess_price(text: str) -> str:
+    """Giá đầu tiên dạng tiền Việt trong chữ trên trang (Shopee/TikTok thường không có JSON-LD).
+    Khoảng giá "₫99.000 - ₫149.000" lấy cả khoảng. Trả '' nếu không thấy."""
+    head = (text or "")[:4000]
+    matches = list(_PRICE_RE.finditer(head))
+    if not matches:
+        return ""
+    first = matches[0]
+    value = first.group(1) or first.group(2)
+    nxt = matches[1] if len(matches) > 1 else None
+    if nxt and re.fullmatch(r"\s*[-–~]\s*", head[first.end():nxt.start()]):
+        return f"{value} - {nxt.group(1) or nxt.group(2)} ₫"
+    return f"{value} ₫"
+
+
 def _site_of(url: str) -> str:
     u = url.lower()
     if "shopee" in u or "shp.ee" in u:
@@ -172,11 +195,52 @@ _LOGIN_HINTS = ("đăng nhập", "dang nhap", "log in", "login", "sign in", "ver
 
 
 def _full_size(url: str) -> str:
-    """Ảnh thu nhỏ của Shopee kết thúc bằng _tn / @resize: bỏ đi để lấy ảnh gốc."""
+    """Ảnh thu nhỏ của Shopee kết thúc bằng _tn / @resize: bỏ đi để lấy ảnh gốc.
+    Ảnh TikTok Shop (ibyteimg) có hậu tố ~...-resize-webp:260:260: đổi sang bản 800px."""
     if "susercontent.com" in url or "shopee" in url:
         url = re.sub(r"_tn(?=$|[?#])", "", url)
         url = re.sub(r"@resize_w\d+_nl", "", url)
+    if "ibyteimg.com" in url or "tiktokcdn" in url:
+        url = re.sub(r"(resize-[a-z]+):\d+:\d+", r"\g<1>:800:800", url)
     return url
+
+
+def _image_key(url: str) -> str:
+    """Khóa nhận diện cùng một ảnh ở nhiều kích thước / tham số CDN khác nhau."""
+    base = url.split("?", 1)[0].split("#", 1)[0]
+    if "ibyteimg.com" in base or "tiktokcdn" in base:
+        return base.split("~", 1)[0]
+    return base
+
+
+def dedupe_image_urls(urls: list[str]) -> list[str]:
+    """Đổi sang ảnh gốc rồi bỏ ảnh trùng (giữ thứ tự ưu tiên ban đầu)."""
+    out, seen = [], set()
+    for u in urls:
+        full = _full_size(u)
+        key = _image_key(full)
+        if key not in seen:
+            seen.add(key)
+            out.append(full)
+    return out
+
+
+_DESC_START = re.compile(r"^\s*(mô tả sản phẩm|product description)\s*$", re.IGNORECASE | re.MULTILINE)
+_DESC_END = re.compile(
+    r"^\s*(đánh giá sản phẩm|đánh giá của khách hàng|sản phẩm tương tự|có thể bạn cũng thích"
+    r"|các sản phẩm khác của shop|top sản phẩm bán chạy|xem thêm)\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+
+def description_from_text(text: str, limit: int = 2000) -> str:
+    """Phần "Mô tả sản phẩm" trong chữ trên trang, khi trang không có mô tả trong thẻ meta / JSON-LD."""
+    m = _DESC_START.search(text or "")
+    if not m:
+        return ""
+    rest = text[m.end():]
+    end = _DESC_END.search(rest)
+    return re.sub(r"\n{3,}", "\n\n", rest[: end.start() if end else limit]).strip()[:limit]
 
 
 def _free_port() -> int:
@@ -356,7 +420,7 @@ async def _download_images(urls: list[str], referer: str, svc, base: str) -> lis
                     return None
                 return u, r.content, mime
 
-        results = await asyncio.gather(*(fetch(_full_size(u)) for u in urls))
+        results = await asyncio.gather(*(fetch(u) for u in dedupe_image_urls(urls)))
     for item in results:
         if not item:
             continue
@@ -403,9 +467,12 @@ async def scrape_product(body: ScrapeRequest, request: Request) -> dict:
     return {
         "url": data.get("url") or url,
         "title": title,
-        "price": data.get("price") or "",
+        # Không có giá trong JSON-LD / thẻ meta thì dò giá dạng ₫ trong chữ trên trang
+        "price": data.get("price") or guess_price(data.get("text") or ""),
         "brand": data.get("brand") or "",
-        "description": (data.get("description") or "").strip()[:3000],
+        # Shopee thường không có mô tả trong thẻ meta: lấy phần "Mô tả sản phẩm" trên trang
+        "description": ((data.get("description") or "").strip()
+                        or description_from_text(data.get("text") or ""))[:3000],
         "text": data.get("text") or "",
         "images": images,
         "warning": warning,

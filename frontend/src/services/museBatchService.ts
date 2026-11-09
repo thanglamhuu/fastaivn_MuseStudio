@@ -11,8 +11,27 @@ export interface MuseConfig {
   useTwoStepKeyframe: boolean;
   chainEndFrame: boolean; // Tự động lấy frame cuối cảnh trước làm frame đầu cảnh sau
   cameraMotion: string; // '' = không ép góc máy
-  /** Giọng đọc muse.ai dùng cho mọi cảnh ('' = giọng mặc định của tài khoản) */
+  /**
+   * Giọng mặc định cho cảnh không gắn nhân vật trong thư viện: id hồ sơ Matrix ("voice_03")
+   * hoặc mã giọng gốc Muse ("avocado_v2:..."); '' = giọng mặc định của tài khoản.
+   */
   voice: string;
+  /** Nhân vật chính (thư viện) — dùng khi prompt của cảnh không nhắc nhân vật nào */
+  characterId: string;
+  /** Sản phẩm đang dùng (thư viện) */
+  productId: string;
+  /**
+   * Cách ghép ảnh tham chiếu cho từng cảnh:
+   *  shared    = mọi cảnh dùng chung bộ ảnh nhân vật / trang phục / sản phẩm
+   *  group     = kho ảnh chia nhóm, cảnh 1 dùng nhóm 1, cảnh 2 dùng nhóm 2...
+   *  firstLast = kho ảnh theo thứ tự, cảnh i đi từ ảnh i (khung đầu) tới ảnh i+1 (khung cuối)
+   *  rotate    = khóa người mẫu, xoay vòng sản phẩm / trang phục trong kho ảnh qua từng cảnh
+   */
+  refMode: 'shared' | 'group' | 'firstLast' | 'rotate';
+  /** Số ảnh mỗi nhóm (chế độ group) */
+  groupSize: number;
+  /** Vai trò của ảnh được xoay vòng (chế độ rotate) */
+  rotateRole: 'product' | 'outfit';
   /** Tên dự án = tên thư mục con trong thư mục xuất file */
   projectName: string;
   /** Tự chép mỗi video xong vào thư mục dự án */
@@ -29,6 +48,11 @@ export const DEFAULT_MUSE_CONFIG: MuseConfig = {
   chainEndFrame: false,
   cameraMotion: '',
   voice: '',
+  characterId: '',
+  productId: '',
+  refMode: 'shared',
+  groupSize: 2,
+  rotateRole: 'product',
   projectName: 'MuseStudio',
   autoExport: true,
   autoMerge: false,
@@ -362,6 +386,35 @@ export const openProjectFolder = (project?: string) =>
     jsonOrThrow<{ folder: string }>(r)
   );
 
+export interface AIConfig {
+  prefer: 'auto' | 'gemini' | 'openai' | 'muse';
+  gemini_keys: string[];
+  gemini_key_count: number;
+  gemini_model: string;
+  openai_base_url: string;
+  openai_api_key: string;
+  openai_model: string;
+}
+
+export const getAIConfig = () => gatewayFetch('/studio/ai/config').then((r) => jsonOrThrow<AIConfig>(r));
+
+export const saveAIConfig = (patch: {
+  prefer?: AIConfig['prefer'];
+  gemini_keys_text?: string;
+  gemini_model?: string;
+  openai_base_url?: string;
+  openai_api_key?: string;
+  openai_model?: string;
+}) =>
+  gatewayFetch('/studio/ai/config', { method: 'PUT', body: JSON.stringify(patch) }).then((r) =>
+    jsonOrThrow<AIConfig>(r)
+  );
+
+export const testAIProvider = (provider: 'gemini' | 'openai') =>
+  gatewayFetch('/studio/ai/test', { method: 'POST', body: JSON.stringify({ provider }) }).then((r) =>
+    jsonOrThrow<{ results: { index: number; key?: string; ok: boolean; detail: string }[] }>(r)
+  );
+
 export const loadServerState = async <T,>(key: string): Promise<{ savedAt: number; value: T } | null> => {
   const res = await gatewayFetch(`/studio/state/${encodeURIComponent(key)}`);
   if (res.status === 404) return null;
@@ -421,6 +474,9 @@ export interface ProductContext {
   visual?: string;
 }
 
+/** Vai trò của từng ảnh gửi kèm 1 cảnh (thứ tự = thứ tự ảnh trong tin nhắn gửi muse.ai). */
+export type ImageRole = ReferenceImage['role'] | 'keyframe' | 'endframe' | 'shotref';
+
 const ROLE_LABEL: Record<ReferenceImage['role'], string> = {
   character: 'the character (face, hair, body)',
   outfit: 'the outfit the character wears',
@@ -441,7 +497,7 @@ export const buildLockedPrompt = (
   refs: ReferenceImage[],
   cameraMotion = '',
   product: ProductContext = {},
-  imageRoles: (ReferenceImage['role'] | 'keyframe')[] = []
+  imageRoles: ImageRole[] = []
 ): string => {
   const parts: string[] = [];
   if (imageRoles.length > 0) {
@@ -449,7 +505,11 @@ export const buildLockedPrompt = (
       .map((role, i) =>
         role === 'keyframe'
           ? `image ${i + 1} = the opening frame of this shot`
-          : `image ${i + 1} = ${ROLE_LABEL[role]}`
+          : role === 'endframe'
+            ? `image ${i + 1} = the closing frame: the shot must end exactly on this image`
+            : role === 'shotref'
+              ? `image ${i + 1} = a reference for this shot (follow its outfit, product and look)`
+              : `image ${i + 1} = ${ROLE_LABEL[role]}`
       )
       .join('; ');
     parts.push(`[ATTACHED IMAGES: ${desc}]`);

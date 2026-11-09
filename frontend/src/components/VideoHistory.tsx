@@ -1,3 +1,4 @@
+import { aspectClass } from '../utils/image';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { GatewayTask, listGatewayTasks, stripPromptLocks } from '../services/museBatchService';
 import { downloadAll, downloadFile } from '../utils/download';
@@ -105,7 +106,7 @@ export const VideoHistory: React.FC<{ refreshKey?: number }> = ({ refreshKey }) 
         <p className="text-sm text-slate-500">Chưa có video nào trong lịch sử của Gateway.</p>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
             {shown.slice(0, visible).map((task) => (
               <div key={task.id} className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col gap-2">
                 <div className="flex items-center justify-between text-[11px] text-slate-400">
@@ -123,7 +124,7 @@ export const VideoHistory: React.FC<{ refreshKey?: number }> = ({ refreshKey }) 
                       src={task.result.url}
                       controls
                       preload="metadata"
-                      className="w-full h-44 bg-black rounded-lg object-contain"
+                      className={`w-full ${aspectClass(task.request.size)} bg-black rounded-lg object-contain`}
                     />
                     <button
                       onClick={() => downloadFile(task.result!.url!, fileNameOf(task)).catch((e) => alert(e.message))}
@@ -133,7 +134,7 @@ export const VideoHistory: React.FC<{ refreshKey?: number }> = ({ refreshKey }) 
                     </button>
                   </>
                 ) : task.status === 'queued' || task.status === 'running' ? (
-                  <div className="h-44 bg-slate-900/60 border border-dashed border-slate-800 rounded-lg flex items-center justify-center text-xs text-amber-400">
+                  <div className={`w-full ${aspectClass(task.request.size)} bg-slate-900/60 border border-dashed border-slate-800 rounded-lg flex items-center justify-center text-xs text-amber-400`}>
                     🎬 Đang render... {task.progress ? `${task.progress}%` : ''}
                   </div>
                 ) : (

@@ -13,6 +13,7 @@ MuseStudio/
 ├── studio_api.py                      # API /studio: đăng nhập muse.ai bằng Chrome, luồng theo tài khoản
 ├── studio_product.py                  # API /studio/product: đọc link Shopee/TikTok (tên, giá, mô tả, ảnh)
 ├── studio_media.py                    # API /studio: lưu trạng thái, xuất file, ghép video (FFmpeg), giọng đọc
+├── studio_ai.py                       # API /studio/ai: Gemini (xoay vòng key) / endpoint OpenAI cho trợ lý kịch bản
 ├── tests/                             # Test cho studio_media.py (python -m pytest tests)
 ├── gateway_server.py                  # Gateway cho môi trường dev (run_dev.bat)
 ├── app_launcher.py                    # Launcher .EXE: chạy muse2api + phục vụ giao diện React + cửa sổ desktop
@@ -79,6 +80,22 @@ hoặc cookie hỏng được bỏ qua. Chế độ "Số luồng chạy: Tự �
 - **Tài khoản**: tài khoản chạm giới hạn video trong ngày / bị chặn video theo vùng hiện huy hiệu đếm ngược và tự được
   bỏ qua khi tạo video; tài khoản hết hạn mức tuần cũng bị bỏ qua. Việc mới ưu tiên tài khoản ít việc và còn nhiều hạn mức.
 - **Driver không cần Chrome (thử nghiệm)**: đặt `MUSE2API_DRIVER=http` trước khi chạy Gateway. Chưa kiểm chứng với muse.ai thật.
+
+## 4b. Cài đặt, nhân vật, giọng đọc, trợ lý AI, ghép ảnh (P2)
+
+- **⚙️ Cài đặt** gom: Tài khoản Muse (chuyển từ tab cũ), **Nhân vật**, **Sản phẩm**, **Giọng đọc**, **Trợ lý AI**, Chung.
+- **Nhân vật**: tên gọi + mô tả + ảnh khóa mặt (thẻ 9:16) + trang phục cố định + **giọng đọc cố định** (12 hồ sơ Matrix,
+  Nam trước Nữ sau) + cảm xúc. Prompt nhắc tên nhân vật (hoặc `@tên`) thì cảnh đó tự gửi ảnh và dùng giọng của nhân vật.
+- **Giọng đọc trên Muse**: Muse có thư viện giọng riêng (40 giọng, 6 giọng tiếng Việt: 4 nam, 2 nữ), đặt theo tài khoản.
+  Mỗi hồ sơ Matrix = 1 giọng gốc Muse + chỉ dẫn `[Voice Profile: ...]` (tốc độ, cao độ, chất âm) gắn trước lời thoại.
+  Trộn nhiều giọng trong một lô thì nên để 1 luồng / tài khoản.
+- **Trợ lý AI** (Cài đặt ➔ 🤖): Gemini API key (nhiều key, tự xoay vòng khi key hết hạn mức) hoặc endpoint tương thích
+  OpenAI. Viết kịch bản thử Gemini/OpenAI trước, lỗi hoặc chưa cấu hình thì dùng muse-chat; dưới kịch bản ghi rõ nguồn.
+  Kiểu kịch bản: theo mẫu có sẵn, **TVC 5 bước**, **Phim ngắn** (dùng tên nhân vật trong thư viện), **POV Affiliate**.
+- **Cách ghép ảnh tham chiếu (khối 2b)**: dùng chung cho mọi cảnh · ghép theo nhóm · khung đầu → khung cuối ·
+  khóa người mẫu + xoay vòng sản phẩm / trang phục (lookbook).
+- **Khung 9:16 mặc định** cho thẻ nhân vật, sản phẩm, thẻ cảnh, clip đã render và lịch sử video.
+- **Đọc link sản phẩm**: thêm dò giá dạng `₫199.000` trên trang khi Shopee/TikTok không có dữ liệu giá có cấu trúc.
 
 ---
 

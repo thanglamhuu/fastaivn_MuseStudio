@@ -58,7 +58,8 @@ async def create_video(body: VideoCreateRequest, request: Request,
 
     request_meta = {"model": spec.id, "prompt": body.prompt, "size": body.size,
                     "duration": body.duration or body.seconds, "has_first_frame": bool(first_frame),
-                    "reference_images": len(refs)}
+                    "reference_images": len(refs),
+                    "voice": body.voice}  # [MuseStudio patch] which Muse voice the clip used
     task = svc.tasks.submit("video", request_meta, runner)
     holder["task"] = task
     request.state.task_id = task.id

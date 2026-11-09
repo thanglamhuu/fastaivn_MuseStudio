@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { MuseBatchStudio } from './components/MuseBatchStudio';
-import { AccountsPage } from './components/AccountsPage';
+import { SettingsPage } from './components/SettingsPage';
+import { WorkflowStudio } from './components/WorkflowStudio';
+import { useStudioLibrary } from './hooks/useStudioLibrary';
 import { GATEWAY_URL } from './config/appConfig';
 import { useMuseAccounts } from './hooks/useMuseAccounts';
 
@@ -18,11 +20,12 @@ const useGatewayHealth = () => {
   return state;
 };
 
-type Tab = 'batch' | 'accounts';
+type Tab = 'batch' | 'workflow' | 'settings';
 
 export const App: React.FC = () => {
   const health = useGatewayHealth();
   const accountsState = useMuseAccounts();
+  const library = useStudioLibrary();
   const [tab, setTab] = useState<Tab>('batch');
 
   const tabBtn = (id: Tab, label: React.ReactNode) => (
@@ -53,10 +56,11 @@ export const App: React.FC = () => {
 
         <div className="flex items-center gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800">
           {tabBtn('batch', '🚀 Tạo video hàng loạt')}
+          {tabBtn('workflow', '🧩 Workflow làm clip')}
           {tabBtn(
-            'accounts',
+            'settings',
             <>
-              👥 Dàn tài khoản Muse{' '}
+              ⚙️ Cài đặt{' '}
               <span className="ml-1 px-1.5 rounded bg-slate-800 text-[10px]">
                 {accountsState.usableCount}/{accountsState.accounts.length}
               </span>
@@ -81,10 +85,21 @@ export const App: React.FC = () => {
       {/* Giữ cả 2 trang luôn được mount để lô đang chạy / phiên đăng nhập không mất khi đổi tab */}
       <main className="flex-1">
         <div className={tab === 'batch' ? '' : 'hidden'}>
-          <MuseBatchStudio accountsState={accountsState} onManageAccounts={() => setTab('accounts')} />
+          <MuseBatchStudio
+            accountsState={accountsState}
+            library={library}
+            onManageAccounts={() => setTab('settings')}
+          />
         </div>
-        <div className={tab === 'accounts' ? '' : 'hidden'}>
-          <AccountsPage state={accountsState} />
+        <div className={tab === 'workflow' ? '' : 'hidden'}>
+          <WorkflowStudio
+            accountsState={accountsState}
+            library={library}
+            onOpenSettings={() => setTab('settings')}
+          />
+        </div>
+        <div className={tab === 'settings' ? '' : 'hidden'}>
+          <SettingsPage accountsState={accountsState} library={library} />
         </div>
       </main>
     </div>
