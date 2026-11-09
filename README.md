@@ -28,10 +28,13 @@ MuseStudio/
         ├── config/appConfig.ts        # Địa chỉ Gateway + API key phía frontend (1 chỗ duy nhất)
         ├── hooks/usePersistentState.ts# Lưu cấu hình / prompt / ảnh tham chiếu / lô hiện tại vào localStorage
         ├── services/museBatchService.ts # Mọi lời gọi Gateway: tài khoản, keyframe, video, task
+        ├── services/workflowRunner.ts # Bộ chạy Workflow: Sản phẩm → Kịch bản → Render cảnh → Ghép, chạy tiếp từ bước lỗi
+        ├── data/workflowTemplates.ts  # 8 mẫu workflow có sẵn (TVC, unboxing, lookbook, street walk...)
         ├── utils/videoFrameExtractor.ts # Cắt frame cuối để nối cảnh
         ├── utils/download.ts          # Tải 1 video / tải tất cả
         └── components/
             ├── MuseBatchStudio.tsx    # Màn hình chính: chạy hàng loạt, chạy lại cảnh lỗi, tải tất cả
+            ├── WorkflowStudio.tsx     # Tab Workflow làm clip: mẫu, dòng sản phẩm / CSV, tiến độ 4 bước
             ├── ProductScriptPanel.tsx # Sản phẩm từ link / tự nhập + 44 mẫu kịch bản, AI viết kịch bản chia cảnh
             ├── AccountsPage.tsx       # Dàn tài khoản: đăng nhập bằng Chrome, dán cookie, luồng, hạn mức
             └── VideoHistory.tsx       # Lịch sử video đọc từ GET /admin/tasks của Gateway
@@ -96,6 +99,27 @@ hoặc cookie hỏng được bỏ qua. Chế độ "Số luồng chạy: Tự �
   khóa người mẫu + xoay vòng sản phẩm / trang phục (lookbook).
 - **Khung 9:16 mặc định** cho thẻ nhân vật, sản phẩm, thẻ cảnh, clip đã render và lịch sử video.
 - **Đọc link sản phẩm**: thêm dò giá dạng `₫199.000` trên trang khi Shopee/TikTok không có dữ liệu giá có cấu trúc.
+
+## 4c. Workflow làm clip (🧩)
+
+Tab **🧩 Workflow làm clip**: mỗi dòng sản phẩm chạy qua 4 bước và ra **1 clip hoàn chỉnh**:
+
+1. **🛒 Sản phẩm** – lấy từ thư viện; dòng là link Shopee/TikTok thì tự đọc link và **lưu vào thư viện** (kèm ảnh).
+   Dòng chỉ có tên sản phẩm (không ảnh) vẫn chạy được nếu có nhân vật có ảnh.
+2. **✍️ Kịch bản** – Gemini / OpenAI / muse-chat viết theo kiểu kịch bản của mẫu (ghi chú của dòng được gửi kèm).
+   Bật *“Dừng sau kịch bản để duyệt / sửa”* để xem, sửa prompt từng cảnh rồi bấm **Duyệt & render**.
+3. **🎬 Render cảnh** – song song theo tổng số luồng của các tài khoản (mẫu nối khung cuối thì tuần tự).
+   Cảnh nhắc tên nhân vật dùng ảnh + giọng của nhân vật đó; mỗi cảnh xong tự lưu file.
+4. **🎞 Ghép clip** – FFmpeg nối các cảnh thành `<thời điểm>_FULL.mp4`.
+
+- File lưu ở `<thư mục xuất>\Workflow - <tên sản phẩm>\` (`..._Canh_01.mp4`, ..., `..._FULL.mp4`); nút 📂 mở thư mục.
+- **8 mẫu có sẵn**: TVC 5 bước, Unboxing ASMR, POV review, Trước & Sau, Lookbook nhiều mẫu/màu (khóa người mẫu,
+  xoay vòng ảnh sản phẩm), Street walk (nối khung), Tiểu phẩm gia đình, Review 7 ngày. Chỉnh số cảnh, giây/cảnh, tỉ lệ,
+  góc máy, lời thoại, không lộ mặt... rồi **Lưu thành workflow mới** (lưu cả trên Gateway).
+- **Thêm nhiều dòng**: dán từ Excel / Google Sheets, mỗi dòng `link hoặc tên SP | tên nhân vật | ghi chú`.
+- **Chạy tiếp từ bước lỗi**: mỗi bước lưu kết quả, nên *Chạy tiếp* bắt đầu lại đúng bước lỗi (chỉ render lại cảnh lỗi);
+  *Chạy lại từ…* chọn bước bất kỳ. **Dừng** hủy task trên Gateway. Tải lại trang giữa chừng thì *Chạy tiếp* chờ tiếp
+  các task cũ, không tạo video trùng.
 
 ---
 
