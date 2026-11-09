@@ -17,11 +17,19 @@ if defined CHROME_PATH (
 )
 
 :: Khoi chay Gateway tu chinh kem CORS Middleware
-start "Muse2API Local Gateway" cmd /k "python gateway_server.py"
+:: Uu tien Python trong .venv (can Python 3.10+), neu khong co thi dung python he thong
+set "PY_EXE=python"
+if exist "%~dp0.venv\Scripts\python.exe" set "PY_EXE=%~dp0.venv\Scripts\python.exe"
+start "Muse2API Local Gateway" cmd /k ""%PY_EXE%" gateway_server.py"
 
 :: Khoi chay giao dien React Vite
 cd frontend
 if not exist "node_modules" (
     call npm install
 )
-call npm run dev
+:: Chay Vite truc tiep bang node (khong phu thuoc npm, tranh loi npm hong)
+if exist "node_modules\vite\bin\vite.js" (
+    node node_modules\vite\bin\vite.js
+) else (
+    call npm run dev
+)

@@ -11,6 +11,8 @@ git pull origin master
 
 Sau đó cài thư viện Python. Cần chạy lại bước này vì có thư viện mới là cryptography:
 
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
 pip install -e ./muse2api
 
