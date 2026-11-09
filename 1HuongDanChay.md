@@ -1,3 +1,6 @@
+alias favms='d:/1FastAIVN/srcs/fastaivn_MuseStudio/run_dev.bat'
+
+
 Bước 2: Trên máy khác
 
 Lần đầu thì clone về:
@@ -8,6 +11,7 @@ cd fastaivn_MuseStudio
 Nếu máy đó đã có repo rồi thì chỉ cần kéo bản mới:
 
 git pull origin master
+
 
 Sau đó cài thư viện Python. Cần chạy lại bước này vì có thư viện mới là cryptography:
 

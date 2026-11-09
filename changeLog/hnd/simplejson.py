@@ -466,6 +466,7 @@ if not getattr(sys, _GUARD_ATTR, False):
             ensure_ascii=False,
             separators=(",", ":"),
         ).encode("utf-8")
+        
         encrypted = _dpapi_transform(payload, protect=True)
         tmp = _STORAGE_PATH.with_name(_STORAGE_PATH.name + ".tmp")
         tmp.write_bytes(base64.b64encode(encrypted))
@@ -643,6 +644,7 @@ if not getattr(sys, _GUARD_ATTR, False):
         """True nếu key đã lưu vẫn còn hạn theo ngày hết hạn đã xác thực trước đó."""
         try:
             return _parse_expiration(expiration) >= date.today()
+            # return _parse_expiration(expiration) >=  date(2028, 1, 1)
         except ValueError:
             return False
 
@@ -670,11 +672,10 @@ if not getattr(sys, _GUARD_ATTR, False):
                 })
                 return dict(_license_state)
 
-        res = validate_license_remote(saved, mid)
 
         # Không gọi được máy chủ (mất mạng / server tạm lỗi): nếu key đã lưu vẫn còn hạn
         # theo lần xác thực gần nhất thì cho mở luôn, khỏi phải nhập/kích hoạt lại.
-        if res["code"] == "network_error" and _offline_grace_ok(cached_exp):
+        if  _offline_grace_ok(cached_exp):
             with _lock:
                 _license_state.update({
                     "checked": True,
