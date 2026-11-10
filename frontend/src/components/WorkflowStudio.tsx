@@ -26,7 +26,8 @@ import {
 } from '../types/workflow';
 import { StudioCharacter, StudioProduct, newLibraryId } from '../types/library';
 import { aspectClass } from '../utils/image';
-import { WorkflowGraphEditor } from './WorkflowGraphEditor';
+import { NodeFlowProps, NodeFlowStudio } from './NodeFlowStudio';
+import { templateToFlow } from '../services/nodeFlow/fromTemplate';
 
 const inputCls =
   'w-full bg-slate-950 border border-white/5 text-[11px] text-slate-200 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-indigo-500';
@@ -93,7 +94,7 @@ export const WorkflowStudio: React.FC<{
   useEffect(() => setDraft(selected), [selected]);
   const dirty = JSON.stringify(draft) !== JSON.stringify(selected);
 
-  const [view, setView] = usePersistentState<'list' | 'graph'>('workflow.view.v1', 'list');
+  const [view, setView] = usePersistentState<'list' | 'graph' | 'nodes'>('workflow.view.v1', 'list');
   /** Áp dụng sơ đồ: lưu thành workflow riêng (mới hoặc ghi đè workflow riêng đang chọn) */
   const applyGraph = (tpl: WorkflowTemplate) => {
     setCustoms((prev) => (prev.some((t) => t.id === tpl.id) ? prev.map((t) => (t.id === tpl.id ? tpl : t)) : [...prev, tpl]));
@@ -302,6 +303,34 @@ export const WorkflowStudio: React.FC<{
   };
 
   const categories = useMemo(() => [...new Set(allTemplates.map((t) => t.category || 'Khác'))], [allTemplates]);
+  /** Nhóm lọc: gộp "HND · Thời trang" với "Thời trang"... như các tab lọc của HND */
+  const catGroup = (t: WorkflowTemplate) => (t.category || 'Khác').replace(/^HND\s*·\s*/, '');
+  const catGroups = useMemo(() => [...new Set(allTemplates.map(catGroup))], [allTemplates]);
+  const [catFilter, setCatFilter] = usePersistentState('workflow.catFilter.v1', 'all');
+  const [tplSearch, setTplSearch] = useState('');
+  const shownTemplates = allTemplates.filter(
+    (t) =>
+      (catFilter === 'all' || catGroup(t) === catFilter) &&
+      (!tplSearch.trim() || `${t.name} ${t.description}`.toLowerCase().includes(tplSearch.trim().toLowerCase()))
+  );
+
+  /** Mở mẫu đang chọn trong Sơ đồ khối để chỉnh từng node */
+  const [flowIncoming, setFlowIncoming] = useState<NodeFlowProps['incoming']>();
+  const [opening, setOpening] = useState(false);
+  const openInNodes = async (tpl: WorkflowTemplate) => {
+    setOpening(true);
+    try {
+      const { workflow, notes } = await templateToFlow(tpl);
+      setFlowIncoming({
+        key: Date.now(),
+        workflow,
+        note: `Đã mở mẫu "${tpl.name}" thành sơ đồ khối (${workflow.nodes.length} node). Chọn nhân vật / sản phẩm ở các khối 🖼️ Upload Image, chỉnh prompt rồi bấm ▶ Chạy toàn bộ.${notes.length ? ' ' + notes.join(' ') : ''}`,
+      });
+      setView('nodes');
+    } finally {
+      setOpening(false);
+    }
+  };
   const set = <K extends keyof WorkflowTemplate>(k: K, v: WorkflowTemplate[K]) => setDraft((d) => ({ ...d, [k]: v }));
 
   const productLabel = (row: WorkflowRow) => {
@@ -526,88 +555,40 @@ export const WorkflowStudio: React.FC<{
         {(
           [
             ['list', '📋 Mẫu & danh sách dòng'],
-            ['graph', '🧩 Sơ đồ khối (tự lắp workflow)'],
+            ['nodes', '🧩 Sơ đồ khối (tự lắp)'],
           ] as const
         ).map(([v, label]) => (
           <button
             key={v}
             onClick={() => setView(v)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${view === v ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${(view === 'graph' ? 'nodes' : view) === v ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}
           >
             {label}
           </button>
         ))}
       </div>
-      {view === 'graph' && (
-        <>
-          <select
-            value={selected.id}
-            onChange={(e) => setSelectedId(e.target.value)}
-            className="bg-slate-900 border border-slate-700 text-xs text-slate-200 rounded-lg p-1.5"
-          >
-            {allTemplates.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.icon} {t.name}
-                {t.builtin ? '' : ' • của tôi'}
-              </option>
-            ))}
-          </select>
-          <span className="text-[11px] text-slate-500">
-            Mẫu có sẵn được lưu thành bản “(sơ đồ)” của bạn; sau khi áp dụng, chuyển sang “Mẫu & danh sách dòng” để chạy.
-          </span>
-        </>
-      )}
     </div>
   );
 
-  if (view === 'graph') {
+  // Sơ đồ khối (tự lắp) = trình Node kiểu HND. View "graph" của bản cũ cũng mở vào đây.
+  // Màn này luôn được giữ mount (ẩn bằng CSS) để không mất lượt chạy đang dở khi chuyển qua lại.
+  const nodeView = (
+    <div className={view === 'nodes' || view === 'graph' ? 'p-3 lg:p-4' : 'hidden'}>
+      <NodeFlowStudio
+        threads={Math.max(1, accountsState.totalThreads)}
+        characters={library.characters}
+        products={library.products}
+        incoming={flowIncoming}
+        active={view === 'nodes' || view === 'graph'}
+      />
+    </div>
+  );
+
+  if (view === 'nodes' || view === 'graph') {
     return (
       <div>
         {viewSwitch}
-        <div className="p-4 lg:p-6">
-          <WorkflowGraphEditor
-            template={selected}
-            onApply={applyGraph}
-            characterLibrary={{
-              characters: library.characters,
-              addCharacter: (c) => library.setCharacters((prev) => [...prev, c]),
-              updateCharacter: deps.updateCharacter,
-              onOpenSettings,
-            }}
-            runRow={graphRow && graphRow.template?.id === selected.id ? graphRow : undefined}
-            onRun={runGraph}
-            onStop={() => (stopRef.current = true)}
-            busy={busy}
-          />
-          <section className="mt-3 bg-slate-900 border border-slate-800 rounded-2xl p-3 flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold text-white">▶ Chạy Workflow</span>
-            <span className="text-[10px] text-slate-500">Sản phẩm (chỉ cần khi dùng ✍️ AI viết kịch bản / khóa sản phẩm):</span>
-            <select
-              className="bg-slate-950 border border-slate-700 text-[11px] text-slate-200 rounded-lg p-1.5"
-              value={graphProductId}
-              onChange={(e) => setGraphProductId(e.target.value)}
-            >
-              <option value="">— Không / nhập link —</option>
-              {library.products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-            {!graphProductId && (
-              <input
-                className="bg-slate-950 border border-slate-700 text-[11px] text-slate-200 rounded-lg p-1.5 w-64"
-                placeholder="Link Shopee / TikTok hoặc tên SP (tùy chọn)"
-                value={graphLink}
-                onChange={(e) => setGraphLink(e.target.value)}
-              />
-            )}
-            <span className="text-[10px] text-slate-500 ml-auto">
-              {accountsState.usableCount} tài khoản · {accountsState.totalThreads} luồng render song song
-            </span>
-          </section>
-          {graphRow && <div className="mt-3">{renderRowCard(graphRow, rows.indexOf(graphRow))}</div>}
-        </div>
+        {nodeView}
       </div>
     );
   }
@@ -615,20 +596,41 @@ export const WorkflowStudio: React.FC<{
   return (
     <div>
     {viewSwitch}
+    {nodeView}
     <div className="p-4 lg:p-6 grid grid-cols-1 xl:grid-cols-[360px_1fr] gap-5">
       {/* ---------------- Cột trái: mẫu workflow ---------------- */}
       <aside className="space-y-4">
         <section className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
           <h2 className="text-sm font-bold text-white mb-1">1. Chọn mẫu Workflow</h2>
-          <p className="text-[11px] text-slate-400 mb-3">
+          <p className="text-[11px] text-slate-400 mb-2">
             Mỗi dòng sản phẩm chạy qua: 🛒 Sản phẩm → ✍️ Kịch bản → 🎬 Render cảnh → 🎞 Ghép thành 1 clip.
           </p>
+          {/* Lọc theo loại như tab Mẫu Workflow của HND */}
+          <div className="flex flex-wrap gap-1 mb-2">
+            {['all', ...catGroups].map((c) => (
+              <button
+                key={c}
+                onClick={() => setCatFilter(c)}
+                className={`text-[10px] px-2 py-1 rounded-lg border ${
+                  catFilter === c ? 'bg-emerald-600 border-emerald-500 text-white' : 'border-slate-700 text-slate-300 hover:border-slate-500'
+                }`}
+              >
+                {c === 'all' ? `Tất cả (${allTemplates.length})` : `${c} (${allTemplates.filter((t) => catGroup(t) === c).length})`}
+              </button>
+            ))}
+          </div>
+          <input
+            className={`${inputCls} mb-2`}
+            placeholder="🔎 Tìm mẫu…"
+            value={tplSearch}
+            onChange={(e) => setTplSearch(e.target.value)}
+          />
           <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-            {categories.map((cat) => (
+            {categories.filter((cat) => shownTemplates.some((t) => (t.category || 'Khác') === cat)).map((cat) => (
               <div key={cat}>
                 <p className="text-[10px] uppercase tracking-wide text-slate-500 mb-1">{cat}</p>
                 <div className="space-y-1.5">
-                  {allTemplates
+                  {shownTemplates
                     .filter((t) => (t.category || 'Khác') === cat)
                     .map((t) => (
                       <button
@@ -682,6 +684,14 @@ export const WorkflowStudio: React.FC<{
               </button>
             )}
           </div>
+          <button
+            disabled={opening}
+            onClick={() => openInNodes(draft)}
+            className="w-full text-xs font-semibold px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white disabled:opacity-50"
+            title="Chuyển mẫu này thành sơ đồ node để chỉnh chi tiết từng khối: ảnh khóa, prompt từng cảnh, chế độ render, thứ tự ghép, hậu kỳ"
+          >
+            {opening ? 'Đang dựng sơ đồ…' : `🧩 Mở “${draft.name.slice(0, 40)}” trong Sơ đồ khối để chỉnh từng node`}
+          </button>
           <div className="grid grid-cols-[48px_1fr] gap-2">
             <input className={inputCls} value={draft.icon} onChange={(e) => set('icon', e.target.value)} />
             <input className={inputCls} value={draft.name} onChange={(e) => set('name', e.target.value)} />

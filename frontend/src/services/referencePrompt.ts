@@ -13,7 +13,7 @@
 // Khác HND: bảng ánh xạ lấy từ chính nhân vật / trang phục / sản phẩm được gửi đi, nên không bị
 // lệch kiểu "Image 1: FATHER (@BoGiaDinh)" trong khi cảnh viết về @ModelCatwalkNu.
 
-export type RefRole = 'character' | 'outfit' | 'product' | 'keyframe';
+export type RefRole = 'character' | 'outfit' | 'product' | 'scene' | 'keyframe';
 
 export interface RefImageInfo {
   role: RefRole;
@@ -47,6 +47,7 @@ const LOCKS: Record<RefRole, string> = {
   character: 'khóa 100% gương mặt, kiểu tóc, làn da, vóc dáng & giọng nói',
   outfit: 'mặc đúng 100% phom dáng, màu sắc & chất liệu vải',
   product: 'giữ đúng 100% hình dáng, màu sắc, logo & bao bì — tuyệt đối không thay bằng sản phẩm khác',
+  scene: 'giữ đúng 100% bối cảnh, bố cục không gian, đồ vật & ánh sáng — mọi cảnh diễn ra tại đây',
   keyframe: 'cảnh bắt đầu đúng từ khung hình này, nối liền mạch với cảnh trước',
 };
 
@@ -58,6 +59,8 @@ const labelOf = (img: RefImageInfo) => {
       return 'TRANG PHỤC';
     case 'product':
       return img.name ? `SẢN PHẨM ${clip(img.name, 80)}` : 'SẢN PHẨM';
+    case 'scene':
+      return 'BỐI CẢNH';
     case 'keyframe':
       return 'KHUNG MỞ ĐẦU';
   }
@@ -73,6 +76,8 @@ const consistencyOf = (img: RefImageInfo, n: number) => {
       return `Ảnh #${n} = form dáng, màu sắc & chất liệu trang phục${d}`;
     case 'product':
       return `Ảnh #${n} = đúng sản phẩm${img.name ? ` ${clip(img.name, 80)}` : ''}${d}`;
+    case 'scene':
+      return `Ảnh #${n} = bối cảnh / không gian cố định${d}`;
     default:
       return '';
   }

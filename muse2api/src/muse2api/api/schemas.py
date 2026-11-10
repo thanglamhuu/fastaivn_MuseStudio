@@ -57,8 +57,9 @@ class VideoCreateRequest(_Lenient):
     seconds: int | None = Field(default=None, ge=1, le=60)
     image: str | None = Field(default=None, description="First frame as data URL or http(s) URL")
     input_reference: str | None = None
-    # [MuseStudio patch] up to 3 more reference images (product, outfit...)
-    reference_images: list[str] = Field(default_factory=list, max_length=3)
+    # [MuseStudio patch] reference images (product, outfit...). muse.ai nhận tối đa 4 ảnh / tin nhắn:
+    # có khung mở đầu (image) thì còn 3 chỗ, Reference-to-Video (không khung mở đầu) dùng được cả 4.
+    reference_images: list[str] = Field(default_factory=list, max_length=4)
     # [MuseStudio patch] muse.ai voice id (GET /studio/voices) so every scene keeps one voice
     voice: str | None = Field(default=None, max_length=200)
 

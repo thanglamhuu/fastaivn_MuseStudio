@@ -7,6 +7,7 @@
 - POST   /studio/post/upscale            nâng độ phân giải ảnh / video bằng FFmpeg (lanczos + làm nét nhẹ)
 - POST   /studio/post/blur               làm mờ / làm vỡ hạt các vùng chọn (che logo, watermark)
 - POST   /studio/portrait                AI (muse-image) tạo ảnh chân dung nhân vật từ mô tả
+- POST   /studio/media/upload            lưu ảnh / video dạng data URL thành media (sơ đồ Node: hậu kỳ, xuất file)
 
 Kết quả hậu kỳ / chân dung được lưu vào data/media như media khác và ghi nguồn gốc vào
 data/studio/media_index.json (nguồn, prompt, file gốc) để thư viện hiển thị.
@@ -328,3 +329,22 @@ async def portrait(body: PortraitRequest, request: Request) -> dict:
     if not out:
         raise NotFound("muse.ai không trả về ảnh nào")
     return {"data": out, "prompt": prompt}
+
+
+class UploadRequest(BaseModel):
+    # data URL ảnh / video (ảnh tải lên, ảnh AI trả base64) — lưu thành media để hậu kỳ / xuất file
+    data: str = Field(min_length=16, max_length=60_000_000)
+    source: str = Field(default="upload", max_length=40)
+    note: str | None = Field(default=None, max_length=200)
+
+
+@router.post("/media/upload")
+async def upload_media(body: UploadRequest, request: Request) -> dict:
+    svc = request.app.state.services
+    if not body.data.startswith("data:"):
+        raise InvalidRequest("data phải là data URL (data:image/...;base64,...)")
+    raw, mime = await load_image_ref(body.data)
+    kind = "video" if mime.startswith("video/") else "image"
+    name = svc.media.save(raw, mime, prefix="vid" if kind == "video" else "img")
+    index_set(request, name, source=body.source, note=body.note, created=time.time())
+    return {"name": name, "url": f"{public_base(request)}/v1/media/{name}", "kind": kind}

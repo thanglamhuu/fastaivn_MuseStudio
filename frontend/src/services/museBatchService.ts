@@ -619,8 +619,9 @@ export const createMuseVideoTask = async (
       duration: config.duration,
       // Trống = Reference-to-Video: mọi ảnh chỉ là tham chiếu, không ép khung mở đầu
       image: firstFrameDataUrl || undefined,
-      // Ảnh sản phẩm / trang phục gửi kèm cùng tin nhắn (tối đa 3)
-      reference_images: referenceImages.slice(0, 3),
+      // Ảnh tham chiếu gửi kèm cùng tin nhắn: muse.ai nhận tối đa 4 ảnh / tin nhắn
+      // (có khung mở đầu thì còn 3 chỗ cho tham chiếu)
+      reference_images: referenceImages.slice(0, firstFrameDataUrl ? 3 : 4),
       // Một giọng cố định cho cả lô để các cảnh không bị đổi giọng
       voice: config.voice || undefined,
     }),
