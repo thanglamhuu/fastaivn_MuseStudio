@@ -70,3 +70,37 @@ Trong Sơ đồ khối có nút 📤 Xuất mẫu cho fastaivn.com.
 Hướng dẫn làm phía web nằm ở FASTAIVN_CATALOG.md. Trang quản trị trên fastaivn.com chưa làm.
 
 Chi tiết từng mục có trong 261110_dong_nhat_va_mau_card.md. Toàn bộ thay đổi trong MuseStudio vẫn chưa commit.
+
+
+
+Khuya 26/11/10 – sáng 26/11/11: mẫu Hieu POV AIO
+
+4. Mẫu mới "Hieu POV AIO" — video review sản phẩm góc nhìn thứ nhất
+Chuyển từ Flow App "Review POV AIO" (fastaivn.com/flow-apps/u8xd). File ReviewPovAllInOne.js chỉ là Flow SDK nên quy trình được dựng lại từ video thành phẩm (cắt cảnh, khung hình, chép lời thoại).
+Nằm ở nhóm "Review POV (FastAIVN)" trong lưới card, có ảnh thu nhỏ và video xem trước. Nút 🧩 Sơ đồ mở sơ đồ 10 node; 📚 Mẫu Workflow trong Sơ đồ khối cũng liệt kê mẫu này.
+Cách dùng: tải ảnh sản phẩm (ô 📦, ô 🔍 tùy chọn), sửa vài dòng ô 🎯 Brief (sản phẩm, điểm nổi bật, phong cách lời thoại HYPE / TÒ MÒ / ASMR, giọng đọc), ô 🏠 có sẵn ảnh góc bàn → Chạy toàn bộ.
+App tự viết 3 cảnh 10 giây (Hook khoe hộp → Cận cảnh → Trải nghiệm & chốt đơn), tạo ảnh khung hình rồi video từng cảnh, ghép thành ~30 giây. Chạy thử Hồng treo gió: ~5,5 phút / video.
+Mẫu giờ khai báo được flowGraphId (sơ đồ dựng sẵn) và preview (ảnh / video card).
+
+5. Sửa node AI viết kịch bản (Gemini Script) — áp dụng cho mọi workflow
+AI trả thiếu cảnh (câu trả lời dài bị cắt) thì app tự nhờ viết tiếp cảnh còn thiếu. Trước đây cảnh 3 lặp lời cảnh 2 và mất câu chốt đơn.
+Tách cảnh theo cả tiêu đề "CẢNH x/y" nằm giữa dòng và bỏ đoạn trùng. Trước đây AI dán lại cảnh 1 vào cuối cảnh 2 nên cảnh 2 đọc 2 câu.
+
+6. Giữ đúng bao bì và màu sản phẩm (từ lượt chạy Hồng treo gió VijiFarm của bạn)
+Lỗi: hộp bị vẽ lại, quả nâu sẫm thay vì vàng cam, cảnh 3 lộ môi.
+Nguyên nhân: Brief còn chữ mẫu "phủ phấn trắng" nên AI tả quả "cam nâu"; ánh sáng "ấm buổi tối"; prompt bảo xoay nghiêng hộp; lệnh tạo ảnh khung hình đòi "nhìn rõ mặt".
+Đã sửa:
+Brief bỏ thông tin điền sẵn, để AI tả sản phẩm chỉ theo ảnh; ánh sáng ban ngày trung tính; hộp giữ thẳng, mặt in hướng ống kính, không xoay lật; mỗi cảnh có mục Bao bì và Màu sản phẩm giống nhau.
+Khi có ảnh khóa sản phẩm, khóa ưu tiên ảnh nhắc thêm giữ màu thật và hình in bao bì.
+Cảnh không có nhân vật thì lệnh tạo ảnh khung hình không đòi "nhìn rõ mặt" nữa.
+Kết quả cùng ảnh VijiFarm: điểm khớp hộp 11 → 454, cảnh 3 giữ hộp đúng 20/21 khung hình, quả vàng cam, hết lộ môi. Video vẫn tối hơn ảnh gốc vì ảnh góc bàn chụp buổi tối.
+Workflow đã mở trước đó vẫn giữ Brief cũ: mở lại mẫu hoặc xóa chữ "phủ phấn trắng…" trong ô 🎯 Brief.
+
+7. Tài liệu (ngoài mã nguồn)
+Phân tích app POV AIO: HNDWorkflow/HND worflows export/5_hieu_pov_aio/PHAN_TICH_HIEU_POV_AIO.md
+Báo cáo giữ bao bì & màu: HNDWorkflow/HND worflows export/6_pov_giu_bao_bi_mau/BAO_CAO_GIU_BAO_BI_MAU.md
+Word hướng dẫn làm tay: HNDWorkflow/HuongDan_POV_HongTreoGio/FastAIVN - Huong dan thuc hanh video POV review Hong treo gio.docx
+
+File thay đổi: data/hieuPovAio.flow.json, data/fastaivnWorkflowTemplates.ts (mới), services/nodeFlow/runtime.ts, flowIO.ts, fromTemplate.ts,
+types/workflow.ts, components/WorkflowStudio.tsx, WorkflowTemplateGallery.tsx, NodeFlowStudio.tsx, public/workflow-thumbs/fastaivn-*.
+Vẫn chưa commit.
