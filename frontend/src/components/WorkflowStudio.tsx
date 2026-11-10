@@ -4,6 +4,7 @@ import { MuseAccountsState } from '../hooks/useMuseAccounts';
 import { StudioLibraryState } from '../hooks/useStudioLibrary';
 import { BUILTIN_WORKFLOWS } from '../data/workflowTemplates';
 import { HND_WORKFLOWS } from '../data/hndWorkflowTemplates';
+import { FASTAIVN_WORKFLOWS } from '../data/fastaivnWorkflowTemplates';
 import { SCRIPT_TEMPLATES, TEMPLATE_GROUPS } from '../data/scriptTemplates';
 import { SCRIPT_MODES, describeScriptSource } from '../services/productService';
 import { openProjectFolder } from '../services/museBatchService';
@@ -108,7 +109,7 @@ export const WorkflowStudio: React.FC<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const remote = useMemo(() => catalogTemplates(catalog?.catalog ?? null), [catalog]);
-  const allTemplates = useMemo(() => [...remote.templates, ...BUILTIN_WORKFLOWS, ...HND_WORKFLOWS, ...customs], [remote, customs]);
+  const allTemplates = useMemo(() => [...remote.templates, ...FASTAIVN_WORKFLOWS, ...BUILTIN_WORKFLOWS, ...HND_WORKFLOWS, ...customs], [remote, customs]);
   const selected = allTemplates.find((t) => t.id === selectedId) ?? BUILTIN_WORKFLOWS[0];
   const [draft, setDraft] = useState<WorkflowTemplate>(selected);
   useEffect(() => setDraft(selected), [selected]);

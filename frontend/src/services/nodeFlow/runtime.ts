@@ -217,12 +217,28 @@ const scriptInstruction = (idea: string, count: number, firstIsChar: boolean, se
   );
 };
 
+/**
+ * Tách câu trả lời của AI thành các đoạn: theo dòng --- ; nếu AI không kẻ --- mà viết tiêu đề "CẢNH 01/03" / "Scene 2"
+ * thì tách theo tiêu đề. Bỏ đoạn trùng (AI hay lặp lại đoạn trước khi bị cắt).
+ */
+export const parseScriptParts = (raw: string): string[] => {
+  const text = raw.replace(/```[a-z]*\n?/gi, '').trim();
+  let parts = text.split(/\n\s*-{3,}\s*\n/);
+  if (parts.length < 2) parts = text.split(/\n(?=\s*\**\s*(?:CẢNH|Cảnh|SCENE|Scene)\s*0?\d+\s*(?:\/\s*\d+)?\s*[—:\-–|])/);
+  // AI đôi khi dán tiếp đoạn khác ngay giữa dòng ("…| CẢNH 01/03 — HOOK …") → tách thêm theo tiêu đề "CẢNH x/y"
+  parts = parts.flatMap((p) => p.split(/(?=(?:CẢNH|SCENE)\s*0?\d+\s*\/\s*0?\d+\s*[—–\-:])/).filter((s, i, a) => a.length === 1 || s.trim().length > 15));
+  const out: string[] = [];
+  parts
+    .map((s) => s.trim().replace(/\s*\|\s*$/, ''))
+    .filter((s) => s.length > 15)
+    .forEach((p) => {
+      if (!out.some((o) => o.slice(0, 60) === p.slice(0, 60))) out.push(p);
+    });
+  return out;
+};
+
 export const splitScript = (raw: string, count: number, idea: string, firstIsChar: boolean): string[] => {
-  let parts = raw
-    .replace(/```[a-z]*\n?/gi, '')
-    .split(/\n\s*-{3,}\s*\n/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 15);
+  let parts = parseScriptParts(raw);
   if (parts.length < count) {
     const lines = raw.split('\n').map((l) => l.replace(/^\s*(?:đoạn|cảnh|scene)?\s*\d+[.:)\-]\s*/i, '').trim()).filter((l) => l.length > 25);
     if (lines.length >= count) parts = lines.slice(0, count);
@@ -463,10 +479,28 @@ export async function runFlow(wf: FlowWorkflow, mode: RunMode, deps: FlowRunDeps
         const imgs = await Promise.all([...images.map((i) => i.value), ...men.refs.map((r) => r.value)].slice(0, 4).map((v) => toDataUrl(v)));
         const first = !!d.firstOutputIsCharacter;
         let raw = '';
+        const secs = Math.max(2, Math.min(10, Number(d.sceneSeconds) || 10));
         try {
-          const r = await aiText(scriptInstruction(idea, count, first, Math.max(2, Math.min(10, Number(d.sceneSeconds) || 10))), imgs);
+          const r = await aiText(scriptInstruction(idea, count, first, secs), imgs);
           raw = r.text;
           deps.log(`${label(n)}: AI viết kịch bản (${r.source})`);
+          // AI trả thiếu đoạn (thường do câu trả lời dài bị cắt) → nhờ viết tiếp đúng các đoạn còn thiếu
+          let got = parseScriptParts(raw);
+          for (let tries = 0; got.length < count && got.length > 0 && tries < 2; tries++) {
+            stop();
+            const missing = count - got.length;
+            deps.log(`${label(n)}: AI mới viết ${got.length}/${count} đoạn → viết tiếp ${missing} đoạn còn thiếu`);
+            const more = await aiText(
+              `${scriptInstruction(idea, count, first, secs)}\n\nĐÃ VIẾT ${got.length} đoạn đầu:\n${got.join('\n---\n')}\n\n` +
+                `Hãy viết TIẾP đúng ${missing} đoạn còn lại (đoạn ${got.length + 1}..${count}), cùng định dạng, ngăn cách bằng dòng ---. ` +
+                'Không lặp lại các đoạn đã viết.',
+              imgs,
+            );
+            const add = parseScriptParts(more.text).filter((p) => !got.some((g) => g.slice(0, 60) === p.slice(0, 60)));
+            if (!add.length) break;
+            got = [...got, ...add];
+          }
+          raw = got.join('\n---\n');
         } catch (err: any) {
           deps.log(`${label(n)}: AI lỗi (${String(err?.message || err).slice(0, 120)}) → dùng khung dựng sẵn`);
         }
@@ -543,9 +577,15 @@ export async function runFlow(wf: FlowWorkflow, mode: RunMode, deps: FlowRunDeps
             }))
           );
           const who = kf.map((r, i) => `Ảnh #${i + 1} = ${r.info.name ? '@' + r.info.name : ROLE_VI[r.info.role as RefLock]}${r.ai ? `: ${r.ai}` : ''}`).join('; ');
+          // Cảnh không có khóa nhân vật (POV chỉ thấy tay, sản phẩm) → không đòi "nhìn rõ mặt" (gây lộ mặt / môi)
+          const hasPeople = kf.some((r) => r.info.role === 'character');
           const still =
             `ONE SINGLE STILL PHOTO (ảnh tĩnh, KHÔNG tạo video), tỉ lệ ${ratioOf(d)}, photorealistic — khung hình MỞ ĐẦU của cảnh sau. ` +
-            `Giữ y hệt khuôn mặt, kiểu tóc, trang phục, sản phẩm như ảnh tham chiếu (${who}). Mọi nhân vật nhìn rõ mặt, đứng / ngồi đúng vị trí đầu cảnh.\n${text}`;
+            (hasPeople
+              ? `Giữ y hệt khuôn mặt, kiểu tóc, trang phục, sản phẩm như ảnh tham chiếu (${who}). Mọi nhân vật nhìn rõ mặt, đứng / ngồi đúng vị trí đầu cảnh.\n`
+              : `Giữ y hệt sản phẩm / bao bì (hình in, chữ, màu sắc thật) và bối cảnh như ảnh tham chiếu (${who}); màu sản phẩm tươi đúng ảnh, không tối, không ám màu. ` +
+                'KHÔNG có mặt người (nếu cần chỉ thấy đôi tay).\n') +
+            text;
           deps.log(`${label(n)}: tạo ảnh khung hình mở đầu trước (giữ mặt / trang phục tốt hơn)…`);
           firstFrame = await withBusyRetry(() => generateMuseKeyframe({ ...DEFAULT_MUSE_CONFIG, aspectRatio: ratioOf(d) }, still, kfRefs), {
             shouldStop: deps.shouldStop,
@@ -575,7 +615,12 @@ export async function runFlow(wf: FlowWorkflow, mode: RunMode, deps: FlowRunDeps
           prompt +=
             `\n[ƯU TIÊN ẢNH THAM CHIẾU (QUAN TRỌNG NHẤT): nếu mô tả chữ ở trên khác với ảnh đính kèm thì LUÔN làm theo ảnh. ${lines.join('; ')}. ` +
             'Giữ y hệt khuôn mặt, kiểu tóc, màu tóc, kính, trang phục (màu, kiểu dáng, họa tiết) và sản phẩm (hình dáng, màu, logo) như trong ảnh ở MỌI khung hình; ' +
-            'không đổi màu áo, không thêm / bớt phụ kiện, không thay sản phẩm khác, không tráo mặt giữa các nhân vật.]';
+            'không đổi màu áo, không thêm / bớt phụ kiện, không thay sản phẩm khác, không tráo mặt giữa các nhân vật.' +
+            // Thí nghiệm POV Hồng treo gió: chữ tả sai màu ("phủ phấn trắng", "cam nâu") + ánh sáng tối → sản phẩm sẫm, bao bì bị vẽ lại
+            (pri.some((r) => r.info.role === 'product')
+              ? ' SẢN PHẨM & BAO BÌ: màu sản phẩm tươi, sáng đúng như ảnh (không sẫm, không ám vàng / nâu); bao bì giữ y hệt hình in, chữ, bố cục như ảnh — không vẽ lại.'
+              : '') +
+            ']';
         }
         const ff = firstFrame ? await toDataUrl(firstFrame) : '';
         const refData = await Promise.all(refs.map((r) => toDataUrl(r.value)));

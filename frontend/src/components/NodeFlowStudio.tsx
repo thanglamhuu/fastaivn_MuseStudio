@@ -687,7 +687,7 @@ const TemplateGallery: React.FC<{ onUse: (t: HndFlowTemplate) => void; onClose: 
     <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-5xl max-h-[88vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="p-4 border-b border-slate-800 flex items-center gap-2">
-          <h3 className="text-sm font-bold text-white flex-1">📚 Mẫu Workflow (từ HND Muse AI) — {list?.length ?? '…'} mẫu</h3>
+          <h3 className="text-sm font-bold text-white flex-1">📚 Mẫu Workflow (FastAIVN + HND Muse AI) — {list?.length ?? '…'} mẫu</h3>
           <input className={`${inputCls} w-56`} placeholder="Tìm mẫu…" value={q} onChange={(e) => setQ(e.target.value)} />
           <button onClick={onClose} className="text-slate-400 hover:text-white px-2">
             ✕

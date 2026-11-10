@@ -30,6 +30,7 @@ const thumbOf = (t: WorkflowTemplate, rows: WorkflowRow[]): Thumb => {
   if (own) return { video: own, own: true };
   // Mẫu từ fastaivn.com: thumbnail / video xem trước do trang quản trị tải lên
   if (t.remote && (t.remote.thumbnailUrl || t.remote.previewUrl)) return { img: t.remote.thumbnailUrl, video: t.remote.previewUrl };
+  if (t.preview) return { img: t.preview.img && `${BASE}${t.preview.img}`, video: t.preview.video && `${BASE}${t.preview.video}` };
   if (t.hnd?.templateId) return { img: `${BASE}workflow-thumbs/hnd-${t.hnd.templateId}.jpg`, video: `${BASE}workflow-thumbs/hnd-${t.hnd.templateId}.mp4` };
   return {};
 };

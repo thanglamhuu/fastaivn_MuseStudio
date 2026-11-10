@@ -12,9 +12,26 @@ export interface HndFlowTemplate {
   graph: { name: string; description: string; nodes: FlowNode[]; edges: FlowEdge[] };
 }
 
-/** 13 mẫu Workflow của HND (sơ đồ node đầy đủ) — tải lười để không làm nặng lần mở app. */
-export const loadHndFlowTemplates = async (): Promise<HndFlowTemplate[]> =>
-  (await import('../../data/hndFlowTemplates.json')).default as unknown as HndFlowTemplate[];
+/**
+ * Mẫu sơ đồ node có sẵn: mẫu FastAIVN (Hieu POV AIO…) + 13 mẫu Workflow của HND — tải lười để không làm nặng lần mở app.
+ */
+export const loadHndFlowTemplates = async (): Promise<HndFlowTemplate[]> => {
+  const [hnd, pov] = await Promise.all([import('../../data/hndFlowTemplates.json'), import('../../data/hieuPovAio.flow.json')]);
+  const povGraph = pov.default as unknown as HndFlowTemplate['graph'];
+  const fastaivn: HndFlowTemplate[] = [
+    {
+      id: 'fastaivn-hieu-pov-aio',
+      title: 'Hieu POV AIO — Review sản phẩm góc nhìn thứ nhất',
+      category: 'review-pov',
+      categoryLabel: 'Review POV (FastAIVN)',
+      description: povGraph.description,
+      templateStyle: 'pov_aio',
+      videoUrl: 'https://fastaivn.com/flow-apps/u8xd',
+      graph: povGraph,
+    },
+  ];
+  return [...fastaivn, ...(hnd.default as unknown as HndFlowTemplate[])];
+};
 
 const RUNTIME_KEYS = ['runStatus', 'error', 'results', 'progress', 'startedAt', 'finishedAt', 'taskId', 'accountId', 'previewUrl', 'prompts'];
 

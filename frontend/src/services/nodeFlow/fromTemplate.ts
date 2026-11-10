@@ -36,10 +36,16 @@ export const templateToFlow = async (tpl: WorkflowTemplate): Promise<{ workflow:
 };
 
 const templateToFlowLocal = async (tpl: WorkflowTemplate): Promise<{ workflow: FlowWorkflow; notes: string[] }> => {
-  if (tpl.hnd?.templateId) {
+  // Mẫu có sơ đồ node dựng sẵn: mẫu FastAIVN (flowGraphId) hoặc mẫu chuyển từ HND (tpl.hnd)
+  const bundledId = tpl.flowGraphId || (tpl.hnd?.templateId ? `hnd-${tpl.hnd.templateId}` : '');
+  if (bundledId) {
     const all = await loadHndFlowTemplates();
-    const src = all.find((t) => t.id === `hnd-${tpl.hnd!.templateId}`);
-    if (src) return parseFlowJson(src);
+    const src = all.find((t) => t.id === bundledId);
+    if (src) {
+      const r = parseFlowJson(src);
+      r.workflow.templateId = r.workflow.templateId || tpl.id;
+      return r;
+    }
   }
   const wf = emptyWorkflow(tpl.name);
   wf.description = tpl.description;

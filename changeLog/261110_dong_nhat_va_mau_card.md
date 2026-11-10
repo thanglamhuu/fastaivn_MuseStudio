@@ -1,3 +1,20 @@
+26/11/10 (23h) — Hieu POV AIO giữ đúng bao bì & màu sản phẩm (thí nghiệm VijiFarm: hộp khớp 11 → 454 điểm, quả hết nâu sẫm)
+   - Brief: bỏ thông tin mẫu điền sẵn (chữ "phủ phấn trắng" làm quả ra nâu sẫm), ánh sáng ban ngày, tả sản phẩm chỉ theo ảnh,
+     hộp giữ thẳng không xoay lật, mỗi cảnh có mục Bao bì + Màu sản phẩm.
+   - Runtime: khóa ưu tiên ảnh nhắc màu + bao bì khi có ảnh khóa sản phẩm; ảnh khung hình không đòi "nhìn rõ mặt" khi không có nhân vật (hết lộ môi).
+   - Báo cáo: HNDWorkflow/HND worflows export/6_pov_giu_bao_bi_mau/BAO_CAO_GIU_BAO_BI_MAU.md
+
+26/11/10 (khuya) — Mẫu "Hieu POV AIO" (chuyển từ Flow App Review POV AIO, fastaivn.com/flow-apps/u8xd)
+   - Sơ đồ node data/hieuPovAio.flow.json: 2 ô ảnh sản phẩm + ô bối cảnh góc bàn POV (ảnh đi kèm public/workflow-thumbs/fastaivn-pov-desk.jpg)
+     + Brief POV AIO (4 dòng sửa: sản phẩm, điểm nổi bật, phong cách lời thoại HYPE / TÒ MÒ / ASMR, giọng đọc)
+     → AI viết 3 cảnh (Hook–khoe hộp / Cận cảnh–cảm giác / Trải nghiệm–chốt đơn) → 3 Generate Video (khung hình trước + khóa ưu tiên ảnh) → Ghép → Kết quả ~30s.
+   - Card mẫu nhóm "Review POV (FastAIVN)" (data/fastaivnWorkflowTemplates.ts) có thumbnail + video xem trước; 🧩 Sơ đồ mở đúng sơ đồ trên.
+   - Mẫu có thể khai báo flowGraphId (sơ đồ dựng sẵn) và preview (ảnh / video card); 📚 Mẫu Workflow trong Sơ đồ khối liệt kê cả mẫu FastAIVN.
+   - Gemini Script: AI trả thiếu đoạn → tự viết tiếp đoạn còn thiếu; tách đoạn theo cả tiêu đề "CẢNH x/y" giữa dòng, bỏ đoạn trùng
+     (lỗi gặp khi chạy thử: cảnh 3 lặp thoại cảnh 2 / cảnh 2 dính cảnh 1).
+   - Chạy thử 3 lần Hồng treo gió trên Muse, lần 3 đạt (~5.5 phút / video 30s).
+   - Phân tích: HNDWorkflow/HND worflows export/5_hieu_pov_aio/PHAN_TICH_HIEU_POV_AIO.md
+
 26/11/10 (tối) — Mẫu Workflow dùng chung quản trị trên fastaivn.com (Giải pháp 2: catalog tĩnh)
    - Gateway: studio_catalog.py — GET /studio/catalog (tải catalog.v1.json, ETag, lưu đệm đĩa dùng khi mất mạng),
      /studio/catalog/graph (sơ đồ từng mẫu, có đệm), /studio/catalog/config (đổi địa chỉ). Mặc định https://fastaivn.com/workflows/catalog.v1.json.
