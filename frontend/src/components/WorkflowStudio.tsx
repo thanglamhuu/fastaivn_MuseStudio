@@ -3,6 +3,7 @@ import { usePersistentState } from '../hooks/usePersistentState';
 import { MuseAccountsState } from '../hooks/useMuseAccounts';
 import { StudioLibraryState } from '../hooks/useStudioLibrary';
 import { BUILTIN_WORKFLOWS } from '../data/workflowTemplates';
+import { HND_WORKFLOWS } from '../data/hndWorkflowTemplates';
 import { SCRIPT_TEMPLATES, TEMPLATE_GROUPS } from '../data/scriptTemplates';
 import { SCRIPT_MODES, describeScriptSource } from '../services/productService';
 import { openProjectFolder } from '../services/museBatchService';
@@ -86,7 +87,7 @@ export const WorkflowStudio: React.FC<{
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
 
-  const allTemplates = useMemo(() => [...BUILTIN_WORKFLOWS, ...customs], [customs]);
+  const allTemplates = useMemo(() => [...BUILTIN_WORKFLOWS, ...HND_WORKFLOWS, ...customs], [customs]);
   const selected = allTemplates.find((t) => t.id === selectedId) ?? BUILTIN_WORKFLOWS[0];
   const [draft, setDraft] = useState<WorkflowTemplate>(selected);
   useEffect(() => setDraft(selected), [selected]);
@@ -649,6 +650,18 @@ export const WorkflowStudio: React.FC<{
                           {t.faceless ? ' · không lộ mặt' : ''}
                           {t.chainEndFrame ? ' · nối khung' : ''}
                           {t.rotateProductImages ? ' · xoay ảnh SP' : ''}
+                          {t.hnd?.videoUrl && (
+                            <span
+                              role="link"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(t.hnd!.videoUrl, '_blank', 'noopener');
+                              }}
+                              className="ml-1 text-sky-400 hover:underline cursor-pointer"
+                            >
+                              · video trend mẫu
+                            </span>
+                          )}
                         </p>
                       </button>
                     ))}

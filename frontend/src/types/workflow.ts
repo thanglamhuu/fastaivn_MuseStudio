@@ -60,6 +60,8 @@ export interface WorkflowTemplate {
   postBlur?: { regions: { x: number; y: number; w: number; h: number }[]; mode: 'blur' | 'pixelate'; strength: number };
   /** Sơ đồ khối (trình chỉnh sơ đồ) đã tạo ra mẫu này */
   graph?: { nodes: unknown[]; edges: unknown[] };
+  /** Mẫu chuyển từ app cũ HND Muse AI: id mẫu gốc, kiểu kịch bản, video trend tham khảo */
+  hnd?: { templateId: string; templateStyle: string; videoUrl?: string };
 }
 
 export type WorkflowStepId = 'product' | 'script' | 'scenes' | 'merge' | 'post';
