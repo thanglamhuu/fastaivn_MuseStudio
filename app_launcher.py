@@ -70,6 +70,9 @@ muse_fastapi_app.include_router(ai_router)
 from studio_library import router as library_router  # noqa: E402
 
 muse_fastapi_app.include_router(library_router)
+from studio_catalog import router as catalog_router  # noqa: E402
+
+muse_fastapi_app.include_router(catalog_router)
 
 # Thêm đoạn cấu hình này ngay sau khi khởi tạo muse_fastapi_app
 muse_fastapi_app.add_middleware(
@@ -89,6 +92,10 @@ if DIST_DIR.exists():
     assets_dir = DIST_DIR / "assets"
     if assets_dir.exists():
         muse_fastapi_app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+    # Thumbnail + clip xem trước của các mẫu Workflow (frontend/public/workflow-thumbs)
+    thumbs_dir = DIST_DIR / "workflow-thumbs"
+    if thumbs_dir.exists():
+        muse_fastapi_app.mount("/workflow-thumbs", StaticFiles(directory=str(thumbs_dir)), name="workflow-thumbs")
 
     @muse_fastapi_app.get("/")
     async def serve_react_index():

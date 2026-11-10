@@ -62,11 +62,21 @@ export interface FlowNodeData {
   refRoles?: RefLock[];
   /** Sản phẩm trong Cài đặt (khi tích Khóa sản phẩm) */
   productId?: string;
+  /** Ảnh cận mặt riêng (khóa nhân vật): ghép cạnh ảnh toàn thân thành 1 ảnh tham chiếu */
+  faceImage?: string;
+  /** Ảnh tải lên là character sheet 2×2 → tự cắt ô toàn thân + ô cận mặt */
+  sheetCrop?: boolean;
+  /** Nhân vật trong Cài đặt có ≥2 ảnh → ghép 2 ảnh đầu (mặc định bật) */
+  composeFace?: boolean;
   /** AI nhìn ảnh mô tả lại cho khớp ảnh (mặc định bật) + cache mô tả theo ảnh */
   autoDescribe?: boolean;
   aiDescs?: Record<string, string>;
   /** Generate Video: thêm khóa "ưu tiên ảnh tham chiếu" cuối prompt (mặc định bật) */
   imagePriority?: boolean;
+  /** Generate Video: tạo ảnh khung hình trước (muse-image + tham chiếu) làm khung mở đầu (mặc định bật) */
+  keyframeFirst?: boolean;
+  /** Ảnh khung hình mở đầu đã tạo (để xem) */
+  keyframe?: string;
   memberRole?: string;
   characterName?: string;
   characterTag?: string;
@@ -208,6 +218,12 @@ export const NODE_DEFS: Record<NodeType, NodeDef> = {
       { key: 'memberRole', label: 'Chọn nhanh vai', type: 'select', options: MEMBER_ROLES, when: (d) => locksOf(d).includes('character') },
       { key: 'characterName', label: 'Tên nhân vật (@tag)', type: 'text', when: (d) => locksOf(d).includes('character') && !d.characterId },
       { key: 'prompt', label: 'Mô tả khóa tham chiếu', type: 'mention', hint: 'Dùng cho bảng ánh xạ ảnh + để AI tự tạo ảnh khi để trống' },
+      {
+        key: 'sheetCrop',
+        label: '✂️ Ảnh tải lên là character sheet 2×2 → tự cắt toàn thân + cận mặt (mặt to, giống hơn)',
+        type: 'checkbox',
+        when: (d) => locksOf(d).includes('character') && !d.characterId,
+      },
       { key: 'autoDescribe', label: '🔍 AI nhìn ảnh mô tả lại cho khớp ảnh (tăng độ giống)', type: 'checkbox' },
     ],
     defaults: { refRoles: ['character'], memberRole: 'custom', characterName: '', prompt: '', autoDescribe: true },
@@ -284,8 +300,14 @@ export const NODE_DEFS: Record<NodeType, NodeDef> = {
       },
       { key: 'prompt', label: 'Prompt (khi không nối text-in)', type: 'mention' },
       { key: 'imagePriority', label: '🔒 Khóa "ưu tiên ảnh tham chiếu" cuối prompt (chữ khác ảnh thì theo ảnh)', type: 'checkbox' },
+      {
+        key: 'keyframeFirst',
+        label: '🖼 Tạo ảnh khung hình trước rồi mới tạo video (mặt giống hơn nhiều, thêm ~1 phút / cảnh)',
+        type: 'checkbox',
+        when: (d) => (d.videoMode || 'text-to-video') !== 'text-to-video',
+      },
     ],
-    defaults: { videoMode: 'reference-to-video', ratio: '9:16', duration: 10, prompt: '', imagePriority: true },
+    defaults: { videoMode: 'reference-to-video', ratio: '9:16', duration: 10, prompt: '', imagePriority: true, keyframeFirst: true },
   },
   'upscale-image': {
     label: 'Upscale Image (2K/4K)',

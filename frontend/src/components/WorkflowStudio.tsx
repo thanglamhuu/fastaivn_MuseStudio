@@ -28,6 +28,8 @@ import { StudioCharacter, StudioProduct, newLibraryId } from '../types/library';
 import { aspectClass } from '../utils/image';
 import { NodeFlowProps, NodeFlowStudio } from './NodeFlowStudio';
 import { templateToFlow } from '../services/nodeFlow/fromTemplate';
+import { WorkflowTemplateGallery } from './WorkflowTemplateGallery';
+import { CatalogState, catalogTemplates, loadCatalog } from '../services/templateCatalog';
 
 const inputCls =
   'w-full bg-slate-950 border border-white/5 text-[11px] text-slate-200 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-indigo-500';
@@ -88,7 +90,25 @@ export const WorkflowStudio: React.FC<{
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
 
-  const allTemplates = useMemo(() => [...BUILTIN_WORKFLOWS, ...HND_WORKFLOWS, ...customs], [customs]);
+  // Mẫu dùng chung từ fastaivn.com (catalog tĩnh, quản trị trên web) — đứng đầu danh sách
+  const [catalog, setCatalog] = useState<CatalogState | null>(null);
+  const [catalogBusy, setCatalogBusy] = useState(false);
+  const refreshCatalog = async (force = false) => {
+    setCatalogBusy(true);
+    try {
+      setCatalog(await loadCatalog(force));
+    } catch (err: any) {
+      setCatalog((c) => ({ catalog: c?.catalog ?? null, source: c?.catalog ? 'cache' : 'none', url: c?.url || '', error: err?.message || String(err) }));
+    } finally {
+      setCatalogBusy(false);
+    }
+  };
+  useEffect(() => {
+    refreshCatalog(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const remote = useMemo(() => catalogTemplates(catalog?.catalog ?? null), [catalog]);
+  const allTemplates = useMemo(() => [...remote.templates, ...BUILTIN_WORKFLOWS, ...HND_WORKFLOWS, ...customs], [remote, customs]);
   const selected = allTemplates.find((t) => t.id === selectedId) ?? BUILTIN_WORKFLOWS[0];
   const [draft, setDraft] = useState<WorkflowTemplate>(selected);
   useEffect(() => setDraft(selected), [selected]);
@@ -308,11 +328,8 @@ export const WorkflowStudio: React.FC<{
   const catGroups = useMemo(() => [...new Set(allTemplates.map(catGroup))], [allTemplates]);
   const [catFilter, setCatFilter] = usePersistentState('workflow.catFilter.v1', 'all');
   const [tplSearch, setTplSearch] = useState('');
-  const shownTemplates = allTemplates.filter(
-    (t) =>
-      (catFilter === 'all' || catGroup(t) === catFilter) &&
-      (!tplSearch.trim() || `${t.name} ${t.description}`.toLowerCase().includes(tplSearch.trim().toLowerCase()))
-  );
+  /** Số card mẫu mỗi dòng (4 hoặc 6) */
+  const [galleryCols, setGalleryCols] = usePersistentState<4 | 6>('workflow.galleryCols.v1', 6);
 
   /** Mở mẫu đang chọn trong Sơ đồ khối để chỉnh từng node */
   const [flowIncoming, setFlowIncoming] = useState<NodeFlowProps['incoming']>();
@@ -597,81 +614,30 @@ export const WorkflowStudio: React.FC<{
     <div>
     {viewSwitch}
     {nodeView}
-    <div className="p-4 lg:p-6 grid grid-cols-1 xl:grid-cols-[360px_1fr] gap-5">
-      {/* ---------------- Cột trái: mẫu workflow ---------------- */}
+    <div className="p-4 lg:p-6 space-y-5">
+      {/* ---------------- 1. Lưới card mẫu workflow (thumbnail 9:16 từ video đã tạo) ---------------- */}
+      <WorkflowTemplateGallery
+        templates={allTemplates}
+        rows={rows}
+        groupOf={catGroup}
+        filter={catFilter}
+        setFilter={setCatFilter}
+        search={tplSearch}
+        setSearch={setTplSearch}
+        cols={galleryCols}
+        setCols={setGalleryCols}
+        selectedId={selected.id}
+        onSelect={setSelectedId}
+        onOpenNodes={openInNodes}
+        catalog={catalog}
+        catalogCount={remote.templates.length}
+        catalogNeedUpdate={remote.needUpdate}
+        catalogBusy={catalogBusy}
+        onRefreshCatalog={() => refreshCatalog(true)}
+      />
+    <div className="grid grid-cols-1 xl:grid-cols-[360px_1fr] gap-5">
+      {/* ---------------- Cột trái: tùy chỉnh mẫu đang chọn ---------------- */}
       <aside className="space-y-4">
-        <section className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-          <h2 className="text-sm font-bold text-white mb-1">1. Chọn mẫu Workflow</h2>
-          <p className="text-[11px] text-slate-400 mb-2">
-            Mỗi dòng sản phẩm chạy qua: 🛒 Sản phẩm → ✍️ Kịch bản → 🎬 Render cảnh → 🎞 Ghép thành 1 clip.
-          </p>
-          {/* Lọc theo loại như tab Mẫu Workflow của HND */}
-          <div className="flex flex-wrap gap-1 mb-2">
-            {['all', ...catGroups].map((c) => (
-              <button
-                key={c}
-                onClick={() => setCatFilter(c)}
-                className={`text-[10px] px-2 py-1 rounded-lg border ${
-                  catFilter === c ? 'bg-emerald-600 border-emerald-500 text-white' : 'border-slate-700 text-slate-300 hover:border-slate-500'
-                }`}
-              >
-                {c === 'all' ? `Tất cả (${allTemplates.length})` : `${c} (${allTemplates.filter((t) => catGroup(t) === c).length})`}
-              </button>
-            ))}
-          </div>
-          <input
-            className={`${inputCls} mb-2`}
-            placeholder="🔎 Tìm mẫu…"
-            value={tplSearch}
-            onChange={(e) => setTplSearch(e.target.value)}
-          />
-          <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-            {categories.filter((cat) => shownTemplates.some((t) => (t.category || 'Khác') === cat)).map((cat) => (
-              <div key={cat}>
-                <p className="text-[10px] uppercase tracking-wide text-slate-500 mb-1">{cat}</p>
-                <div className="space-y-1.5">
-                  {shownTemplates
-                    .filter((t) => (t.category || 'Khác') === cat)
-                    .map((t) => (
-                      <button
-                        key={t.id}
-                        onClick={() => setSelectedId(t.id)}
-                        className={`w-full text-left rounded-xl border px-3 py-2 transition ${
-                          t.id === selected.id
-                            ? 'border-indigo-500 bg-indigo-600/15'
-                            : 'border-slate-800 bg-slate-950 hover:border-slate-600'
-                        }`}
-                      >
-                        <p className="text-xs font-semibold text-slate-100">
-                          {t.icon} {t.name}
-                          {!t.builtin && <span className="ml-1 text-[9px] text-amber-300">• của tôi</span>}
-                        </p>
-                        <p className="text-[10px] text-slate-400 line-clamp-2">{t.description}</p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">
-                          {t.sceneCount} cảnh × {t.duration}s · {t.aspectRatio}
-                          {t.faceless ? ' · không lộ mặt' : ''}
-                          {t.chainEndFrame ? ' · nối khung' : ''}
-                          {t.rotateProductImages ? ' · xoay ảnh SP' : ''}
-                          {t.hnd?.videoUrl && (
-                            <span
-                              role="link"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                window.open(t.hnd!.videoUrl, '_blank', 'noopener');
-                              }}
-                              className="ml-1 text-sky-400 hover:underline cursor-pointer"
-                            >
-                              · video trend mẫu
-                            </span>
-                          )}
-                        </p>
-                      </button>
-                    ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
 
         <section className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
           <div className="flex items-center justify-between">
@@ -1017,6 +983,7 @@ export const WorkflowStudio: React.FC<{
 
         {rows.map(renderRowCard)}
       </div>
+    </div>
     </div>
     </div>
   );

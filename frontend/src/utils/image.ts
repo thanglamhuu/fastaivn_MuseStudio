@@ -50,6 +50,58 @@ export const sceneGridClass = (ratio?: AspectRatio | string) =>
     ? 'grid grid-cols-1 md:grid-cols-2 gap-4'
     : 'grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-3';
 
+const loadImage = (src: string) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Không đọc được ảnh'));
+    img.src = src;
+  });
+
+type Part = { img: HTMLImageElement; sx: number; sy: number; sw: number; sh: number };
+
+/** Xếp các phần ảnh cạnh nhau, cùng chiều cao `height`, khoảng trắng 8px. */
+const hstack = (parts: Part[], height = 900): string => {
+  const widths = parts.map((p) => Math.round((p.sw / p.sh) * height));
+  const canvas = document.createElement('canvas');
+  canvas.width = widths.reduce((a, b) => a + b, 0) + 8 * (parts.length - 1);
+  canvas.height = height;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  let x = 0;
+  parts.forEach((p, i) => {
+    ctx.drawImage(p.img, p.sx, p.sy, p.sw, p.sh, x, 0, widths[i], height);
+    x += widths[i] + 8;
+  });
+  return canvas.toDataURL('image/jpeg', 0.9);
+};
+
+/**
+ * Ảnh tham chiếu nhân vật "toàn thân | cận mặt" ghép thành 1 ảnh: muse.ai giữ mặt tốt hơn hẳn khi mặt to
+ * (thí nghiệm mẫu Gia đình: tỉ lệ khung hình đúng người Bố 24% → 65%, Con 53% → 78%) mà vẫn thấy trang phục,
+ * và chỉ tốn 1 suất ảnh tham chiếu (muse.ai nhận tối đa 4 ảnh / video).
+ */
+export const composeSideBySide = async (fullBody: string, face: string): Promise<string> => {
+  const [a, b] = await Promise.all([loadImage(fullBody), loadImage(face)]);
+  return hstack([
+    { img: a, sx: 0, sy: 0, sw: a.width, sh: a.height },
+    { img: b, sx: 0, sy: 0, sw: b.width, sh: b.height },
+  ]);
+};
+
+/** Character sheet 2×2 (trước | nghiêng / sau | cận mặt — kiểu HND): lấy ô trên-trái (toàn thân) + ô dưới-phải (cận mặt). */
+export const cropCharacterSheet = async (sheet: string): Promise<string> => {
+  const img = await loadImage(sheet);
+  const w = img.width / 2;
+  const h = img.height / 2;
+  return hstack([
+    { img, sx: 0, sy: 0, sw: w, sh: h },
+    { img, sx: w, sy: h, sw: w, sh: h },
+  ]);
+};
+
 /** Tải ảnh từ URL (vd. media của Gateway) rồi thu nhỏ thành data URL để lưu / gửi lại cho muse.ai. */
 export const urlToResizedDataUrl = async (url: string, maxSide = 1280): Promise<string> => {
   const res = await fetch(url);

@@ -62,6 +62,8 @@ export interface WorkflowTemplate {
   graph?: { nodes: unknown[]; edges: unknown[] };
   /** Mẫu chuyển từ app cũ HND Muse AI: id mẫu gốc, kiểu kịch bản, video trend tham khảo */
   hnd?: { templateId: string; templateStyle: string; videoUrl?: string };
+  /** Mẫu dùng chung tải từ catalog fastaivn.com (quản trị trên web) */
+  remote?: { id: string; version: number; thumbnailUrl?: string; previewUrl?: string; graphUrl?: string; trendUrl?: string; isPremium?: boolean };
 }
 
 export type WorkflowStepId = 'product' | 'script' | 'scenes' | 'merge' | 'post';

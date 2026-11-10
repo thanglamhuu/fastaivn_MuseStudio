@@ -5,6 +5,7 @@
 import type { WorkflowTemplate } from '../../types/workflow';
 import { FlowEdge, FlowNode, FlowWorkflow, NodeType, emptyWorkflow, makeNode, newId } from './definitions';
 import { loadHndFlowTemplates, parseFlowJson } from './flowIO';
+import { loadRemoteGraph } from '../templateCatalog';
 
 const MODE_NOTE: Record<string, string> = {
   tvc5: 'Kịch bản TVC / review 5 bước: Hook 3 giây → giới thiệu → cận cảnh chi tiết → trải nghiệm → chốt đơn.',
@@ -14,6 +15,27 @@ const MODE_NOTE: Record<string, string> = {
 };
 
 export const templateToFlow = async (tpl: WorkflowTemplate): Promise<{ workflow: FlowWorkflow; notes: string[] }> => {
+  // Mẫu dùng chung fastaivn.com: tải sơ đồ đã soạn sẵn (có bản đệm khi mất mạng)
+  if (tpl.remote?.graphUrl) {
+    try {
+      const graph = await loadRemoteGraph(tpl.remote.graphUrl);
+      const r = parseFlowJson(graph, tpl.name);
+      r.workflow.name = tpl.name;
+      r.workflow.description = r.workflow.description || tpl.description;
+      r.workflow.category = tpl.category;
+      r.workflow.templateId = tpl.id;
+      r.workflow.videoUrl = tpl.remote.trendUrl || r.workflow.videoUrl;
+      return r;
+    } catch (err: any) {
+      const fallback = await templateToFlowLocal(tpl);
+      fallback.notes.unshift(`Không tải được sơ đồ mẫu từ fastaivn.com (${err?.message || err}) — dựng sơ đồ tương đương từ cấu hình mẫu.`);
+      return fallback;
+    }
+  }
+  return templateToFlowLocal(tpl);
+};
+
+const templateToFlowLocal = async (tpl: WorkflowTemplate): Promise<{ workflow: FlowWorkflow; notes: string[] }> => {
   if (tpl.hnd?.templateId) {
     const all = await loadHndFlowTemplates();
     const src = all.find((t) => t.id === `hnd-${tpl.hnd!.templateId}`);

@@ -49,7 +49,11 @@ import {
   validateWorkflow,
 } from '../services/nodeFlow/definitions';
 import { RunMode, runFlow } from '../services/nodeFlow/runtime';
-import { HndFlowTemplate, exportFlowJson, loadHndFlowTemplates, parseFlowJson } from '../services/nodeFlow/flowIO';
+import { HndFlowTemplate, buildTemplatePackage, exportFlowJson, loadHndFlowTemplates, parseFlowJson } from '../services/nodeFlow/flowIO';
+import { APP_VERSION } from '../services/templateCatalog';
+import { cutFrame } from '../services/libraryService';
+import { urlToResizedDataUrl } from '../utils/image';
+import { GATEWAY_URL } from '../config/appConfig';
 
 interface FlowLibrary {
   workflows: FlowWorkflow[];
@@ -465,6 +469,43 @@ const FieldInput: React.FC<{ f: FieldDef; d: FlowNodeData; set: (p: Partial<Flow
   }
 };
 
+/** Ảnh cận mặt (tùy chọn): ghép cạnh ảnh toàn thân → mặt to hơn trong ảnh tham chiếu, giữ mặt tốt hơn. */
+const FaceImageField: React.FC<{ value: string; onChange: (v: string) => void }> = ({ value, onChange }) => {
+  const ref = useRef<HTMLInputElement>(null);
+  const take = async (file?: File) => {
+    if (file?.type.startsWith('image/')) onChange(await fileToResizedDataUrl(file, 1024));
+  };
+  return (
+    <div
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault();
+        take(e.dataTransfer.files?.[0]);
+      }}
+      className="flex items-center gap-2 rounded-lg border border-dashed border-purple-400/40 p-1.5"
+    >
+      {value ? (
+        <img src={value} className="w-12 h-12 rounded object-cover" />
+      ) : (
+        <span className="w-12 h-12 rounded bg-slate-800 flex items-center justify-center text-lg">🙂</span>
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] text-slate-200">Ảnh cận mặt (tùy chọn, khuyên dùng)</p>
+        <p className="text-[9px] text-slate-500">Tự ghép cạnh ảnh toàn thân thành 1 ảnh tham chiếu → mặt giống hơn, không tốn thêm suất ảnh.</p>
+      </div>
+      <button className="text-[10px] px-2 py-1 rounded bg-purple-700/70 text-white" onClick={() => ref.current?.click()}>
+        Chọn
+      </button>
+      {value && (
+        <button className="text-[10px] px-1.5 py-1 rounded bg-red-600/30 text-red-200" onClick={() => onChange('')}>
+          ✕
+        </button>
+      )}
+      <input ref={ref} type="file" accept="image/*" className="hidden" onChange={(e) => take(e.target.files?.[0])} />
+    </div>
+  );
+};
+
 /**
  * Thứ tự ghép của Merge Video = thứ tự cổng video-in-0, 1, 2… Bảng này cho đổi thứ tự (↑↓), thêm / bớt cổng,
  * và "Xếp theo vị trí": nối lại các dây theo vị trí node nguồn từ trên xuống (cùng hàng thì trái → phải).
@@ -576,6 +617,9 @@ const Inspector: React.FC<{
           <p className="text-[9px] text-slate-500">
             Ảnh tải lên dùng cho các khóa chưa chọn từ Cài đặt (vd. 1 ảnh vừa khóa trang phục vừa khóa bối cảnh).
           </p>
+          {locksOf(d).includes('character') && !d.characterId && !d.sheetCrop && (
+            <FaceImageField value={String(d.faceImage || '')} onChange={(faceImage) => set({ faceImage })} />
+          )}
         </div>
       )}
       {def.fields.filter((f) => !f.when || f.when(d)).map((f) => (
@@ -592,6 +636,12 @@ const Inspector: React.FC<{
           <summary className="cursor-pointer">Prompt tự tạo ảnh (từ mẫu HND)</summary>
           <p className="whitespace-pre-wrap mt-1">{String(d.sheetPrompt)}</p>
         </details>
+      )}
+      {node.type === 'generate-video' && d.keyframe && (
+        <div className="border-t border-white/10 pt-2">
+          <p className="text-[10px] uppercase tracking-wide text-slate-500 mb-1">🖼 Ảnh khung hình mở đầu đã tạo</p>
+          <img src={String(d.keyframe)} className="w-24 rounded border border-white/10" />
+        </div>
       )}
       {(d.results?.length || d.error) && (
         <div className="border-t border-white/10 pt-2 space-y-1">
@@ -910,6 +960,43 @@ const Editor: React.FC<NodeFlowProps> = ({ threads, characters, products, incomi
       setReport({ errors: [`Không nhập được: ${err?.message || err}`], warnings: [] });
     }
   };
+  /** 📤 Gói mẫu cho trang Quản trị mẫu fastaivn.com: sơ đồ + thông tin + thumbnail cắt từ video kết quả */
+  const doExportForWeb = async () => {
+    if (!wf) return;
+    const keepImages = window.confirm(
+      'Giữ ảnh tham chiếu (ảnh tải lên ở các khối Upload Image) trong mẫu?\n\nOK = giữ (mẫu có sẵn ảnh mặc định, file nặng hơn)\nHủy = bỏ ảnh (người dùng tự chọn ảnh — khuyên dùng)'
+    );
+    // Video kết quả: Result → Merge → video cảnh bất kỳ
+    const vids = [
+      ...wf.nodes.filter((n) => n.type === 'result'),
+      ...wf.nodes.filter((n) => n.type === 'merge-video'),
+      ...wf.nodes.filter((n) => n.type === 'generate-video'),
+    ].flatMap((n) => (n.data.results || []).filter((r) => r.kind === 'video'));
+    let thumbnailDataUrl: string | undefined;
+    if (vids[0]) {
+      try {
+        const frame = await cutFrame(vids[0].value, 3);
+        thumbnailDataUrl = await urlToResizedDataUrl(frame.url.startsWith('/') ? `${GATEWAY_URL}${frame.url}` : frame.url, 640);
+      } catch {
+        /* không cắt được thumbnail: quản trị viên tự tải ảnh lên */
+      }
+    }
+    const pack = buildTemplatePackage(wf, { appVersion: APP_VERSION, keepImages, thumbnailDataUrl, previewVideoPath: vids[0]?.path });
+    const blob = new Blob([JSON.stringify(pack, null, 1)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${pack.entry.id}.fastaivn-template.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setReport({
+      errors: [],
+      warnings: vids[0] ? [] : ['Workflow chưa có video kết quả → gói chưa có thumbnail. Chạy thử 1 lần rồi xuất lại, hoặc tải ảnh lên ở trang quản trị.'],
+      ok: `Đã xuất "${pack.entry.id}.fastaivn-template.json"${thumbnailDataUrl ? ' (kèm thumbnail)' : ''}. Tải file này lên fastaivn.com → Quản trị mẫu → "Nhập gói từ MuseStudio"${
+        vids[0]?.path ? `; video xem trước: ${vids[0].path}` : ''
+      }.`,
+    });
+  };
+
   const doExport = () => {
     if (!wf) return;
     const blob = new Blob([exportFlowJson(wf)], { type: 'application/json' });
@@ -971,6 +1058,14 @@ const Editor: React.FC<NodeFlowProps> = ({ threads, characters, products, incomi
           <input ref={importRef} type="file" accept=".json,application/json" className="hidden" onChange={(e) => (doImport(e.target.files?.[0]), (e.target.value = ''))} />
           <button disabled={!wf} className={`${btn} bg-slate-700 text-white`} onClick={doExport}>
             ⬇ Xuất JSON
+          </button>
+          <button
+            disabled={busy || !wf}
+            className={`${btn} bg-sky-700 text-white`}
+            onClick={doExportForWeb}
+            title="Đóng gói mẫu (sơ đồ + thông tin + thumbnail) để tải lên trang Quản trị mẫu của fastaivn.com"
+          >
+            📤 Xuất mẫu cho fastaivn.com
           </button>
           <button
             disabled={busy || !wf}
