@@ -41,6 +41,13 @@ def wfthumb_dir(request: Request) -> Path:
     return cands[0]
 
 
+def _full_dir(thumb_dir: Path, value: str) -> Path:
+    """``fullVideoDir`` tuyệt đối hoặc tương đối so với thư mục wfthumb (vd. ``../../TestWorkFlow/thumFull``)
+    — để tương đối thì chuyển cả bộ thư mục sang ổ / máy khác vẫn chạy, không phải sửa config."""
+    p = Path(value)
+    return (p if p.is_absolute() else thumb_dir / p).resolve()
+
+
 @router.get("/config")
 async def get_config(request: Request) -> dict:
     d = wfthumb_dir(request)
@@ -49,7 +56,7 @@ async def get_config(request: Request) -> dict:
         return {"version": 1, "templates": [], "base": "/studio/wfthumb/file/", "dir": str(d), "missing": True}
     data = json.loads(f.read_text(encoding="utf-8"))
     data["base"] = "/studio/wfthumb/file/"
-    data["fullBase"] = "/studio/wfthumb/full/" if data.get("fullVideoDir") and Path(data["fullVideoDir"]).is_dir() else ""
+    data["fullBase"] = "/studio/wfthumb/full/" if data.get("fullVideoDir") and _full_dir(d, data["fullVideoDir"]).is_dir() else ""
     data["dir"] = str(d)
     return data
 
@@ -62,7 +69,7 @@ async def get_full(name: str, request: Request) -> FileResponse:
     full_dir = json.loads(f_cfg.read_text(encoding="utf-8")).get("fullVideoDir") if f_cfg.is_file() else None
     if not full_dir:
         raise NotFound("fullVideoDir chưa khai báo trong wfthumb.config.json")
-    d = Path(full_dir).resolve()
+    d = _full_dir(f_cfg.parent, full_dir)
     f = (d / name).resolve()
     if d not in f.parents or not f.is_file():
         raise NotFound(f"full clip '{name}' not found")
