@@ -1,6 +1,6 @@
-// Nhập workflow xuất từ HND Muse AI (kind = "flow-workflow") thành sơ đồ khối của Muse Studio.
+// Nhập workflow xuất từ MV1 Muse AI (kind = "flow-workflow") thành sơ đồ khối của Muse Studio.
 //
-// Sơ đồ HND: mỗi cảnh = 1 khối Prompt → 1 khối Generate Video; các khối Upload Image
+// Sơ đồ MV1: mỗi cảnh = 1 khối Prompt → 1 khối Generate Video; các khối Upload Image
 // (vai trò Nhân vật / Trang phục / Sản phẩm) nối vào mọi Generate Video; Merge Video ghép
 // theo thứ tự cổng video-in-N → Result. Khối Upload Image để trống = AI tự tạo ảnh lúc chạy.
 //
@@ -57,7 +57,7 @@ const topTag = (texts: string[]) => {
 };
 
 /**
- * Tên + mô tả nhân vật của 1 khối Upload Image HND. Ưu tiên tag trong sheetPrompt
+ * Tên + mô tả nhân vật của 1 khối Upload Image MV1. Ưu tiên tag trong sheetPrompt
  * (vd. "(@ModelCatwalkNu): Người mẫu nữ...") vì đó là tên các prompt cảnh thực sự dùng.
  */
 const characterInfo = (d: Record<string, any>, sceneTags: string[], index: number) => {
@@ -77,7 +77,7 @@ const characterInfo = (d: Record<string, any>, sceneTags: string[], index: numbe
 export const parseHndWorkflow = (raw: unknown, library: StudioCharacter[]): HndImportResult => {
   const wf = raw as { kind?: string; name?: string; description?: string; nodes?: HndNode[]; edges?: HndEdge[]; syncConfig?: any };
   if (!wf || !Array.isArray(wf.nodes) || !Array.isArray(wf.edges)) {
-    throw new Error('File không đúng định dạng workflow HND (thiếu nodes / edges).');
+    throw new Error('File không đúng định dạng workflow MV1 (thiếu nodes / edges).');
   }
   const notes: string[] = [];
   const hndNodes = wf.nodes;
@@ -86,7 +86,7 @@ export const parseHndWorkflow = (raw: unknown, library: StudioCharacter[]): HndI
 
   // --- Cảnh: Generate Video theo thứ tự cổng Merge (video-in-N), không có thì theo vị trí
   const videos = hndNodes.filter((n) => n.type === 'generate-video');
-  if (!videos.length) throw new Error('Workflow HND không có khối Generate Video nào.');
+  if (!videos.length) throw new Error('Workflow MV1 không có khối Generate Video nào.');
   const mergePort = (id: string) => {
     const e = wf.edges!.find((x) => x.source === id && /video-in-(\d+)/.test(x.targetHandle || ''));
     return e ? Number(/video-in-(\d+)/.exec(e.targetHandle!)![1]) : undefined;
@@ -107,7 +107,7 @@ export const parseHndWorkflow = (raw: unknown, library: StudioCharacter[]): HndI
     // Khối Prompt nhập tay: mỗi dòng 1 cảnh nên gộp xuống dòng thành 1 dòng
     return text.replace(/\s*\n+\s*/g, ' ');
   }).filter(Boolean);
-  if (!prompts.length) throw new Error('Không tìm thấy prompt cảnh nào trong workflow HND.');
+  if (!prompts.length) throw new Error('Không tìm thấy prompt cảnh nào trong workflow MV1.');
   const sceneTags = topTag(prompts);
 
   const first = videos[0].data || {};
@@ -133,7 +133,7 @@ export const parseHndWorkflow = (raw: unknown, library: StudioCharacter[]): HndI
   uploads.forEach((u) => {
     const d = u.data || {};
     const role = refRoleOf(d);
-    if (d.localPath) notes.push(`Ảnh "${d.fileName || d.localPath}" là đường dẫn trên máy HND — hãy tải lại ảnh ở khối tương ứng.`);
+    if (d.localPath) notes.push(`Ảnh "${d.fileName || d.localPath}" là đường dẫn trên máy MV1 — hãy tải lại ảnh ở khối tương ứng.`);
     if (role === 'character') {
       const info = characterInfo(d, sceneTags, charIndex++);
       const existing = [...library, ...newCharacters].find((c) => c.name.trim().toLowerCase() === info.name.toLowerCase());
@@ -172,7 +172,7 @@ export const parseHndWorkflow = (raw: unknown, library: StudioCharacter[]): HndI
   });
 
   // --- Render → Ghép → Kết quả
-  // Bối cảnh cố định HND viết sẵn trong prompt → hiện ra ô Bối cảnh (prompt đã có khóa nên không chèn trùng)
+  // Bối cảnh cố định MV1 viết sẵn trong prompt → hiện ra ô Bối cảnh (prompt đã có khóa nên không chèn trùng)
   const setting = /\[KHÓA BỐI CẢNH CỐ ĐỊNH XUYÊN SUỐT:\s*([^\]]+?)\s*(?:cố định 100%[^\]]*)?\]/i.exec(prompts[0])?.[1] || '';
   const render = add(
     {
@@ -204,11 +204,11 @@ export const parseHndWorkflow = (raw: unknown, library: StudioCharacter[]): HndI
     notes.push(`Thời lượng ${first.duration}s không hỗ trợ — dùng ${clampDuration(first.duration)}s.`);
   }
   if (videos.some((v) => v.data?.videoMode && v.data.videoMode !== 'reference-to-video')) {
-    notes.push('Một số cảnh HND dùng chế độ khác Reference-to-Video — Muse Studio render bằng ảnh tham chiếu.');
+    notes.push('Một số cảnh MV1 dùng chế độ khác Reference-to-Video — Muse Studio render bằng ảnh tham chiếu.');
   }
 
   return {
-    name: String(wf.name || 'Workflow HND').trim(),
+    name: String(wf.name || 'Workflow MV1').trim(),
     description: String(wf.description || '').trim(),
     nodes,
     edges,

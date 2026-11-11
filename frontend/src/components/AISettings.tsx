@@ -118,10 +118,10 @@ export const AISettings: React.FC = () => {
               className={field}
             />
             <datalist id="gemini-models">
-              <option value="gemini-2.5-flash" />
-              <option value="gemini-2.5-pro" />
-              <option value="gemini-2.5-flash-lite" />
-              <option value="gemini-2.0-flash" />
+              <option value="gemini-3.5-flash" />
+              <option value="gemini-3.8-flash" />
+              <option value="gemini-3.5-flash-lite" />
+              <option value="gemini-flash-latest" />
             </datalist>
           </div>
           <div className="flex items-end gap-2">

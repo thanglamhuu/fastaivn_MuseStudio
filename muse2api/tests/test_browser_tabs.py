@@ -592,3 +592,12 @@ async def test_excess_idle_tabs_are_closed_after_lowering_the_limit(tmp_path, mo
     t = await drv._checkout(acc)
     assert len(drv._tabs[acc.id]) == 1 and len(closed) == 3
     await drv._checkin(t)
+
+
+# [MuseStudio patch] muse.ai gửi lại đúng file đã tạo trước đó → báo lỗi (phía gọi tạo lại), nhớ cả sau khi khởi động lại
+def test_seen_media_survives_restart(tmp_path):
+    drv = BrowserDriver(Settings(_env_file=None, data_dir=tmp_path))
+    assert "abc" not in drv._seen_media()
+    drv._remember_media("abc")
+    drv2 = BrowserDriver(Settings(_env_file=None, data_dir=tmp_path))
+    assert "abc" in drv2._seen_media()

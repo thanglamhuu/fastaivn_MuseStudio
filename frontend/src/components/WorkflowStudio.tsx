@@ -328,7 +328,7 @@ export const WorkflowStudio: React.FC<{
   };
 
   const categories = useMemo(() => [...new Set(allTemplates.map((t) => t.category || 'Khác'))], [allTemplates]);
-  /** Nhóm lọc: gộp "HND · Thời trang" với "Thời trang"... như các tab lọc của HND */
+  /** Nhóm lọc: gộp "MV1 · Thời trang" với "Thời trang"... như các tab lọc của MV1 */
   const catGroup = (t: WorkflowTemplate) => templateGroup(t.category);
   const catGroups = useMemo(() => [...new Set(allTemplates.map(catGroup))], [allTemplates]);
   const [catFilter, setCatFilter] = usePersistentState('workflow.catFilter.v1', 'all');
@@ -636,7 +636,7 @@ export const WorkflowStudio: React.FC<{
     </div>
   );
 
-  // Sơ đồ khối (tự lắp) = trình Node kiểu HND. View "graph" của bản cũ cũng mở vào đây.
+  // Sơ đồ khối (tự lắp) = trình Node kiểu MV1. View "graph" của bản cũ cũng mở vào đây.
   // Màn này luôn được giữ mount (ẩn bằng CSS) để không mất lượt chạy đang dở khi chuyển qua lại.
   const nodeView = (
     <div className={view === 'nodes' || view === 'graph' ? 'p-3 lg:p-4' : 'hidden'}>

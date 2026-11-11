@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import contextlib
+import hashlib
 import logging
 import os
 import time
@@ -903,12 +904,42 @@ class BrowserDriver(MuseDriver):
         try:
             base = await self._prepare(tab, prompt, images)
             att = await self._wait_media(tab, base, kind, timeout, on_progress, cancel)
-            return await self._download(tab, att, kind)
+            result = await self._download(tab, att, kind)
+            # [MuseStudio patch] muse.ai nhớ việc cũ theo tài khoản: gặp yêu cầu giống lần trước nó gửi lại ĐÚNG file
+            # đã tạo (đo được: video trùng từng byte với lượt chạy cách vài giờ dù prompt / khung mở đầu khác).
+            # Nhận ra file đã trả trước đó → báo lỗi để phía gọi tạo lại thay vì coi là kết quả mới.
+            digest = hashlib.sha256(result.data).hexdigest()
+            if digest in self._seen_media():
+                raise UpstreamError(f"muse.ai returned an earlier {kind} file (repeat request) — no new {kind} generated")
+            self._remember_media(digest)
+            return result
         except CDPError as exc:
             await self._close_tab(tab)
             raise UpstreamError(f"browser error: {exc}") from exc
         finally:
             await self._checkin(tab)
+
+    # [MuseStudio patch] dấu vân tay (sha256) các file ảnh / video đã trả — lưu ở data/seen_media.txt để còn nhận ra
+    # file cũ muse.ai gửi lại sau khi khởi động lại Gateway
+    def _seen_file(self):
+        from pathlib import Path
+
+        return Path(self.settings.data_dir) / "seen_media.txt"
+
+    def _seen_media(self) -> set[str]:
+        seen = self.__dict__.get("_seen_media_set")
+        if seen is None:
+            seen = set()
+            with contextlib.suppress(OSError):
+                seen = set(self._seen_file().read_text(encoding="utf-8").split())
+            self.__dict__["_seen_media_set"] = seen
+        return seen
+
+    def _remember_media(self, digest: str) -> None:
+        self._seen_media().add(digest)
+        with contextlib.suppress(OSError):
+            with self._seen_file().open("a", encoding="utf-8") as f:
+                f.write(digest + "\n")
 
     async def generate_image(self, account: Account, req: ImageRequest) -> list[MediaResult]:
         prompt = self._media_prompt(req.prompt, "image", req.size)

@@ -42,7 +42,7 @@ for t in catalog:
         f"Cảnh {i + 1}/{scenes} — {clean(b[0], tag)}: {short(clean(b[1], tag), 420)}" for i, b in enumerate(beats)
     )
     note = (
-        f"Phong cách (mẫu HND «{a['title']}»): {short(clean(a.get('directive', ''), tag), 700)}\n"
+        f"Phong cách (mẫu MV1 «{a['title']}»): {short(clean(a.get('directive', ''), tag), 700)}\n"
         f"Ý tưởng mặc định: {clean(a.get('default_idea', ''), tag)}\n"
         f"Viết ĐÚNG {scenes} cảnh 10 giây theo khung sau (giữ nguyên nhân vật, trang phục, sản phẩm và bối cảnh xuyên suốt; "
         f"mỗi cảnh chia 3 nhịp 0-3.5s / 3.5-7s / 7-10s):\n{beat_lines}"
@@ -52,7 +52,7 @@ for t in catalog:
         "id": f"hnd-{t['id']}",
         "name": t["title"],
         "icon": ICON.get(cat, "🧩"),
-        "category": f"HND · {CAT.get(cat, 'Khác')}",
+        "category": f"MV1 · {CAT.get(cat, 'Khác')}",
         "description": t.get("description", ""),
         "builtin": True,
         "scriptMode": "short_film" if (style in FASHION or style == "family_sitcom_linh_mit") else
@@ -77,8 +77,8 @@ for t in catalog:
     items.append(item)
 
 ts = (
-    "// TỰ SINH từ HND Muse AI (assets/workflows/catalog.json + TEMPLATE_ARCHETYPES trong workflow_studio.py)\n"
-    "// bằng script gen_hnd_templates.py — 13 mẫu Workflow của app cũ HND, giữ nguyên nhóm ngành hàng,\n"
+    "// TỰ SINH từ MV1 Muse AI (assets/workflows/catalog.json + TEMPLATE_ARCHETYPES trong workflow_studio.py)\n"
+    "// bằng script gen_hnd_templates.py — 13 mẫu Workflow của app cũ MV1, giữ nguyên nhóm ngành hàng,\n"
     "// số cảnh (10s/cảnh) và khung kịch bản từng cảnh (đưa vào extraNote cho AI viết kịch bản).\n"
     "import type { WorkflowTemplate } from '../types/workflow';\n\n"
     f"export const HND_WORKFLOWS: WorkflowTemplate[] = {json.dumps(items, ensure_ascii=False, indent=2)};\n"

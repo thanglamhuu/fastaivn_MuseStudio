@@ -31,7 +31,7 @@ log = logging.getLogger("musestudio.ai")
 router = APIRouter(prefix="/studio/ai", tags=["studio-ai"], dependencies=[Depends(require_admin_key)])
 
 GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta"
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+DEFAULT_GEMINI_MODEL = "gemini-3.5-flash"
 TIMEOUT_S = 120.0
 MASK = "••••"
 
@@ -203,6 +203,23 @@ async def call_gemini(cfg: dict[str, Any], prompt: str, images: list[tuple[str, 
             errors.append(f"key #{idx + 1}: {reason}")
             continue
         msg = resp.text[:300]
+        # Model cũ bị Google ngừng ("no longer available") → chuyển sang bí danh luôn trỏ bản mới nhất, thử lại cùng key
+        if resp.status_code == 404 and model != DEFAULT_GEMINI_MODEL:
+            model = DEFAULT_GEMINI_MODEL
+            try:
+                resp = await client.post(f"{GEMINI_BASE}/models/{model}:generateContent",
+                                         params={"key": keys[idx]}, json=body, timeout=TIMEOUT_S)
+            except httpx.HTTPError as exc:
+                errors.append(f"key #{idx + 1}: {type(exc).__name__}")
+                continue
+            if resp.status_code == 200:
+                data = resp.json()
+                cands = data.get("candidates") or []
+                text = "".join(p.get("text", "") for c in cands[:1]
+                               for p in (c.get("content") or {}).get("parts", []))
+                if text.strip():
+                    return {"text": text, "source": "gemini", "model": model, "key_index": idx + 1}
+            msg = resp.text[:300]
         errors.append(f"key #{idx + 1}: HTTP {resp.status_code}")
         if not _gemini_error_is_retryable(resp.status_code, msg):
             raise AIProviderError(f"Gemini từ chối yêu cầu (HTTP {resp.status_code}): {msg}")

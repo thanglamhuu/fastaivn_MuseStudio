@@ -362,7 +362,7 @@ async function ensurePortraits(rowId: string, tpl: WorkflowTemplate, deps: Runne
       ...r,
       steps: { ...r.steps, scenes: { ...r.steps.scenes, detail: `🎨 AI đang vẽ chân dung ${c.name}...` } },
     }));
-    // Như HND: chân dung mặc sẵn trang phục của workflow → Ảnh #1 và Ảnh #2 khóa cùng một bộ đồ
+    // Như MV1: chân dung mặc sẵn trang phục của workflow → Ảnh #1 và Ảnh #2 khóa cùng một bộ đồ
     const outfit = tpl.outfit?.description.trim();
     const res = await generatePortrait({
       name: c.name,
@@ -375,7 +375,7 @@ async function ensurePortraits(rowId: string, tpl: WorkflowTemplate, deps: Runne
   }
 }
 
-/** Prompt tạo ảnh trang phục đơn (ma-nơ-canh vô hình, không người) — theo cách HND Muse AI. */
+/** Prompt tạo ảnh trang phục đơn (ma-nơ-canh vô hình, không người) — theo cách MV1 Muse AI. */
 export const outfitImagePrompt = (desc: string) =>
   'Single-frame 4K fashion wardrobe reference photo — ONE OUTFIT ONLY in ONE SINGLE UNDIVIDED FRAME ' +
   '(NO PEOPLE, NO FACES, NO COLLAGE, NO SPLIT-SCREEN, NO TEXT). Invisible ghost mannequin / lookbook display ' +
@@ -467,7 +467,7 @@ async function renderOneScene(rowId: string, i: number, tpl: WorkflowTemplate, d
       let prompt: string;
 
       if (refMode === 'reference') {
-        // Direct Reference-to-Video (như HND): Nhân vật → Trang phục → Sản phẩm, đều là tham chiếu.
+        // Direct Reference-to-Video (như MV1): Nhân vật → Trang phục → Sản phẩm, đều là tham chiếu.
         // Chỉ khung nối từ cảnh trước mới làm khung mở đầu (gửi ở vị trí "image").
         const ordered = (['character', 'outfit', 'product'] as const)
           .map((role) => refs.find((r) => r.role === role))

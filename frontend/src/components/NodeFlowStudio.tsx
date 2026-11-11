@@ -1,7 +1,7 @@
-// Sơ đồ Node kiểu HND Muse AI: tự lắp workflow bằng các node Prompt / Upload Image / Gemini Script /
+// Sơ đồ Node kiểu MV1 Muse AI: tự lắp workflow bằng các node Prompt / Upload Image / Gemini Script /
 // Generate Image / Generate Video / Upscale / Merge / Trích frame cuối / Xóa logo / Result, nối dây
-// theo cổng text-image-video, chạy song song trên các tài khoản Muse. Nhập / xuất JSON tương thích HND
-// và có sẵn 13 mẫu Workflow của HND (tab Mẫu Workflow).
+// theo cổng text-image-video, chạy song song trên các tài khoản Muse. Nhập / xuất JSON tương thích MV1
+// và có sẵn 13 mẫu Workflow của MV1 (tab Mẫu Workflow).
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Background,
@@ -648,7 +648,7 @@ const Inspector: React.FC<{
       )}
       {node.type === 'upload-image' && d.sheetPrompt && (
         <details className="text-[10px] text-slate-400">
-          <summary className="cursor-pointer">Prompt tự tạo ảnh (từ mẫu HND)</summary>
+          <summary className="cursor-pointer">Prompt tự tạo ảnh (từ mẫu MV1)</summary>
           <p className="whitespace-pre-wrap mt-1">{String(d.sheetPrompt)}</p>
         </details>
       )}
@@ -687,7 +687,7 @@ const Inspector: React.FC<{
   );
 };
 
-/* ------------------------------------------------------------------ Mẫu HND */
+/* ------------------------------------------------------------------ Mẫu MV1 */
 const TemplateGallery: React.FC<{ onUse: (t: HndFlowTemplate) => void; onClose: () => void }> = ({ onUse, onClose }) => {
   const [list, setList] = useState<HndFlowTemplate[] | null>(null);
   const [cat, setCat] = useState('all');
@@ -702,7 +702,7 @@ const TemplateGallery: React.FC<{ onUse: (t: HndFlowTemplate) => void; onClose: 
     <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-5xl max-h-[88vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="p-4 border-b border-slate-800 flex items-center gap-2">
-          <h3 className="text-sm font-bold text-white flex-1">📚 Mẫu Workflow (FastAIVN + HND Muse AI) — {list?.length ?? '…'} mẫu</h3>
+          <h3 className="text-sm font-bold text-white flex-1">📚 Mẫu Workflow (FastAIVN + MV1 Muse AI) — {list?.length ?? '…'} mẫu</h3>
           <input className={`${inputCls} w-56`} placeholder="Tìm mẫu…" value={q} onChange={(e) => setQ(e.target.value)} />
           <button onClick={onClose} className="text-slate-400 hover:text-white px-2">
             ✕
@@ -1083,7 +1083,7 @@ const Editor: React.FC<NodeFlowProps> = ({ threads, characters, products, incomi
             ⧉ Nhân bản
           </button>
           <button disabled={busy} className={`${btn} bg-slate-700 text-white`} onClick={() => importRef.current?.click()}>
-            ⬆ Nhập JSON (HND)
+            ⬆ Nhập JSON (MV1)
           </button>
           <input ref={importRef} type="file" accept=".json,application/json" className="hidden" onChange={(e) => (doImport(e.target.files?.[0]), (e.target.value = ''))} />
           <button disabled={!wf} className={`${btn} bg-slate-700 text-white`} onClick={doExport}>
@@ -1211,7 +1211,7 @@ const Editor: React.FC<NodeFlowProps> = ({ threads, characters, products, incomi
                 <p>Chưa có workflow nào.</p>
                 <div className="flex gap-2">
                   <button className={`${btn} bg-emerald-700 text-white`} onClick={() => setGallery(true)}>
-                    📚 Chọn từ 13 mẫu Workflow HND
+                    📚 Chọn từ 13 mẫu Workflow MV1
                   </button>
                   <button className={`${btn} bg-slate-700 text-white`} onClick={() => addWorkflow(emptyWorkflow())}>
                     ＋ Sơ đồ trống

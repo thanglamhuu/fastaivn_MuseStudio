@@ -1,4 +1,4 @@
-// Nhập / xuất sơ đồ Node dạng JSON "flow-workflow" — tương thích file Export của HND Muse AI.
+// Nhập / xuất sơ đồ Node dạng JSON "flow-workflow" — tương thích file Export của MV1 Muse AI.
 import { FlowEdge, FlowNode, FlowNodeData, FlowWorkflow, NODE_DEFS, NodeType, RefLock, newId } from './definitions';
 
 export interface HndFlowTemplate {
@@ -13,7 +13,7 @@ export interface HndFlowTemplate {
 }
 
 /**
- * Mẫu sơ đồ node có sẵn: mẫu FastAIVN (Hieu POV AIO…) + 13 mẫu Workflow của HND — tải lười để không làm nặng lần mở app.
+ * Mẫu sơ đồ node có sẵn: mẫu FastAIVN (Hieu POV AIO…) + 13 mẫu Workflow của MV1 — tải lười để không làm nặng lần mở app.
  */
 export const loadHndFlowTemplates = async (): Promise<HndFlowTemplate[]> => {
   const [hnd, pov] = await Promise.all([import('../../data/hndFlowTemplates.json'), import('../../data/hieuPovAio.flow.json')]);
@@ -33,24 +33,24 @@ export const loadHndFlowTemplates = async (): Promise<HndFlowTemplate[]> => {
   return [...fastaivn, ...(hnd.default as unknown as HndFlowTemplate[])];
 };
 
-const RUNTIME_KEYS = ['runStatus', 'error', 'results', 'progress', 'startedAt', 'finishedAt', 'taskId', 'accountId', 'previewUrl', 'prompts'];
+const RUNTIME_KEYS = ['runStatus', 'error', 'results', 'progress', 'startedAt', 'finishedAt', 'taskId', 'accountId', 'previewUrl', 'prompts', 'rerun'];
 
 const cleanData = (type: NodeType, raw: Record<string, unknown> = {}): FlowNodeData => {
   const data: FlowNodeData = { ...JSON.parse(JSON.stringify(NODE_DEFS[type].defaults)) };
   Object.entries(raw).forEach(([k, v]) => {
     if (RUNTIME_KEYS.includes(k) || v === undefined || v === null) return;
-    // Đường dẫn file trên máy HND không đọc được từ trình duyệt
+    // Đường dẫn file trên máy MV1 không đọc được từ trình duyệt
     if (k === 'localPath' || k === 'generatedPath' || k === 'path') return;
     data[k] = v as never;
   });
   if (type === 'generate-video' && data.duration) data.duration = Number(data.duration);
-  // Sơ đồ HND chỉ có refRole (1 vai: product / outfit / scene…) → không để refRoles mặc định ['character'] đè lên
+  // Sơ đồ MV1 chỉ có refRole (1 vai: product / outfit / scene…) → không để refRoles mặc định ['character'] đè lên
   // (trước đây khối "KHÓA SẢN PHẨM" bị coi là ảnh nhân vật: sai bảng ánh xạ ảnh, thiếu khóa bao bì / màu sản phẩm)
   if (type === 'upload-image' && raw.refRole && !(Array.isArray(raw.refRoles) && raw.refRoles.length)) data.refRoles = [raw.refRole as RefLock];
   return data;
 };
 
-/** Đọc JSON (HND export / MuseStudio export / mẫu catalog) thành workflow mới (id mới). */
+/** Đọc JSON (MV1 export / MuseStudio export / mẫu catalog) thành workflow mới (id mới). */
 export const parseFlowJson = (raw: unknown, fallbackName = 'Workflow nhập'): { workflow: FlowWorkflow; notes: string[] } => {
   const src = raw as any;
   const g = src?.graph && Array.isArray(src.graph.nodes) ? src.graph : src;
@@ -65,7 +65,7 @@ export const parseFlowJson = (raw: unknown, fallbackName = 'Workflow nhập'): {
     }
     const id = newId('node');
     idMap.set(String(n.id), id);
-    if (n.data?.localPath) notes.push(`"${n.data.batchLabel || n.data.fileName || 'Upload Image'}": ảnh trên máy HND (${n.data.fileName || n.data.localPath}) không mang theo — chọn lại ảnh hoặc để trống cho AI tự tạo.`);
+    if (n.data?.localPath) notes.push(`"${n.data.batchLabel || n.data.fileName || 'Upload Image'}": ảnh trên máy MV1 (${n.data.fileName || n.data.localPath}) không mang theo — chọn lại ảnh hoặc để trống cho AI tự tạo.`);
     nodes.push({ id, type: n.type, position: { x: Number(n.position?.x) || 0, y: Number(n.position?.y) || 0 }, data: cleanData(n.type, n.data) });
   });
   const edges: FlowEdge[] = [];

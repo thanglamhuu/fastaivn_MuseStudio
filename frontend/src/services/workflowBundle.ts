@@ -28,7 +28,7 @@ export interface WorkflowBundle {
 }
 
 /** Khóa dữ liệu lượt chạy — không mang sang máy khác */
-const RUN_KEYS = ['runStatus', 'error', 'results', 'progress', 'startedAt', 'finishedAt', 'taskId', 'accountId', 'previewUrl', 'prompts', 'keyframe'];
+const RUN_KEYS = ['runStatus', 'error', 'results', 'progress', 'startedAt', 'finishedAt', 'taskId', 'accountId', 'previewUrl', 'prompts', 'keyframe', 'rerun'];
 
 const isData = (v: string) => v.startsWith('data:');
 /** Ảnh nằm trên Gateway / máy này (không mở được ở máy khác) → phải nhúng. */
@@ -125,7 +125,7 @@ export const buildBundle = async (opts: {
   name: string;
   description?: string;
   templates: WorkflowTemplate[];
-  /** Mẫu có sẵn của app (8 MuseStudio + 13 HND + FastAIVN + catalog): nhúng sơ đồ node (flowGraph), giữ id gốc */
+  /** Mẫu có sẵn của app (8 MuseStudio + 13 MV1 + FastAIVN + catalog): nhúng sơ đồ node (flowGraph), giữ id gốc */
   builtinTemplates?: WorkflowTemplate[];
   flows: FlowWorkflow[];
   characters: StudioCharacter[];
@@ -194,7 +194,7 @@ export const buildBundle = async (opts: {
 };
 
 /**
- * Đọc file / JSON tải về thành bộ workflow. Nhận: bộ .musestudio.json, 1 sơ đồ flow-workflow (MuseStudio / HND export),
+ * Đọc file / JSON tải về thành bộ workflow. Nhận: bộ .musestudio.json, 1 sơ đồ flow-workflow (MuseStudio / MV1 export),
  * gói mẫu fastaivn-template, hoặc mảng mẫu "Mẫu & danh sách dòng".
  */
 export const parseBundle = (raw: unknown, fallbackName = 'Bộ nhập'): WorkflowBundle => {
@@ -222,7 +222,7 @@ export const parseBundle = (raw: unknown, fallbackName = 'Bộ nhập'): Workflo
     };
   }
   if (Array.isArray(r) && r.every((t) => t && typeof t === 'object' && 'scriptMode' in t)) return { ...empty(fallbackName), templates: r };
-  // 1 sơ đồ (flow-workflow / HND export / gói fastaivn-template)
+  // 1 sơ đồ (flow-workflow / MV1 export / gói fastaivn-template)
   const g = r?.graph && Array.isArray(r.graph.nodes) ? r.graph : r;
   if (g && Array.isArray(g.nodes) && Array.isArray(g.edges)) {
     const b = empty(String(r.entry?.title || r.title || g.name || fallbackName));

@@ -91,7 +91,7 @@ export const composeSideBySide = async (fullBody: string, face: string): Promise
   ]);
 };
 
-/** Character sheet 2×2 (trước | nghiêng / sau | cận mặt — kiểu HND): lấy ô trên-trái (toàn thân) + ô dưới-phải (cận mặt). */
+/** Character sheet 2×2 (trước | nghiêng / sau | cận mặt — kiểu MV1): lấy ô trên-trái (toàn thân) + ô dưới-phải (cận mặt). */
 export const cropCharacterSheet = async (sheet: string): Promise<string> => {
   const img = await loadImage(sheet);
   const w = img.width / 2;
@@ -108,4 +108,39 @@ export const urlToResizedDataUrl = async (url: string, maxSide = 1280): Promise<
   if (!res.ok) throw new Error(`Không tải được ảnh (HTTP ${res.status})`);
   const blob = await res.blob();
   return fileToResizedDataUrl(new File([blob], 'image', { type: blob.type }), maxSide);
+};
+
+/**
+ * Ảnh tham chiếu nhân vật quá nhỏ (vd. sheet 640×480 → mặt 320×240) làm Muse giữ mặt kém (đo được 6-40% khung đúng người);
+ * phóng to lên `target` px cạnh dài (nội suy chất lượng cao, nhiều bước) trước khi gửi. Ảnh đủ lớn hoặc không đọc được: giữ nguyên.
+ */
+export const upscaleIfSmall = async (src: string, minSide = 1024, target = 1280): Promise<string> => {
+  try {
+    const img = await loadImage(src);
+    const side = Math.max(img.width, img.height);
+    if (!side || side >= minSide) return src;
+    let cur: HTMLImageElement | HTMLCanvasElement = img;
+    let w = img.width;
+    let h = img.height;
+    const k = target / side;
+    // Phóng từng bước ≤ 2× cho nét hơn 1 lần phóng lớn
+    for (let done = 1; done < k; ) {
+      const step = Math.min(2, k / done);
+      done *= step;
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * done);
+      c.height = Math.round(img.height * done);
+      const ctx = c.getContext('2d');
+      if (!ctx) return src;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(cur, 0, 0, w, h, 0, 0, c.width, c.height);
+      cur = c;
+      w = c.width;
+      h = c.height;
+    }
+    return (cur as HTMLCanvasElement).toDataURL('image/jpeg', 0.92);
+  } catch {
+    return src;
+  }
 };

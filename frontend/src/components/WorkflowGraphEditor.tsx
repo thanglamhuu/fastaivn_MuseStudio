@@ -567,7 +567,7 @@ const EditorInner: React.FC<
   const [nodes, setNodes, onNodesChange] = useNodesState<BlockNode>(initial.nodes as BlockNode[]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initial.edges as Edge[]);
   const [report, setReport] = useState<{ errors: string[]; warnings: string[]; ok?: string } | null>(null);
-  /** Workflow nhập từ file HND: lưu thành workflow mới mang tên file */
+  /** Workflow nhập từ file MV1: lưu thành workflow mới mang tên file */
   const [imported, setImported] = useState<{ id: string; name: string; description: string } | null>(null);
   const { addCharacter, characters } = useContext(CharLibContext);
   const { screenToFlowPosition, fitView } = useReactFlow();
@@ -638,7 +638,7 @@ const EditorInner: React.FC<
       nodes.map((n) => ({ id: n.id, type: 'block' as const, position: n.position, data: n.data })),
       edges.map((e) => ({ id: e.id, source: e.source, target: e.target })),
       imported
-        ? { id: imported.id, name: imported.name, icon: '🧩', category: 'Nhập từ HND', description: imported.description }
+        ? { id: imported.id, name: imported.name, icon: '🧩', category: 'Nhập từ MV1', description: imported.description }
         : {
             id: template.builtin ? newNodeId('result').replace('result', 'wf') : template.id,
             name: template.builtin ? `${template.name} (sơ đồ)` : template.name,
@@ -676,9 +676,9 @@ const EditorInner: React.FC<
         <div className="ml-auto flex flex-wrap gap-1.5">
           <label
             className="px-2.5 py-1 rounded-lg bg-slate-800 text-[10px] text-slate-200 cursor-pointer"
-            title="Nhập file workflow .json xuất từ HND Muse AI (Prompt / Generate Video / Merge)"
+            title="Nhập file workflow .json xuất từ MV1 Muse AI (Prompt / Generate Video / Merge)"
           >
-            📥 Nhập workflow HND
+            📥 Nhập workflow MV1
             <input
               type="file"
               accept=".json,application/json"

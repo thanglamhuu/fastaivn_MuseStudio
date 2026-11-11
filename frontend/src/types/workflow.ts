@@ -39,12 +39,12 @@ export interface WorkflowTemplate {
   characterIds?: string[];
   /**
    * Trang phục cố định (khối 👗 Trang phục): ảnh tải lên, hoặc chỉ mô tả để AI tự tạo
-   * ảnh trang phục 1 lần mỗi lượt chạy rồi gửi kèm mọi cảnh (như HND Muse AI).
+   * ảnh trang phục 1 lần mỗi lượt chạy rồi gửi kèm mọi cảnh (như MV1 Muse AI).
    */
   outfit?: { image?: string; description: string };
   /**
    * Cách gửi ảnh cho muse-video:
-   * - reference (mặc định): mọi ảnh chỉ là tham chiếu + bảng ánh xạ "Ảnh #N" (Direct Reference-to-Video, như HND)
+   * - reference (mặc định): mọi ảnh chỉ là tham chiếu + bảng ánh xạ "Ảnh #N" (Direct Reference-to-Video, như MV1)
    * - firstframe: ảnh đầu (nhân vật) làm khung mở đầu video (cách cũ)
    */
   refMode?: 'reference' | 'firstframe';
@@ -60,7 +60,7 @@ export interface WorkflowTemplate {
   postBlur?: { regions: { x: number; y: number; w: number; h: number }[]; mode: 'blur' | 'pixelate'; strength: number };
   /** Sơ đồ khối (trình chỉnh sơ đồ) đã tạo ra mẫu này */
   graph?: { nodes: unknown[]; edges: unknown[] };
-  /** Mẫu chuyển từ app cũ HND Muse AI: id mẫu gốc, kiểu kịch bản, video trend tham khảo */
+  /** Mẫu chuyển từ app cũ MV1 Muse AI: id mẫu gốc, kiểu kịch bản, video trend tham khảo */
   hnd?: { templateId: string; templateStyle: string; videoUrl?: string };
   /** Id sơ đồ node dựng sẵn trong app (loadHndFlowTemplates) — nút 🧩 Sơ đồ mở đúng sơ đồ này */
   flowGraphId?: string;

@@ -1,6 +1,6 @@
-// Sơ đồ Node kiểu HND Muse AI ("flow-workflow"): định nghĩa 12 loại node, cổng nối định kiểu,
-// cấu hình của từng node và kiểm tra sơ đồ. Cùng schema với file export của HND nên nhập / xuất qua
-// lại được (HND → MuseStudio và ngược lại).
+// Sơ đồ Node kiểu MV1 Muse AI ("flow-workflow"): định nghĩa 12 loại node, cổng nối định kiểu,
+// cấu hình của từng node và kiểm tra sơ đồ. Cùng schema với file export của MV1 nên nhập / xuất qua
+// lại được (MV1 → MuseStudio và ngược lại).
 //
 // Cổng: tên cổng bắt đầu bằng loại dữ liệu — text-*, image-*, video-*. Chỉ nối được 2 cổng cùng loại.
 // Mỗi cổng vào chỉ nhận 1 dây, trừ image-in của Generate Image / Generate Video / Gemini Script
@@ -47,7 +47,7 @@ export const REF_LOCKS: { id: RefLock; label: string; icon: string }[] = [
   { id: 'product', label: 'Khóa sản phẩm', icon: '📦' },
   { id: 'scene', label: 'Khóa bối cảnh', icon: '🏞️' },
 ];
-/** Khóa của node Upload Image (tương thích workflow cũ / HND chỉ có 1 refRole) */
+/** Khóa của node Upload Image (tương thích workflow cũ / MV1 chỉ có 1 refRole) */
 export const locksOf = (d: FlowNodeData): RefLock[] =>
   d.refRoles?.length ? d.refRoles : [(d.refRole || 'character') as RefLock];
 
@@ -57,13 +57,15 @@ export interface FlowNodeData {
   // upload-image
   image?: string;
   fileName?: string;
-  /** HND: 1 vai trò; MuseStudio: dùng refRoles (tích nhiều khóa) */
+  /** MV1: 1 vai trò; MuseStudio: dùng refRoles (tích nhiều khóa) */
   refRole?: 'character' | 'outfit' | 'product' | 'scene';
   refRoles?: RefLock[];
   /** Sản phẩm trong Cài đặt (khi tích Khóa sản phẩm) */
   productId?: string;
   /** Lookbook: dùng ảnh thứ N (0 = ảnh chính) của sản phẩm trong Cài đặt */
   productImageIndex?: number;
+  /** Số lần tạo lại node ảnh / video (đổi prompt để Gateway không trả lại kết quả cũ trong bộ đệm) */
+  rerun?: number;
   /** Ảnh cận mặt riêng (khóa nhân vật): ghép cạnh ảnh toàn thân thành 1 ảnh tham chiếu */
   faceImage?: string;
   /** Ảnh tải lên là character sheet 2×2 → tự cắt ô toàn thân + ô cận mặt */
@@ -101,7 +103,7 @@ export interface FlowNodeData {
   resolution?: string;
   // remove-logo
   spots?: string[];
-  // batch (giữ từ HND)
+  // batch (giữ từ MV1)
   batchRole?: string;
   batchLabel?: string;
   batchKey?: string;
@@ -275,7 +277,7 @@ export const NODE_DEFS: Record<NodeType, NodeDef> = {
     icon: '🎬',
     role:
       'Tạo video bằng muse-video. Text→Video: chỉ prompt. Image→Video: ảnh đầu làm khung mở đầu. ' +
-      'Reference→Video (như HND): mọi ảnh là tham chiếu + bảng ánh xạ "Ảnh #N". Frame→Frame: image-in-start làm khung đầu.',
+      'Reference→Video (như MV1): mọi ảnh là tham chiếu + bảng ánh xạ "Ảnh #N". Frame→Frame: image-in-start làm khung đầu.',
     fields: [
       {
         key: 'videoMode',
@@ -476,7 +478,7 @@ export interface ValidationResult {
   order: string[];
 }
 
-/** Kiểm tra toàn sơ đồ (như validate_graph của HND) + trả thứ tự chạy (topo). */
+/** Kiểm tra toàn sơ đồ (như validate_graph của MV1) + trả thứ tự chạy (topo). */
 export const validateWorkflow = (wf: Pick<FlowWorkflow, 'nodes' | 'edges'>): ValidationResult => {
   const errors: string[] = [];
   const warnings: string[] = [];

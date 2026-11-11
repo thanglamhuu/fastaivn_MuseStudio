@@ -1,4 +1,4 @@
-// Mẫu workflow có sẵn cho video affiliate (dựa trên nhóm mẫu của HND Muse AI, viết lại cho MuseStudio).
+// Mẫu workflow có sẵn cho video affiliate (dựa trên nhóm mẫu của MV1 Muse AI, viết lại cho MuseStudio).
 import type { WorkflowTemplate } from '../types/workflow';
 
 const base = {
@@ -73,7 +73,7 @@ export const BUILTIN_WORKFLOWS: WorkflowTemplate[] = [
       'Khóa người mẫu, mỗi cảnh thay một ảnh sản phẩm (mẫu / màu khác). Ảnh sản phẩm trong thư viện được xoay vòng qua các cảnh.',
     scriptMode: 'tvc5',
     extraNote:
-      'Video lookbook thời trang: cùng một người mẫu, mỗi cảnh mặc / dùng một mẫu khác của sản phẩm theo ảnh đính kèm của cảnh đó, tạo dáng, xoay người khoe form. Lời thoại ngắn khen chất liệu và cách phối.',
+      'Video lookbook thời trang: cùng một người mẫu, mỗi cảnh mặc / dùng một mẫu khác của sản phẩm theo ảnh đính kèm của cảnh đó (ghi rõ cảnh nào mặc mẫu nào, tả đúng mẫu theo ảnh), tạo dáng, xoay người khoe form. Lời thoại ngắn khen chất liệu và cách phối.',
     sceneCount: 5,
     rotateProductImages: true,
     cameraMotion: 'Medium Shot, Gentle Handheld Movement',
@@ -103,7 +103,8 @@ export const BUILTIN_WORKFLOWS: WorkflowTemplate[] = [
       'Tình huống vui trong gia đình xoay quanh sản phẩm. Dùng nhân vật trong thư viện (gọi đúng tên để giữ mặt + giọng).',
     scriptMode: 'short_film',
     extraNote:
-      'Tiểu phẩm gia đình Việt hài hước, đáng yêu: có mâu thuẫn nhỏ (chê mua đồ linh tinh, tranh nhau dùng...) rồi sản phẩm giải quyết; kết vui vẻ và nhắc mua.',
+      'Tiểu phẩm gia đình Việt hài hước, đáng yêu: có mâu thuẫn nhỏ (chê mua đồ linh tinh, tranh nhau dùng...) rồi sản phẩm giải quyết; kết vui vẻ và nhắc mua. ' +
+      'Mỗi câu thoại ghi rõ AI nói (CHỈ @Tên nói, người khác ngậm miệng), giọng đúng giới tính / tuổi người nói; nhân vật chính luôn quay mặt về camera.',
     sceneCount: 5,
   },
   {

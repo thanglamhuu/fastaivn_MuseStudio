@@ -25,7 +25,7 @@ interface Props {
   onClose: () => void;
   /** Mẫu tự lưu ("Mẫu & danh sách dòng") */
   templates: WorkflowTemplate[];
-  /** Mẫu có sẵn của app (MuseStudio + HND + FastAIVN + catalog) */
+  /** Mẫu có sẵn của app (MuseStudio + MV1 + FastAIVN + catalog) */
   builtinTemplates: WorkflowTemplate[];
   /** Sơ đồ đã lưu trong Sơ đồ khối */
   flows: FlowWorkflow[];
@@ -252,7 +252,7 @@ export const WorkflowBundleModal: React.FC<Props> = ({ mode, onClose, templates,
           ) : (
             <>
               <p className="text-slate-400">
-                Nhận file <b>.musestudio.json</b> (bộ workflow), sơ đồ JSON xuất từ MuseStudio / HND, hoặc gói mẫu fastaivn. Mẫu & sơ đồ nhập vào được thêm mới (không đè cái đang
+                Nhận file <b>.musestudio.json</b> (bộ workflow), sơ đồ JSON xuất từ MuseStudio / MV1, hoặc gói mẫu fastaivn. Mẫu & sơ đồ nhập vào được thêm mới (không đè cái đang
                 có); nhân vật / sản phẩm trùng tên dùng cái có sẵn trong Cài đặt.
               </p>
               <div className="flex flex-wrap gap-2 items-center">

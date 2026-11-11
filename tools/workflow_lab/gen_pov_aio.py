@@ -12,13 +12,15 @@ BRIEF = """=== THÔNG TIN SẢN PHẨM (sửa các dòng này — để trống 
 Sản phẩm:
 Điểm nổi bật:
   (chỉ ghi điều ĐÚNG với ảnh của bạn — chữ khác ảnh, ví dụ "phủ phấn trắng" khi quả trong ảnh láng bóng, sẽ làm video ra SAI MÀU / SAI SẢN PHẨM)
+Lưu ý hình ảnh:
+  (tùy chọn — tả BỐ CỤC mặt hộp: hình / chữ lớn nằm ở đâu, màu chủ đạo; bên trong hộp đựng gì (khay nhựa trong, túi zip…); đặc điểm dễ bị vẽ sai, vd. hàng sấy khô: dẹt, nhăn, ruột đặc, KHÔNG mọng nước)
 Phong cách lời thoại: HYPE
   (HYPE = Gen Z phấn khích "cưng xỉu", "mấy bà" · TÒ MÒ = mở bằng câu hỏi gây tò mò + "để mình khui cho xem" · ASMR = tả cảm giác chậm, giàu hình ảnh, mùi vị)
 Giọng đọc: nữ trẻ miền Nam, thân thiện như đang kể với bạn thân
 
 === HIEU POV AIO — QUY TẮC ĐẠO DIỄN (giữ nguyên) ===
 Thể loại: video review sản phẩm GÓC NHÌN THỨ NHẤT (POV) dọc 9:16 cho affiliate TikTok / Shopee, trông như người thật tự quay bằng điện thoại.
-Nhân vật: CHỈ có đôi bàn tay nữ người Việt (da sáng, móng gọn sơn nude), KHÔNG lộ mặt, không người thứ hai, không thấy cơ thể ngoài cổ tay – cẳng tay.
+Nhân vật: CHỈ có đôi bàn tay nữ người Việt (da sáng, móng gọn sơn nude), KHÔNG lộ mặt, không người thứ hai, không thấy cơ thể ngoài cổ tay – cẳng tay. KHÔNG cắn, KHÔNG đưa sản phẩm lên miệng (POV không có miệng người) — muốn tả vị thì đưa sát ống kính + lời thoại.
 Camera: điện thoại ở ngang tầm mắt người ngồi trước bàn, nhìn chéo xuống mặt bàn 30–45°, tay cầm hơi rung tự nhiên; sản phẩm luôn ở giữa – nửa dưới khung; có lúc đưa sát ống kính macro rồi lùi ra; lấy nét nhanh theo sản phẩm.
 Bối cảnh: ĐÚNG ảnh "Bối cảnh POV" (góc bàn trắng, đèn ngủ, kệ pegboard trắng, poster hồng trên tường) — giữ nguyên ở mọi cảnh. ÁNH SÁNG ban ngày sáng trong, trắng trung tính, không ám vàng, không tối (để màu sản phẩm lên đúng như ảnh).
 Sản phẩm: giống 100% ảnh sản phẩm: bao bì, chữ in, màu, hình dáng, số lượng; không thêm logo, không đổi chữ trên hộp, không biến dạng.

@@ -2,7 +2,7 @@
 // rê chuột vào thì phát đoạn xem trước. Nguồn thumbnail, theo thứ tự ưu tiên:
 //  1. wfthumb/wfthumb.config.json (thumbnail + clip chạy thử đạt chuẩn của từng mẫu, link YouTube khi đã tải lên)
 //  2. Clip mới nhất bạn đã chạy bằng mẫu đó trong MuseStudio (clip ghép / sau hậu kỳ / cảnh đầu)
-//  3. Video chạy thử sẵn của 13 mẫu HND (public/workflow-thumbs/hnd-<id>.jpg + .mp4)
+//  3. Video chạy thử sẵn của 13 mẫu MV1 (public/workflow-thumbs/hnd-<id>.jpg + .mp4)
 //  4. Không có video: ô màu với biểu tượng mẫu
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { WorkflowRow, WorkflowTemplate } from '../types/workflow';
@@ -21,7 +21,7 @@ const GROUPS: [string, string[]][] = [
   ['Làm phim', ['câu chuyện', 'gia đình']],
 ];
 export const templateGroup = (category?: string): string => {
-  const c = (category || 'Khác').replace(/^HND\s*·\s*/, '').trim();
+  const c = (category || 'Khác').replace(/^(MV1|HND)\s*·\s*/, '').trim();
   const k = c.toLowerCase();
   return GROUPS.find(([, list]) => list.includes(k))?.[0] || c;
 };
@@ -150,7 +150,7 @@ const TemplateCard: React.FC<{
             </span>
           )}
           {t.remote?.isPremium && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-yellow-500 text-slate-950">PRO</span>}
-          {t.hnd && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-600/90 text-white">HND</span>}
+          {t.hnd && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-600/90 text-white">MV1</span>}
           {!t.builtin && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/90 text-slate-950">Của tôi</span>}
           {thumb.own && <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-600/90 text-white" title="Thumbnail từ clip bạn đã tạo">▶ clip của bạn</span>}
         </span>
@@ -395,7 +395,7 @@ export const WorkflowTemplateGallery: React.FC<{
           </button>
         </div>
       )}
-      {/* Lọc theo loại như tab Mẫu Workflow của HND */}
+      {/* Lọc theo loại như tab Mẫu Workflow của MV1 */}
       <div className="flex flex-wrap gap-1">
         {['all', ...groups].map((g) => (
           <button

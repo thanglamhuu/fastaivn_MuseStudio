@@ -31,8 +31,8 @@
    "flow": "TVC - Review 5 bước.flow.json",
    "youtube": "",
    "youtubeThumbnail": "",
-   "testVersion": "v3",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/02 TVC - Review 5 bước/TVC - Review 5 bước_v3.mp4"
+   "testVersion": "v5",
+   "testClip": "I:/Claude/Srcs/TestWorkFlow/02 TVC - Review 5 bước/TVC - Review 5 bước_v5.mp4"
   },
   {
    "templateId": "wf-unbox-asmr",
@@ -79,8 +79,8 @@
    "flow": "Lookbook nhiều mẫu - màu.flow.json",
    "youtube": "",
    "youtubeThumbnail": "",
-   "testVersion": "v2",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/06 Lookbook nhiều mẫu - màu/Lookbook nhiều mẫu - màu_v2.mp4"
+   "testVersion": "v3",
+   "testClip": "I:/Claude/Srcs/TestWorkFlow/06 Lookbook nhiều mẫu - màu/Lookbook nhiều mẫu - màu_v3.mp4"
   },
   {
    "templateId": "wf-street-walk",
@@ -115,20 +115,20 @@
    "flow": "Review sau 7 ngày dùng.flow.json",
    "youtube": "",
    "youtubeThumbnail": "",
-   "testVersion": "v3",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/09 Review sau 7 ngày dùng/Review sau 7 ngày dùng_v3.mp4"
+   "testVersion": "v5",
+   "testClip": "I:/Claude/Srcs/TestWorkFlow/09 Review sau 7 ngày dùng/Review sau 7 ngày dùng_v5.mp4"
   },
   {
    "templateId": "hnd-ai-family-video-creator",
-   "name": "Workflow Gia Đình Hài Hước Đáng Yêu (Kiểu Linh Mít Daily · 30 Chủ Đề)",
-   "image": "Workflow Gia Đình Hài Hước Đáng Yêu (Kiểu Linh Mít Daily · 30 Chủ Đề).jpg",
-   "video": "Workflow Gia Đình Hài Hước Đáng Yêu (Kiểu Linh Mít Daily · 30 Chủ Đề).mp4",
-   "fullVideo": "Workflow Gia Đình Hài Hước Đáng Yêu (Kiểu Linh Mít Daily · 30 Chủ Đề).mp4",
-   "flow": "Workflow Gia Đình Hài Hước Đáng Yêu (Kiểu Linh Mít Daily · 30 Chủ Đề).flow.json",
+   "name": "Workflow Gia Đình Nhỏ Hài Hước Đáng Yêu (30 Chủ Đề)",
+   "image": "Workflow Gia Đình Nhỏ Hài Hước Đáng Yêu (30 Chủ Đề).jpg",
+   "video": "Workflow Gia Đình Nhỏ Hài Hước Đáng Yêu (30 Chủ Đề).mp4",
+   "fullVideo": "Workflow Gia Đình Nhỏ Hài Hước Đáng Yêu (30 Chủ Đề).mp4",
+   "flow": "Workflow Gia Đình Nhỏ Hài Hước Đáng Yêu (30 Chủ Đề).flow.json",
    "youtube": "",
    "youtubeThumbnail": "",
-   "testVersion": "v2",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/10 Workflow Gia Đình Hài Hước Đáng Yêu (Kiểu Linh Mít Daily · 30 Chủ Đề)/Workflow Gia Đình Hài Hước Đáng Yêu (Kiểu Linh Mít Daily · 30 Chủ Đề)_v2.mp4"
+   "testVersion": "v4",
+   "testClip": "I:/Claude/Srcs/TestWorkFlow/10 Workflow Gia Đình Nhỏ Hài Hước Đáng Yêu (30 Chủ Đề)/Workflow Gia Đình Nhỏ Hài Hước Đáng Yêu (30 Chủ Đề)_v4.mp4"
   },
   {
    "templateId": "hnd-nghia_mmo_super_flow_id",
@@ -247,8 +247,8 @@
    "flow": "Trend Nước Hoa & Trang Sức Luxury Điện Ảnh.flow.json",
    "youtube": "",
    "youtubeThumbnail": "",
-   "testVersion": "v3",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/20 Trend Nước Hoa & Trang Sức Luxury Điện Ảnh/Trend Nước Hoa & Trang Sức Luxury Điện Ảnh_v3.mp4"
+   "testVersion": "v5",
+   "testClip": "I:/Claude/Srcs/TestWorkFlow/20 Trend Nước Hoa & Trang Sức Luxury Điện Ảnh/Trend Nước Hoa & Trang Sức Luxury Điện Ảnh_v5.mp4"
   },
   {
    "templateId": "hnd-tiktok-fitness-wellness-routine",

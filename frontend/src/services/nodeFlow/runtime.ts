@@ -1,10 +1,10 @@
-// Bộ chạy sơ đồ Node (kiểu HND workflow_runtime.py) — chạy ngay trong trình duyệt, gọi Gateway:
+// Bộ chạy sơ đồ Node (kiểu MV1 workflow_runtime.py) — chạy ngay trong trình duyệt, gọi Gateway:
 //  - Lập lịch DAG: node chạy khi mọi node phía trước xong; node Generate chạy song song tối đa
 //    = số luồng render của các tài khoản Muse; node lỗi chặn các node phía sau (báo "bị chặn bởi …").
 //  - Kết quả mỗi node lưu vào node.data.results ⇒ "Chạy tiếp" chỉ chạy node chưa xong,
 //    "Chạy lại từ node" xóa kết quả node đó + mọi node phía sau rồi chạy lại.
 //  - Ảnh tham chiếu (Upload Image) phía trước được tự gửi kèm node Generate (Reference-to-Video),
-//    xếp Nhân vật → Trang phục → Sản phẩm như HND; prompt chưa có bảng ánh xạ thì tự dựng.
+//    xếp Nhân vật → Trang phục → Sản phẩm như MV1; prompt chưa có bảng ánh xạ thì tự dựng.
 import { GATEWAY_URL, MUSE_API_KEY } from '../../config/appConfig';
 import {
   DEFAULT_MUSE_CONFIG,
@@ -17,7 +17,7 @@ import {
 } from '../museBatchService';
 import { blurRegions, cutFrame, upscaleMedia } from '../libraryService';
 import { buildReferencePrompt, RefImageInfo } from '../referencePrompt';
-import { composeSideBySide, cropCharacterSheet, urlToResizedDataUrl } from '../../utils/image';
+import { composeSideBySide, cropCharacterSheet, upscaleIfSmall, urlToResizedDataUrl } from '../../utils/image';
 import type { AspectRatio, ShotDuration } from '../../types/videoStudio';
 import type { StudioCharacter, StudioProduct } from '../../types/library';
 import {
@@ -65,7 +65,9 @@ const DESCRIBE: Record<RefLock, string> = {
     'Mô tả CHÍNH XÁC người trong ảnh để AI tạo video giữ đúng người: giới tính, tuổi ước lượng, dáng mặt, kiểu tóc + màu tóc, kính (nếu có), ' +
     'trang phục đang mặc (màu, kiểu dáng, họa tiết, chi tiết như nơ / cúc / tay áo), giày, phụ kiện.',
   outfit: 'Mô tả CHÍNH XÁC bộ trang phục trong ảnh: loại đồ, màu, chất liệu, kiểu dáng, họa tiết, chi tiết đặc trưng.',
-  product: 'Mô tả CHÍNH XÁC sản phẩm chính trong ảnh: loại sản phẩm, hình dáng, màu sắc, chất liệu, logo / chữ in, chi tiết nổi bật.',
+  product:
+    'Mô tả CHÍNH XÁC sản phẩm chính trong ảnh: loại sản phẩm, hình dáng, màu sắc, chất liệu, logo / chữ in, chi tiết nổi bật (quai, nắp, nút, dây…). ' +
+    'BỎ QUA chữ quảng cáo / giá / watermark dán đè lên ảnh (không in trên sản phẩm) — không tả các chữ đó.',
   scene: 'Mô tả CHÍNH XÁC bối cảnh trong ảnh: không gian, đồ nội thất / vật dụng chính, màu sắc, ánh sáng.',
 };
 
@@ -134,7 +136,10 @@ const withBusyRetry = async <T,>(fn: () => Promise<T>, opts: { shouldStop: () =>
 };
 
 /** muse.ai đôi khi trả lời bằng chữ / lỗi render / quá giờ thay vì ảnh, video → làm lại tối đa 2 lần */
-const NO_MEDIA_RE = /Internal Server Error|Bad Gateway|text only|no video|no image|did not (produce|return) an? (video|image)|Timeout|quá thời gian chờ|báo lỗi trong lúc render/i;
+const NO_MEDIA_RE = /earlier (video|image) file|Internal Server Error|Bad Gateway|text only|no video|no image|did not (produce|return) an? (video|image)|Timeout|quá thời gian chờ|báo lỗi trong lúc render/i;
+/** Nhắc muse.ai đây là yêu cầu MỚI (nó nhớ việc cũ theo tài khoản và hay gửi lại file đã tạo trước đó) */
+const NEW_REQUEST_NOTE = (kind: 'video' | 'ảnh') =>
+  `[YÊU CẦU MỚI: tạo ${kind} MỚI theo đúng mô tả này — KHÔNG gửi lại / dùng lại file ${kind} đã tạo trước đó.]`;
 const retryNoMedia = async <T,>(fn: () => Promise<T>, what: string, deps: { shouldStop: () => boolean; log: (m: string) => void }): Promise<T> => {
   for (let k = 0; ; k++) {
     try {
@@ -214,7 +219,7 @@ const aiTextOnce = async (prompt: string, images: string[]): Promise<{ text: str
   }
 };
 
-/** Vai trò kịch tính của cảnh i/N (khung Dramatic Spine giống HND). */
+/** Vai trò kịch tính của cảnh i/N (khung Dramatic Spine giống MV1). */
 export const dramaticRole = (i: number, total: number): string => {
   if (total <= 1) return 'Hook + trải nghiệm + chốt trong 1 cảnh';
   if (i === 0) return 'HOOK — gây chú ý 3 giây đầu, giới thiệu nhân vật & bối cảnh';
@@ -449,7 +454,10 @@ export async function runFlow(wf: FlowWorkflow, mode: RunMode, deps: FlowRunDeps
   wf.nodes.forEach((n) => {
     if (reset.has(n.id)) {
       status.set(n.id, 'pending');
-      deps.patchNode(n.id, { runStatus: 'queued', error: '', results: [], progress: undefined });
+      // Node tạo ảnh / video đã có kết quả mà chạy lại → đếm lần tạo lại (đổi prompt để Gateway không trả lại kết quả cũ)
+      const again = (n.type === 'generate-video' || n.type === 'generate-image') && !!n.data.results?.length;
+      deps.patchNode(n.id, { runStatus: 'queued', error: '', results: [], progress: undefined, ...(again ? { rerun: (Number(n.data.rerun) || 0) + 1 } : {}) });
+      if (again) n.data.rerun = (Number(n.data.rerun) || 0) + 1;
     } else {
       status.set(n.id, n.data.runStatus === 'done' ? 'done' : 'error');
       results.set(n.id, n.data.results || []);
@@ -480,7 +488,7 @@ export async function runFlow(wf: FlowWorkflow, mode: RunMode, deps: FlowRunDeps
 
   /**
    * Ảnh tham chiếu phía trước node: mọi ảnh của các Upload Image (đi ngược mọi nhánh) + ảnh nhân vật / sản phẩm
-   * được nhắc bằng @ / @@ trong prompt. Xếp Nhân vật → Trang phục → Sản phẩm → Bối cảnh (như HND), bỏ trùng.
+   * được nhắc bằng @ / @@ trong prompt. Xếp Nhân vật → Trang phục → Sản phẩm → Bối cảnh (như MV1), bỏ trùng.
    */
   const collectRefs = (id: string, mentionRefs: RefItem[] = []): RefItem[] => {
     const seen = new Set<string>();
@@ -589,13 +597,22 @@ export async function runFlow(wf: FlowWorkflow, mode: RunMode, deps: FlowRunDeps
               log: deps.log,
               what: label(n),
             }), label(n), deps);
-            // Giữ ảnh vừa tạo trong node để các lần chạy sau dùng lại (như HND generatedPath)
+            // Giữ ảnh vừa tạo trong node để các lần chạy sau dùng lại (như MV1 generatedPath)
             deps.patchNode(n.id, { image: img, fileName: 'AI tự tạo', autoGenerated: true });
             out.push({ kind: 'image', value: img, roles: rest, name, desc });
           }
         }
         // Khối khóa để trống (chưa ảnh, chưa chọn từ Cài đặt, chưa mô tả): bỏ qua, không chặn cả sơ đồ
         if (!out.length) deps.log(`${label(n)}: chưa có ảnh / chưa chọn từ Cài đặt / chưa mô tả → bỏ qua khóa này`);
+        // Ảnh nhân vật nhỏ (mặt vài trăm px) → phóng to trước khi gửi (đo được: mặt đúng người 6% → 35-72% khi phóng to ảnh cận mặt)
+        for (const r of out) {
+          if (!r.roles?.includes('character')) continue;
+          const big = await upscaleIfSmall(r.value);
+          if (big !== r.value) {
+            r.value = big;
+            deps.log(`${label(n)}: ảnh nhân vật nhỏ → tự phóng to lên 1280 px để giữ mặt tốt hơn`);
+          }
+        }
         // AI nhìn ảnh mô tả lại (khớp đúng ảnh, dùng cho khóa ƯU TIÊN ẢNH) — lưu cache theo ảnh
         if (d.autoDescribe !== false && out.length) {
           const cache: Record<string, string> = { ...((d.aiDescs as Record<string, string>) || {}) };
@@ -705,7 +722,7 @@ ${got[i - 1]}` : ''),
       }
       case 'generate-image': {
         const men = resolveMentions(texts.join('\n').trim() || String(d.prompt || '').trim(), deps.characters, deps.products);
-        const prompt = men.text;
+        let prompt = men.text;
         if (!prompt) throw new Error('Thiếu prompt (nối text-in hoặc nhập Prompt).');
         const ups = collectRefs(n.id, men.refs);
         const refs: ReferenceImage[] = [];
@@ -717,8 +734,9 @@ ${got[i - 1]}` : ''),
         const useRefs = d.imageMode === 'image-to-image' || refs.length ? refs.slice(0, 4) : [];
         // Prompt cảnh thường viết cho video ("Video 10 giây...") → muse.ai trả video thay vì ảnh.
         // Ép rõ: 1 ẢNH TĨNH = khung hình tiêu biểu / mở đầu của cảnh.
+        if (d.rerun) prompt += `\n[Lần tạo lại #${d.rerun}: tạo bản MỚI]`;
         const stillPrompt =
-          `ONE SINGLE STILL PHOTO (ảnh tĩnh, KHÔNG tạo video, không chuyển động), tỉ lệ ${ratioOf(d)}, photorealistic. ` +
+          `${NEW_REQUEST_NOTE('ảnh')} ONE SINGLE STILL PHOTO (ảnh tĩnh, KHÔNG tạo video, không chuyển động), tỉ lệ ${ratioOf(d)}, photorealistic. ` +
           `Chụp khung hình mở đầu tiêu biểu của cảnh sau:\n${prompt}`;
         const out: NodeResult[] = [];
         for (let k = 0; k < Math.max(1, Math.min(4, Number(d.count) || 1)); k++) {
@@ -753,6 +771,15 @@ ${got[i - 1]}` : ''),
           if (m === 'image-to-video') firstFrame = direct.find((i) => !upVals.has(i.value))?.value || '';
           if (m === 'frame-to-frame' && start) firstFrame = start.value;
           ups.forEach((u) => refItems.push({ value: u.value, info: refInfo(u), ai: u.ai }));
+          // Prompt mẫu (nhất là MV1) chép nguyên mô tả có sẵn của khối ảnh ("Máy hút bụi … màu trắng bạc") — khi người dùng đưa ảnh thật
+          // khác mô tả đó, thay mô tả cũ trong prompt cảnh bằng mô tả AI nhìn ảnh thật (lỗi thật: chữ thắng ảnh → sai màu / sai tính năng)
+          ups.forEach((u) => {
+            const old = String(u.desc || '').trim();
+            if (u.ai && old.length >= 40 && text.includes(old)) {
+              text = text.split(old).join(u.ai);
+              deps.log(`${label(n)}: thay mô tả có sẵn của mẫu bằng mô tả ảnh thật (${short(u.ai, 60)})`);
+            }
+          });
           direct
             .filter((i) => i.value !== firstFrame && !upVals.has(i.value))
             .forEach((i) => refItems.push({ value: i.value, info: { role: 'keyframe' } }));
@@ -761,6 +788,10 @@ ${got[i - 1]}` : ''),
             text += '\nCảnh kết thúc đúng tư thế / bố cục của ảnh khung cuối đính kèm.';
           }
         }
+        // "giọng nữ trầm" → Muse hay ra giọng NAM (đo được 86-94 Hz ở mẫu Nước hoa) → đổi cách viết, nói rõ là giọng nữ
+        text = text.replace(/giọng nữ (trầm khàn|trầm ấm|trầm)/gi, 'giọng nữ ấm áp (giọng NỮ, không phải giọng nam)');
+        // Chạy lại node đã có kết quả: đổi prompt một chút, nếu không Gateway trả lại đúng video cũ (bộ đệm theo prompt + ảnh)
+        if (d.rerun) text += `\n[Lần tạo lại #${d.rerun}: tạo bản MỚI, giữ đúng tham chiếu]`;
         // Tạo ẢNH KHUNG HÌNH trước (muse-image + ảnh tham chiếu) rồi làm khung mở đầu video.
         // Thí nghiệm mẫu Gia đình: tỉ lệ khung hình đúng người Bố 6% → 87%, Mẹ 7% → 48% so với Reference-to-Video thẳng.
         if (d.keyframeFirst && !firstFrame && m !== 'text-to-video' && refItems.some((r) => r.info.role !== 'keyframe')) {
@@ -777,7 +808,7 @@ ${got[i - 1]}` : ''),
           // Cảnh không có khóa nhân vật (POV chỉ thấy tay, sản phẩm) → không đòi "nhìn rõ mặt" (gây lộ mặt / môi)
           const hasPeople = kf.some((r) => r.info.role === 'character');
           const still =
-            `ONE SINGLE STILL PHOTO (ảnh tĩnh, KHÔNG tạo video), tỉ lệ ${ratioOf(d)}, photorealistic — khung hình MỞ ĐẦU của cảnh sau. ` +
+            `${NEW_REQUEST_NOTE('ảnh')} ONE SINGLE STILL PHOTO (ảnh tĩnh, KHÔNG tạo video), tỉ lệ ${ratioOf(d)}, photorealistic — khung hình MỞ ĐẦU của cảnh sau. ` +
             (hasPeople
               ? `Giữ y hệt khuôn mặt, kiểu tóc, trang phục, sản phẩm như ảnh tham chiếu (${who}). Mọi nhân vật nhìn rõ mặt, đứng / ngồi đúng vị trí đầu cảnh.\n`
               : `Giữ y hệt sản phẩm / bao bì (hình in, chữ, màu sắc thật) và bối cảnh như ảnh tham chiếu (${who}); màu sản phẩm tươi đúng ảnh, không tối, không ám màu. ` +
@@ -795,7 +826,7 @@ ${got[i - 1]}` : ''),
         const refs = refItems.slice(0, firstFrame ? 3 : 4);
         if (refItems.length > refs.length) deps.log(`${label(n)}: ${refItems.length} ảnh tham chiếu, muse.ai chỉ nhận ${refs.length} — bỏ bớt ảnh cuối`);
         const hasMap = /BẢNG ÁNH XẠ|ATTACHMENT ROLES|\[Khóa đồng nhất/i.test(text);
-        // Prompt tự mang số ảnh (mẫu HND: "Ảnh #1 = Bố") nhưng khung mở đầu được gửi làm ảnh ĐẦU TIÊN → mọi số ảnh lệch 1
+        // Prompt tự mang số ảnh (mẫu MV1: "Ảnh #1 = Bố") nhưng khung mở đầu được gửi làm ảnh ĐẦU TIÊN → mọi số ảnh lệch 1
         // (lỗi thật mẫu Gia đình: model nhầm ai là Ảnh #1 → Mẹ nói lời của Bố). Dời số ảnh +1 và ghi rõ Ảnh #1 = khung mở đầu.
         if (firstFrame && /Ảnh(?:\s+tham\s+chiếu)?\s*#\s*\d|Image\s+\d/i.test(text)) {
           text =
@@ -813,7 +844,7 @@ ${got[i - 1]}` : ''),
           refs.length && !hasMap
             ? buildReferencePrompt({ images: mapInfos, scenePrompt: text, realism: true })
             : text;
-        // Khóa ƯU TIÊN ẢNH: prompt (nhất là prompt mẫu HND) hay mô tả trang phục / ngoại hình khác ảnh thật
+        // Khóa ƯU TIÊN ẢNH: prompt (nhất là prompt mẫu MV1) hay mô tả trang phục / ngoại hình khác ảnh thật
         // → model bám chữ, đổi màu áo, sai người. Nhắc lại ở CUỐI prompt: chữ khác ảnh thì theo ảnh.
         const pri = refs.filter((r) => r.info.role !== 'keyframe');
         if (pri.length && d.imagePriority !== false) {
@@ -829,10 +860,14 @@ ${got[i - 1]}` : ''),
             'không đổi màu áo, không thêm / bớt phụ kiện, không thay sản phẩm khác, không tráo mặt giữa các nhân vật.' +
             // Thí nghiệm POV Hồng treo gió: chữ tả sai màu ("phủ phấn trắng", "cam nâu") + ánh sáng tối → sản phẩm sẫm, bao bì bị vẽ lại
             (pri.some((r) => r.info.role === 'product')
-              ? ' SẢN PHẨM & BAO BÌ: màu sản phẩm tươi, sáng đúng như ảnh (không sẫm, không ám vàng / nâu); bao bì giữ y hệt hình in, chữ, bố cục như ảnh — không vẽ lại.'
+              ? ' SẢN PHẨM & BAO BÌ: màu sản phẩm tươi, sáng đúng như ảnh (không sẫm, không ám vàng / nâu); bao bì giữ y hệt hình in, chữ, bố cục như ảnh — không vẽ lại. ' +
+                'Giữ ĐỦ các chi tiết của sản phẩm (quai, nắp, nút, dây, màu lòng bên trong…) trong MỌI khung hình, kể cả khi xoay, cầm, sử dụng, mở nắp — ' +
+                'không biến thành sản phẩm khác dáng. KHÔNG chép chữ quảng cáo / giá / watermark dán đè trên ảnh tham chiếu vào video.'
               : '') +
             ']';
         }
+        // muse.ai nhớ việc cũ theo tài khoản: gặp yêu cầu giống trước nó gửi lại đúng file cũ (đo được: video trùng từng byte)
+        prompt += `\n${NEW_REQUEST_NOTE('video')}`;
         const ff = firstFrame ? await toDataUrl(firstFrame) : '';
         const refData = await Promise.all(refs.map((r) => toDataUrl(r.value)));
         // muse.ai đôi khi trả lời bằng chữ thay vì video ("replied with text only…") → tạo lại tối đa 2 lần
@@ -841,7 +876,7 @@ ${got[i - 1]}` : ''),
             try {
               return await createOnce();
             } catch (err: any) {
-              if (k >= 2 || deps.shouldStop() || !/text only|no video|did not (produce|return) a video|Timeout|quá thời gian chờ|báo lỗi trong lúc render/i.test(String(err?.message || err))) throw err;
+              if (k >= 2 || deps.shouldStop() || !/earlier video file|text only|no video|did not (produce|return) a video|Timeout|quá thời gian chờ|báo lỗi trong lúc render/i.test(String(err?.message || err))) throw err;
               deps.log(`${label(n)}: muse.ai không trả video (trả lời bằng chữ / lỗi render / quá giờ) → tạo lại (lần ${k + 2})`);
             }
           }

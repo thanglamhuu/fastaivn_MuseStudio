@@ -1,5 +1,5 @@
 // Chuyển 1 mẫu ở "Mẫu & danh sách dòng" (WorkflowTemplate) thành sơ đồ node để chỉnh chi tiết từng node.
-// - Mẫu chuyển từ HND (tpl.hnd): lấy nguyên sơ đồ gốc của HND (13 mẫu).
+// - Mẫu chuyển từ MV1 (tpl.hnd): lấy nguyên sơ đồ gốc của MV1 (13 mẫu).
 // - Mẫu khác: dựng sơ đồ tương đương — Upload Image (khóa nhân vật / trang phục / sản phẩm) → Gemini Script
 //   (hoặc Prompt từng cảnh nếu mẫu có prompt nhập tay) → Generate Video từng cảnh → Merge → hậu kỳ → Result.
 import type { WorkflowTemplate } from '../../types/workflow';
@@ -56,7 +56,7 @@ export const templateToFlow = async (tpl: WorkflowTemplate): Promise<{ workflow:
 };
 
 const templateToFlowLocal = async (tpl: WorkflowTemplate): Promise<{ workflow: FlowWorkflow; notes: string[] }> => {
-  // Mẫu có sơ đồ node dựng sẵn: mẫu FastAIVN (flowGraphId) hoặc mẫu chuyển từ HND (tpl.hnd)
+  // Mẫu có sơ đồ node dựng sẵn: mẫu FastAIVN (flowGraphId) hoặc mẫu chuyển từ MV1 (tpl.hnd)
   const bundledId = tpl.flowGraphId || (tpl.hnd?.templateId ? `hnd-${tpl.hnd.templateId}` : '');
   if (bundledId) {
     const all = await loadHndFlowTemplates();

@@ -1,4 +1,4 @@
-// Bộ dựng prompt "Direct Reference-to-Video" — học từ các prompt HND Muse AI gửi lên muse.ai
+// Bộ dựng prompt "Direct Reference-to-Video" — học từ các prompt MV1 Muse AI gửi lên muse.ai
 // cho ra clip đồng nhất nhân vật + trang phục (thamK/ldnh/PromtClipNuMacAoThamChieuTot.md):
 //
 //  1. Ảnh chỉ là THAM CHIẾU (không làm khung mở đầu) → cảnh được dựng theo lời mô tả, không bị
@@ -8,9 +8,9 @@
 //  4. Khối KHÓA ĐỒNG NHẤT nhắc lại ở CUỐI prompt (model nhớ phần cuối tốt hơn).
 //  5. Khóa BỐI CẢNH cố định dùng y nguyên cho mọi cảnh → các cảnh song song khớp nhau khi ghép.
 //  6. Khóa KHỚP MIỆNG khi cảnh có thoại; khóa CHÂN THẬT chống "màu nhựa AI".
-//  7. Không chèn lại khối khóa nếu prompt đã có sẵn (prompt nhập từ HND đã kèm).
+//  7. Không chèn lại khối khóa nếu prompt đã có sẵn (prompt nhập từ MV1 đã kèm).
 //
-// Khác HND: bảng ánh xạ lấy từ chính nhân vật / trang phục / sản phẩm được gửi đi, nên không bị
+// Khác MV1: bảng ánh xạ lấy từ chính nhân vật / trang phục / sản phẩm được gửi đi, nên không bị
 // lệch kiểu "Image 1: FATHER (@BoGiaDinh)" trong khi cảnh viết về @ModelCatwalkNu.
 
 export type RefRole = 'character' | 'outfit' | 'product' | 'scene' | 'keyframe';
