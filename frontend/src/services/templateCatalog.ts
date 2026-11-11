@@ -31,6 +31,11 @@ export interface CatalogEntry {
   trendUrl?: string;
   /** Sơ đồ flow-workflow (Sơ đồ khối) */
   graphUrl?: string;
+  /**
+   * Bộ workflow .musestudio.json (sơ đồ + mẫu + nhân vật / sản phẩm, ảnh nhúng sẵn). Có thì card mẫu cài được cả bộ
+   * (📥 Nhập bộ workflow → Bộ trên fastaivn.com); không có graphUrl thì 🧩 Sơ đồ mở sơ đồ đầu tiên trong bộ.
+   */
+  bundleUrl?: string;
   /** Cấu hình cho màn "Mẫu & danh sách dòng" (tùy chọn) */
   listTemplate?: Partial<
     Pick<
@@ -124,6 +129,7 @@ export const entryToTemplate = (e: CatalogEntry): WorkflowTemplate => {
       thumbnailUrl: e.thumbnailUrl,
       previewUrl: e.previewUrl,
       graphUrl: e.graphUrl,
+      bundleUrl: e.bundleUrl,
       trendUrl: e.trendUrl,
       isPremium: e.isPremium,
     },

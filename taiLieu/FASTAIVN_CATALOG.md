@@ -43,6 +43,7 @@ MuseStudio (app đóng gói) — GET qua Gateway /studio/catalog, lưu đệm tr
       "thumbnailUrl": "thumbs/gia-dinh-linh-mit.jpg",       // 9:16, ~360×640 jpg
       "previewUrl": "previews/gia-dinh-linh-mit.mp4",       // 5–6s, 270×480, không tiếng, < 300 KB
       "graphUrl": "graphs/gia-dinh-linh-mit.v3.json",       // sơ đồ flow-workflow (Sơ đồ khối) — đặt tên kèm version để CDN không giữ bản cũ
+      "bundleUrl": "bundles/gia-dinh-linh-mit.musestudio.json", // (tùy chọn) bộ workflow đầy đủ kèm nhân vật / sản phẩm — xem mục 6
       "trendUrl": "https://www.tiktok.com/…",               // video trend tham khảo (tùy chọn)
       "listTemplate": {                       // cấu hình cho màn "Mẫu & danh sách dòng" (tùy chọn)
         "scriptMode": "short_film",           // tvc5 | pov_aff | short_film | template
@@ -144,7 +145,32 @@ Nếu dùng Firebase Hosting cho `catalog.v1.json`, thêm vào `firebase.json` �
 >
 > Viết kèm `firestore.rules` và `storage.rules` như sau: (dán mục Security Rules ở trên).
 
-## 6. Hướng phát triển
+## 6. Bộ workflow (.musestudio.json) — chuyển máy / chia sẻ / cài từ fastaivn.com
+
+Màn 🧩 Workflow làm clip → **📤 Xuất bộ workflow** / **📥 Nhập bộ workflow** (có ở cả "Mẫu & danh sách dòng" và "Sơ đồ khối").
+
+```jsonc
+{
+  "kind": "musestudio-workflow-bundle", "bundleVersion": 1,
+  "name": "Bộ POV đồ ăn vặt", "description": "…", "exportedAt": "2026-11-11T09:45:05Z", "appVersion": "1.0.0",
+  "templates":  [ /* mẫu "Mẫu & danh sách dòng" (WorkflowTemplate) */ ],
+  "flows":      [ /* sơ đồ Sơ đồ khối (flow-workflow, đã bỏ trạng thái chạy) */ ],
+  "characters": [ /* nhân vật Cài đặt mà mẫu / sơ đồ dùng (characterId, characterIds, @tên trong prompt) */ ],
+  "products":   [ /* sản phẩm Cài đặt được dùng (productId, @@tên trong prompt) */ ]
+}
+```
+
+- **Xuất:** chọn mẫu tự lưu + sơ đồ; tùy chọn kèm nhân vật / sản phẩm đang dùng. Ảnh trên Gateway / máy này (`http://127.0.0.1:18610/v1/media/…`)
+  được **nhúng thành data URL**; ảnh đi kèm app (`workflow-thumbs/…`) giữ đường dẫn. Bỏ kết quả / khung hình / trạng thái lượt chạy.
+- **Nhập:** từ file, link (tải qua Gateway `GET /studio/catalog/bundle?url=` — tới 80MB, có bản đệm khi mất mạng, link tương đối tính theo địa chỉ catalog)
+  hoặc mục **🌐 Bộ workflow trên fastaivn.com**. Xem trước, tích chọn từng mục rồi nhập:
+  mẫu / sơ đồ được **thêm mới** (id mới, trùng tên thì thêm "(nhập)"); nhân vật / sản phẩm **trùng tên dùng cái có sẵn**, chưa có thì thêm vào Cài đặt;
+  `characterId` / `productId` / `characterIds` được nối lại theo id mới. Cũng nhận 1 sơ đồ JSON (MuseStudio / HND export) hay gói `fastaivn-template`.
+- **Đăng lên fastaivn.com:** tải file lên `workflows/bundles/<id>.musestudio.json`, thêm `"bundleUrl": "bundles/<id>.musestudio.json"` vào mẫu trong
+  `catalog.v1.json` → mẫu hiện trong 📥 Nhập bộ workflow → 🌐; nếu mẫu không có `graphUrl` thì 🧩 Sơ đồ trên card mở sơ đồ đầu tiên của bộ.
+  Hoặc chỉ cần gửi link file cho người dùng dán vào ô link.
+
+## 7. Hướng phát triển
 - **Mẫu trả phí:** `isPremium` hiện chỉ gắn nhãn. Khi cần khóa thật: để `graphUrl` của mẫu PRO trỏ tới Cloud Function kiểm tra
   token đăng nhập fastaivn.com (Firebase Auth) rồi trả sơ đồ — app thêm bước đăng nhập (kết hợp Giải pháp 1 cho riêng mẫu PRO).
 - Thống kê lượt dùng mẫu: app gửi sự kiện "dùng mẫu {id}" (tùy chọn, ẩn danh) tới 1 endpoint Firebase.

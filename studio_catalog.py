@@ -6,6 +6,7 @@ App chỉ đọc file đó — không cần Firebase SDK hay API key. Xem taiLie
 
 - GET  /studio/catalog?refresh=1     catalog (online → lưu đệm đĩa; lỗi mạng → bản đệm)
 - GET  /studio/catalog/graph?url=…   sơ đồ flow-workflow của 1 mẫu (đường dẫn tương đối theo catalog)
+- GET  /studio/catalog/bundle?url=…  bộ workflow .musestudio.json (nhiều mẫu + sơ đồ + nhân vật / sản phẩm, tới 80MB)
 - GET  /studio/catalog/config        / PUT: đổi địa chỉ catalog (vd. bản staging)
 
 Tải phía Gateway (không phải trình duyệt) để không vướng CORS của Firebase Storage và để có
@@ -69,24 +70,26 @@ def _resolve(base: str, ref: str) -> str:
     return urljoin(base, ref)
 
 
-async def _fetch(url: str, etag: str | None = None) -> tuple[int, bytes, str | None]:
+async def _fetch(url: str, etag: str | None = None, max_bytes: int = MAX_BYTES) -> tuple[int, bytes, str | None]:
     if _is_local(url):
         p = _local_path(url)
         if not p.is_file():
             raise NotFound(f"không thấy file {p}")
-        return 200, p.read_bytes()[:MAX_BYTES], None
+        if p.stat().st_size > max_bytes:
+            raise InvalidRequest("file quá lớn")
+        return 200, p.read_bytes(), None
     if urlparse(url).scheme not in ("http", "https"):
         raise InvalidRequest("địa chỉ phải là http(s) hoặc đường dẫn file")
     headers = {"User-Agent": "MuseStudio-catalog/1"}
     if etag:
         headers["If-None-Match"] = etag
-    async with httpx.AsyncClient(timeout=15, follow_redirects=True, trust_env=True) as c:
+    async with httpx.AsyncClient(timeout=15 if max_bytes <= MAX_BYTES else 120, follow_redirects=True, trust_env=True) as c:
         r = await c.get(url, headers=headers)
     if r.status_code == 304:
         return 304, b"", etag
     if r.status_code >= 400:
         raise InvalidRequest(f"máy chủ trả HTTP {r.status_code}")
-    if len(r.content) > MAX_BYTES:
+    if len(r.content) > max_bytes:
         raise InvalidRequest("file quá lớn")
     return r.status_code, r.content, r.headers.get("etag")
 
@@ -103,7 +106,7 @@ def _normalize(raw: Any, url: str) -> dict[str, Any]:
         if t.get("published") is False:
             continue
         t = dict(t)
-        for k in ("thumbnailUrl", "previewUrl", "graphUrl"):
+        for k in ("thumbnailUrl", "previewUrl", "graphUrl", "bundleUrl"):
             if t.get(k):
                 t[k] = _resolve(url, str(t[k]))
         out.append(t)
@@ -161,6 +164,26 @@ async def get_graph(request: Request, url: str) -> dict:
         if f.is_file():
             return {"graph": json.loads(f.read_text(encoding="utf-8")), "source": "cache"}
         raise NotFound(f"không tải được sơ đồ mẫu: {getattr(exc, 'message', None) or exc}") from None
+
+
+BUNDLE_MAX_BYTES = 80 * 1024 * 1024
+
+
+@router.get("/bundle")
+async def get_bundle(request: Request, url: str) -> dict:
+    """Bộ workflow (.musestudio.json, có nhúng ảnh nên cho tới 80MB) từ link fastaivn.com / Firebase / file trên máy.
+    Đường dẫn tương đối tính theo địa chỉ catalog. Có bản đệm để mở lại khi mất mạng."""
+    full = _resolve(catalog_url(request), url.strip())
+    f = _dir(request) / f"bundle_{hashlib.sha1(full.encode()).hexdigest()[:16]}.json"
+    try:
+        _, body, _ = await _fetch(full, max_bytes=BUNDLE_MAX_BYTES)
+        bundle = json.loads(body.decode("utf-8-sig"))
+        f.write_text(json.dumps(bundle, ensure_ascii=False), encoding="utf-8")
+        return {"bundle": bundle, "source": "online", "url": full}
+    except Exception as exc:
+        if f.is_file():
+            return {"bundle": json.loads(f.read_text(encoding="utf-8")), "source": "cache", "url": full}
+        raise NotFound(f"không tải được bộ workflow: {getattr(exc, 'message', None) or exc}") from None
 
 
 class CatalogConfig(BaseModel):

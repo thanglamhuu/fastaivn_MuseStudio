@@ -744,14 +744,20 @@ export interface NodeFlowProps {
   characters: StudioCharacter[];
   products: StudioProduct[];
   /** Mở 1 workflow từ nơi khác (vd. "Mẫu & danh sách dòng" → Mở trong sơ đồ khối); đổi key để mở lại */
-  incoming?: { key: number; workflow: FlowWorkflow; note?: string };
+  incoming?: { key: number; workflow?: FlowWorkflow; workflows?: FlowWorkflow[]; note?: string };
   /** Màn đang hiển thị? Ẩn thì không vẽ canvas (vẫn giữ lượt chạy), hiện lại thì vẽ + đo node lại */
   active?: boolean;
+  /** Báo danh sách sơ đồ đã lưu ra ngoài (Xuất bộ workflow) */
+  onLibraryChange?: (workflows: FlowWorkflow[]) => void;
 }
 
-const Editor: React.FC<NodeFlowProps> = ({ threads, characters, products, incoming, active }) => {
+const Editor: React.FC<NodeFlowProps> = ({ threads, characters, products, incoming, active, onLibraryChange }) => {
   const libItems = useMemo(() => ({ characters, products }), [characters, products]);
   const [lib, setLib] = usePersistentState<FlowLibrary>('nodeflow.library.v1', { workflows: [], activeId: '' }, { server: true });
+  useEffect(() => {
+    onLibraryChange?.(lib.workflows);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lib.workflows]);
   const [wf, setWf] = useState<FlowWorkflow | null>(null);
   const wfRef = useRef(wf);
   wfRef.current = wf;
@@ -800,7 +806,16 @@ const Editor: React.FC<NodeFlowProps> = ({ threads, characters, products, incomi
   // Mẫu mở từ "Mẫu & danh sách dòng"
   const lastIncoming = useRef(0);
   useEffect(() => {
-    if (!incoming || incoming.key === lastIncoming.current || busy) return;
+    if (!incoming || incoming.key === lastIncoming.current) return;
+    // Nhập bộ workflow: thêm cả loạt sơ đồ vào thư viện (không mở / không đổi sơ đồ đang chạy)
+    if (incoming.workflows?.length) {
+      lastIncoming.current = incoming.key;
+      const add = incoming.workflows;
+      setLib((L) => ({ ...L, workflows: [...L.workflows, ...add], activeId: L.activeId || add[0].id }));
+      setReport({ errors: [], warnings: [], ok: incoming.note || `Đã nhập ${add.length} sơ đồ vào Sơ đồ khối.` });
+      return;
+    }
+    if (busy || !incoming.workflow) return;
     lastIncoming.current = incoming.key;
     addWorkflow(incoming.workflow);
     setReport({ errors: [], warnings: [], ok: incoming.note || `Đã mở "${incoming.workflow.name}" trong sơ đồ khối — bấm vào từng node để chỉnh.` });

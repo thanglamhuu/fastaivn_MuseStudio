@@ -67,7 +67,7 @@ export interface WorkflowTemplate {
   /** Ảnh / video xem trước card mẫu (đường dẫn tương đối trong public/) */
   preview?: { img?: string; video?: string };
   /** Mẫu dùng chung tải từ catalog fastaivn.com (quản trị trên web) */
-  remote?: { id: string; version: number; thumbnailUrl?: string; previewUrl?: string; graphUrl?: string; trendUrl?: string; isPremium?: boolean };
+  remote?: { id: string; version: number; thumbnailUrl?: string; previewUrl?: string; graphUrl?: string; bundleUrl?: string; trendUrl?: string; isPremium?: boolean };
 }
 
 export type WorkflowStepId = 'product' | 'script' | 'scenes' | 'merge' | 'post';

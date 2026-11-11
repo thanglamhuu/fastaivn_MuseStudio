@@ -30,7 +30,10 @@ import { aspectClass } from '../utils/image';
 import { NodeFlowProps, NodeFlowStudio } from './NodeFlowStudio';
 import { templateToFlow } from '../services/nodeFlow/fromTemplate';
 import { WorkflowTemplateGallery } from './WorkflowTemplateGallery';
-import { CatalogState, catalogTemplates, loadCatalog } from '../services/templateCatalog';
+import { APP_VERSION, CatalogState, catalogTemplates, loadCatalog, versionAtLeast } from '../services/templateCatalog';
+import { WorkflowBundleModal } from './WorkflowBundleModal';
+import type { ImportPlan } from '../services/workflowBundle';
+import type { FlowWorkflow } from '../services/nodeFlow/definitions';
 
 const inputCls =
   'w-full bg-slate-950 border border-white/5 text-[11px] text-slate-200 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-indigo-500';
@@ -334,6 +337,20 @@ export const WorkflowStudio: React.FC<{
 
   /** Mở mẫu đang chọn trong Sơ đồ khối để chỉnh từng node */
   const [flowIncoming, setFlowIncoming] = useState<NodeFlowProps['incoming']>();
+
+  /** Xuất / nhập bộ workflow (.musestudio.json) */
+  const [bundleMode, setBundleMode] = useState<'export' | 'import' | null>(null);
+  const [flowLib, setFlowLib] = useState<FlowWorkflow[]>([]);
+  const importBundle = (plan: ImportPlan) => {
+    if (plan.newCharacters.length) library.setCharacters((prev) => [...prev, ...plan.newCharacters]);
+    if (plan.newProducts.length) library.setProducts((prev) => [...prev, ...plan.newProducts]);
+    if (plan.templates.length) {
+      setCustoms((prev) => [...prev, ...plan.templates]);
+      setSelectedId(plan.templates[0].id);
+    }
+    if (plan.flows.length)
+      setFlowIncoming({ key: Date.now(), workflows: plan.flows, note: `Đã nhập ${plan.flows.length} sơ đồ: ${plan.flows.map((w) => w.name).join(', ')}.` });
+  };
   const [opening, setOpening] = useState(false);
   const openInNodes = async (tpl: WorkflowTemplate) => {
     setOpening(true);
@@ -569,6 +586,18 @@ export const WorkflowStudio: React.FC<{
 
   const viewSwitch = (
     <div className="px-4 lg:px-6 pt-4 flex flex-wrap items-center gap-2">
+      {bundleMode && (
+        <WorkflowBundleModal
+          mode={bundleMode}
+          onClose={() => setBundleMode(null)}
+          templates={customs}
+          flows={flowLib}
+          characters={library.characters}
+          products={library.products}
+          remoteBundles={(catalog?.catalog?.templates || []).filter((e) => e.bundleUrl && versionAtLeast(APP_VERSION, e.minAppVersion))}
+          onImport={importBundle}
+        />
+      )}
       <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-1">
         {(
           [
@@ -585,6 +614,22 @@ export const WorkflowStudio: React.FC<{
           </button>
         ))}
       </div>
+      <div className="ml-auto flex gap-2">
+        <button
+          onClick={() => setBundleMode('import')}
+          title="Nhập bộ workflow (.musestudio.json) từ file, link hoặc fastaivn.com"
+          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 border border-slate-700 text-slate-200 hover:border-indigo-500"
+        >
+          📥 Nhập bộ workflow
+        </button>
+        <button
+          onClick={() => setBundleMode('export')}
+          title="Xuất mẫu tự lưu + sơ đồ khối + nhân vật / sản phẩm dùng kèm thành 1 file để mang sang máy khác"
+          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 border border-slate-700 text-slate-200 hover:border-indigo-500"
+        >
+          📤 Xuất bộ workflow
+        </button>
+      </div>
     </div>
   );
 
@@ -598,6 +643,7 @@ export const WorkflowStudio: React.FC<{
         products={library.products}
         incoming={flowIncoming}
         active={view === 'nodes' || view === 'graph'}
+        onLibraryChange={setFlowLib}
       />
     </div>
   );

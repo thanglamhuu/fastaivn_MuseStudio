@@ -6,6 +6,7 @@ import type { WorkflowTemplate } from '../../types/workflow';
 import { FlowEdge, FlowNode, FlowWorkflow, NodeType, emptyWorkflow, makeNode, newId } from './definitions';
 import { loadHndFlowTemplates, parseFlowJson } from './flowIO';
 import { loadRemoteGraph } from '../templateCatalog';
+import { BUNDLE_KIND, bundleSummary, fetchBundleFromUrl, parseBundle } from '../workflowBundle';
 
 const MODE_NOTE: Record<string, string> = {
   tvc5: 'Kịch bản TVC / review 5 bước: Hook 3 giây → giới thiệu → cận cảnh chi tiết → trải nghiệm → chốt đơn.',
@@ -16,10 +17,20 @@ const MODE_NOTE: Record<string, string> = {
 
 export const templateToFlow = async (tpl: WorkflowTemplate): Promise<{ workflow: FlowWorkflow; notes: string[] }> => {
   // Mẫu dùng chung fastaivn.com: tải sơ đồ đã soạn sẵn (có bản đệm khi mất mạng)
-  if (tpl.remote?.graphUrl) {
+  if (tpl.remote?.graphUrl || tpl.remote?.bundleUrl) {
     try {
-      const graph = await loadRemoteGraph(tpl.remote.graphUrl);
+      let graph = tpl.remote.graphUrl ? await loadRemoteGraph(tpl.remote.graphUrl) : await fetchBundleFromUrl(tpl.remote.bundleUrl!);
+      const extra: string[] = [];
+      // graphUrl / bundleUrl trỏ tới bộ workflow → mở sơ đồ đầu tiên của bộ
+      if ((graph as any)?.kind === BUNDLE_KIND) {
+        const b = parseBundle(graph, tpl.name);
+        if (!b.flows.length) throw new Error('bộ workflow không có sơ đồ');
+        if (b.characters.length || b.products.length || b.flows.length > 1)
+          extra.push(`Bộ "${b.name}" còn ${bundleSummary(b)} — dùng 📥 Nhập bộ workflow để cài đủ (kèm nhân vật / sản phẩm).`);
+        graph = b.flows[0];
+      }
       const r = parseFlowJson(graph, tpl.name);
+      r.notes.unshift(...extra);
       r.workflow.name = tpl.name;
       r.workflow.description = r.workflow.description || tpl.description;
       r.workflow.category = tpl.category;

@@ -109,6 +109,13 @@ export const usePersistentState = <T,>(
       savePersisted(key + SAVED_AT_SUFFIX, localSavedAt.current);
       return;
     }
+    if (opts.server && !serverReady.current) {
+      // Chưa đọc xong bản trên Gateway: chỉ ghi tạm localStorage, KHÔNG nâng mốc thời gian.
+      // Nếu nâng, thay đổi tự động lúc mở app (vd. Sơ đồ khối ghi lại thư viện sau 600ms) sẽ "mới hơn"
+      // bản Gateway → bản cũ trong trình duyệt đè mất thay đổi đã lưu trên Gateway (mẫu đã xóa hiện lại).
+      savePersisted(key, data);
+      return;
+    }
     const savedAt = Date.now();
     localSavedAt.current = savedAt;
     if (!savePersisted(key, data)) {
