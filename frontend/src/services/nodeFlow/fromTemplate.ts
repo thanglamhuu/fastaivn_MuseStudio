@@ -16,6 +16,15 @@ const MODE_NOTE: Record<string, string> = {
 };
 
 export const templateToFlow = async (tpl: WorkflowTemplate): Promise<{ workflow: FlowWorkflow; notes: string[] }> => {
+  // Mẫu nhập từ bộ workflow: sơ đồ nhúng sẵn
+  if (tpl.flowGraph) {
+    const r = parseFlowJson(tpl.flowGraph, tpl.name);
+    r.workflow.name = tpl.name;
+    r.workflow.description = r.workflow.description || tpl.description;
+    r.workflow.category = tpl.category;
+    r.workflow.templateId = tpl.id;
+    return r;
+  }
   // Mẫu dùng chung fastaivn.com: tải sơ đồ đã soạn sẵn (có bản đệm khi mất mạng)
   if (tpl.remote?.graphUrl || tpl.remote?.bundleUrl) {
     try {

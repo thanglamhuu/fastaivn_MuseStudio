@@ -64,6 +64,11 @@ export interface WorkflowTemplate {
   hnd?: { templateId: string; templateStyle: string; videoUrl?: string };
   /** Id sơ đồ node dựng sẵn trong app (loadHndFlowTemplates) — nút 🧩 Sơ đồ mở đúng sơ đồ này */
   flowGraphId?: string;
+  /**
+   * Sơ đồ node (flow-workflow) nhúng sẵn trong mẫu — có khi mẫu đến từ bộ workflow (.musestudio.json).
+   * Ưu tiên hơn flowGraphId / hnd nên mẫu chạy được cả ở máy chưa có mẫu gốc.
+   */
+  flowGraph?: unknown;
   /** Ảnh / video xem trước card mẫu (đường dẫn tương đối trong public/) */
   preview?: { img?: string; video?: string };
   /** Mẫu dùng chung tải từ catalog fastaivn.com (quản trị trên web) */
