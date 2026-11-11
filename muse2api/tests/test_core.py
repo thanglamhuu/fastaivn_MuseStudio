@@ -100,3 +100,16 @@ def test_blank_browser_profile_dir_falls_back_to_data_dir(tmp_path, monkeypatch)
     monkeypatch.setenv("MUSE2API_BROWSER_PROFILE_DIR", "")
     settings = Settings(_env_file=None, data_dir=tmp_path)
     assert settings.profile_dir == tmp_path / "browser-profile"
+
+
+def test_voice_prompt_hint_describes_voice_in_words():
+    # [MuseStudio patch] muse.ai bỏ qua mã giọng thô trong prompt → phải tả bằng chữ (giới tính, giọng vùng)
+    from muse2api.core.voices import voice_prompt_hint
+
+    female = voice_prompt_hint("avocado_v2:vd2_r8_rep1k_a131_v068_28k_g5k")  # Rosette nồng nàn — nữ, tiếng Việt
+    assert "giọng NỮ" in female and "tiếng Việt" in female and "avocado_v2" not in female
+    assert "không dùng giọng nam" in female
+    male = voice_prompt_hint("avocado_v2:vd2_r8_rep5k_3491_v068_28k_g5k")  # Jetty tốt bụng — nam
+    assert "giọng NAM" in male and "không dùng giọng nữ" in male
+    # Mã không có trong danh mục: vẫn chuyển nguyên mã như trước
+    assert "unknown:x" in voice_prompt_hint("unknown:x")

@@ -450,7 +450,12 @@ const FieldInput: React.FC<{ f: FieldDef; d: FlowNodeData; set: (p: Partial<Flow
     case 'checkbox':
       return (
         <label className="flex items-center gap-2 text-[11px] text-slate-300">
-          <input type="checkbox" checked={!!v} onChange={(e) => set({ [f.key]: e.target.checked })} />
+          {/* Khóa ưu tiên ảnh / khóa bối cảnh: runtime coi "chưa đặt" là BẬT → ô tích hiện khớp với node cũ */}
+          <input
+            type="checkbox"
+            checked={v === undefined && (f.key === 'imagePriority' || f.key === 'lockSetting') ? true : !!v}
+            onChange={(e) => set({ [f.key]: e.target.checked })}
+          />
           {f.label}
         </label>
       );

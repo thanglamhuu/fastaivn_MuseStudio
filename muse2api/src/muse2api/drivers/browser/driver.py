@@ -28,6 +28,7 @@ from urllib.parse import urlsplit
 from ...accounts.model import Account
 from ...config import Settings
 from ...core.prompt import followup_text
+from ...core.voices import voice_prompt_hint
 from ...errors import (
     Muse2APIError,
     UpstreamAuthError,
@@ -955,8 +956,9 @@ class BrowserDriver(MuseDriver):
         prompt = self._media_prompt(req.prompt, "video", req.size, req.duration)
         images = ([req.first_frame] if req.first_frame else []) + list(req.reference_images)
         if req.voice:
-            # [MuseStudio patch] the web UI has no per-message voice control; ask in the prompt.
-            prompt += f"\n(Voice for narration and dialogue: {req.voice})"
+            # [MuseStudio patch] the web UI has no per-message voice control; ask in the prompt —
+            # described in words (gender, accent): muse.ai ignores the raw "avocado_v2:…" id.
+            prompt += "\n" + voice_prompt_hint(req.voice)
         return await self._generate(account, prompt, images[:4], "video", req.timeout,
                                     req.on_progress, req.cancel)
 

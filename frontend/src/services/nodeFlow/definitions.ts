@@ -77,6 +77,8 @@ export interface FlowNodeData {
   aiDescs?: Record<string, string>;
   /** Generate Video: thêm khóa "ưu tiên ảnh tham chiếu" cuối prompt (mặc định bật) */
   imagePriority?: boolean;
+  /** Giữ cùng bối cảnh giữa các cảnh video (mặc định bật; false = cho phép đổi địa điểm) */
+  lockSetting?: boolean;
   /** Generate Video: tạo ảnh khung hình trước (muse-image + tham chiếu) làm khung mở đầu (mặc định bật) */
   keyframeFirst?: boolean;
   /** Ảnh khung hình mở đầu đã tạo (để xem) */
@@ -304,6 +306,7 @@ export const NODE_DEFS: Record<NodeType, NodeDef> = {
       },
       { key: 'prompt', label: 'Prompt (khi không nối text-in)', type: 'mention' },
       { key: 'imagePriority', label: '🔒 Khóa "ưu tiên ảnh tham chiếu" cuối prompt (chữ khác ảnh thì theo ảnh)', type: 'checkbox' },
+      { key: 'lockSetting', label: '🏠 Giữ cùng bối cảnh với các cảnh khác (không tự nhảy địa điểm)', type: 'checkbox' },
       {
         key: 'keyframeFirst',
         label: '🖼 Tạo ảnh khung hình trước rồi mới tạo video (mặt giống hơn nhiều, thêm ~1 phút / cảnh)',
@@ -311,7 +314,7 @@ export const NODE_DEFS: Record<NodeType, NodeDef> = {
         when: (d) => (d.videoMode || 'text-to-video') !== 'text-to-video',
       },
     ],
-    defaults: { videoMode: 'reference-to-video', ratio: '9:16', duration: 10, prompt: '', imagePriority: true, keyframeFirst: true },
+    defaults: { videoMode: 'reference-to-video', ratio: '9:16', duration: 10, prompt: '', imagePriority: true, keyframeFirst: true, lockSetting: true },
   },
   'upscale-image': {
     label: 'Upscale Image (2K/4K)',

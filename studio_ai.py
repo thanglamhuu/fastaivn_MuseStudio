@@ -32,7 +32,10 @@ router = APIRouter(prefix="/studio/ai", tags=["studio-ai"], dependencies=[Depend
 
 GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta"
 DEFAULT_GEMINI_MODEL = "gemini-3.5-flash"
+FALLBACK_GEMINI_MODEL = "gemini-3.5-flash-lite"
 TIMEOUT_S = 120.0
+# Chờ tối đa mỗi lần gọi Gemini; quá thì đổi model (kịch bản 5 cảnh với 3.5-flash mất ~17 s)
+GEMINI_TIMEOUT_S = 60.0
 MASK = "••••"
 
 _lock = threading.Lock()
@@ -180,37 +183,24 @@ async def call_gemini(cfg: dict[str, Any], prompt: str, images: list[tuple[str, 
     with _lock:
         start = _next_key["i"] % len(keys)
         _next_key["i"] = start + 1
+    # Model đang đặt → model mặc định → bản lite. Chuyển model khi: Google ngừng model (404 "no longer available"),
+    # model treo quá GEMINI_TIMEOUT_S (đo được 11/11: gemini-3.8-flash / flash-latest treo > 150 s trong khi
+    # 3.5-flash trả lời 2 s), hoặc mọi key của model đó hết hạn mức (429 — hạn mức tính riêng theo model).
+    models = list(dict.fromkeys([model, DEFAULT_GEMINI_MODEL, FALLBACK_GEMINI_MODEL]))
     errors = []
-    for step in range(len(keys)):
-        idx = (start + step) % len(keys)
-        try:
-            resp = await client.post(f"{GEMINI_BASE}/models/{model}:generateContent",
-                                     params={"key": keys[idx]}, json=body, timeout=TIMEOUT_S)
-        except httpx.HTTPError as exc:
-            errors.append(f"key #{idx + 1}: {type(exc).__name__}")
-            continue
-        if resp.status_code == 200:
-            data = resp.json()
-            cands = data.get("candidates") or []
-            text = "".join(p.get("text", "") for c in cands[:1]
-                           for p in (c.get("content") or {}).get("parts", []))
-            if text.strip():
-                with _lock:
-                    _next_key["i"] = idx + 1
-                return {"text": text, "source": "gemini", "model": model, "key_index": idx + 1}
-            reason = (cands[0].get("finishReason") if cands else None) or \
-                (data.get("promptFeedback") or {}).get("blockReason") or "trả lời rỗng"
-            errors.append(f"key #{idx + 1}: {reason}")
-            continue
-        msg = resp.text[:300]
-        # Model cũ bị Google ngừng ("no longer available") → chuyển sang bí danh luôn trỏ bản mới nhất, thử lại cùng key
-        if resp.status_code == 404 and model != DEFAULT_GEMINI_MODEL:
-            model = DEFAULT_GEMINI_MODEL
+    for model in models:
+        for step in range(len(keys)):
+            idx = (start + step) % len(keys)
             try:
                 resp = await client.post(f"{GEMINI_BASE}/models/{model}:generateContent",
-                                         params={"key": keys[idx]}, json=body, timeout=TIMEOUT_S)
+                                         params={"key": keys[idx]}, json=body,
+                                         timeout=httpx.Timeout(GEMINI_TIMEOUT_S, connect=15.0))
+            except httpx.TimeoutException:
+                errors.append(f"{model}: quá {GEMINI_TIMEOUT_S:.0f}s")
+                log.warning("Gemini %s quá %.0fs — thử model khác", model, GEMINI_TIMEOUT_S)
+                break  # model treo → đổi model, không thử tiếp key khác cùng model
             except httpx.HTTPError as exc:
-                errors.append(f"key #{idx + 1}: {type(exc).__name__}")
+                errors.append(f"{model} key #{idx + 1}: {type(exc).__name__}")
                 continue
             if resp.status_code == 200:
                 data = resp.json()
@@ -218,12 +208,21 @@ async def call_gemini(cfg: dict[str, Any], prompt: str, images: list[tuple[str, 
                 text = "".join(p.get("text", "") for c in cands[:1]
                                for p in (c.get("content") or {}).get("parts", []))
                 if text.strip():
+                    with _lock:
+                        _next_key["i"] = idx + 1
                     return {"text": text, "source": "gemini", "model": model, "key_index": idx + 1}
+                reason = (cands[0].get("finishReason") if cands else None) or \
+                    (data.get("promptFeedback") or {}).get("blockReason") or "trả lời rỗng"
+                errors.append(f"{model} key #{idx + 1}: {reason}")
+                continue
             msg = resp.text[:300]
-        errors.append(f"key #{idx + 1}: HTTP {resp.status_code}")
-        if not _gemini_error_is_retryable(resp.status_code, msg):
-            raise AIProviderError(f"Gemini từ chối yêu cầu (HTTP {resp.status_code}): {msg}")
-    raise AIProviderError("Mọi Gemini key đều lỗi: " + "; ".join(errors))
+            errors.append(f"{model} key #{idx + 1}: HTTP {resp.status_code}")
+            if resp.status_code == 404:
+                log.warning("Gemini model %s không dùng được (404) — thử model khác", model)
+                break
+            if not _gemini_error_is_retryable(resp.status_code, msg):
+                raise AIProviderError(f"Gemini từ chối yêu cầu (HTTP {resp.status_code}): {msg}")
+    raise AIProviderError("Mọi Gemini key / model đều lỗi: " + "; ".join(errors))
 
 
 async def call_openai(cfg: dict[str, Any], prompt: str, images: list[tuple[str, str]],

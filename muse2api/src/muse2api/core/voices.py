@@ -37,6 +37,27 @@ def get_voice(voice_id: str) -> dict[str, Any] | None:
     return next((v for v in list_voices() if v["id"] == voice_id), None)
 
 
+_GENDER_VI = {"female": "giọng NỮ", "male": "giọng NAM", "neutral": "giọng trung tính"}
+
+
+def voice_prompt_hint(voice_id: str) -> str:
+    """[MuseStudio patch] Câu dặn giọng cho prompt khi không đặt được giọng qua API (driver trình duyệt).
+
+    Muse không hiểu mã thô ``avocado_v2:…`` viết trong prompt (đo được: chọn giọng nữ vẫn ra giọng nam) →
+    tả bằng chữ: giới tính, giọng vùng, tên giọng. Chỉ áp cho lời dẫn / nhân vật chính để không đổi giọng
+    của các nhân vật khác trong cảnh nhiều người (bố, mẹ, con…)."""
+    v = get_voice(voice_id)
+    if not v:
+        return f"(Voice for narration and dialogue: {voice_id})"
+    gender = _GENDER_VI.get(str(v.get("gender") or ""), "")
+    accent = str(v.get("accent") or "").strip()
+    accent_vi = "nói tiếng Việt chuẩn" if accent == "Tiếng Việt" else f"chất giọng {accent}" if accent else ""
+    desc = ", ".join(x for x in (gender, accent_vi, f"sắc thái \"{v['name']}\"") if x)
+    return (f"[GIỌNG NÓI: lời dẫn và lời thoại của nhân vật chính dùng {desc}"
+            f"{' (tuyệt đối không dùng giọng nam)' if v.get('gender') == 'female' else ' (tuyệt đối không dùng giọng nữ)' if v.get('gender') == 'male' else ''}; "
+            "nhân vật khác trong cảnh giữ giọng hợp giới tính, tuổi của họ.]")
+
+
 def voice_label(voice_id: str) -> str:
     """Human-readable name for prompts; the raw id when it is not in the catalog."""
     v = get_voice(voice_id)

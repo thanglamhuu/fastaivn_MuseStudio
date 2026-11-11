@@ -386,6 +386,19 @@ export const badScript = (raw: string, parts: string[], count: number): boolean 
   !parts.length ||
   parts.slice(0, count).some((p) => p.length < 120);
 
+/**
+ * Rút câu mô tả bối cảnh chung từ kịch bản / prompt cảnh: "bối cảnh cố định tại bàn làm việc văn phòng tối giản." →
+ * "bàn làm việc văn phòng tối giản". Không thấy thì trả chuỗi rỗng.
+ */
+export const extractSetting = (s: string): string => {
+  const m =
+    /bối\s*cảnh(?:\s+(?:cố\s*định|chung|xuyên\s*suốt|chính|duy\s*nhất))*\s*(?:là|tại|ở|:|：|—|–|-)?\s*(?:tại|ở|là)?\s*([^.\n;"“”[\]]{8,160})/i.exec(s) ||
+    /\b(?:setting|location)\s*[:：—-]\s*([^.\n;"[\]]{8,160})/i.exec(s);
+  const v = (m?.[1] || '').replace(/\*+/g, '').trim().replace(/[,:;—–-]+$/, '').trim();
+  // Câu chỉ nhắc chung chung ("của các cảnh khác", "như ảnh") thì bỏ
+  return /^(của|như|giống|và|cho|trong ảnh|các cảnh)/i.test(v) ? '' : v;
+};
+
 export const splitScript = (raw: string, count: number, idea: string, firstIsChar: boolean): string[] => {
   let parts = parseScriptParts(raw);
   if (parts.length < count) {
@@ -450,6 +463,9 @@ export async function runFlow(wf: FlowWorkflow, mode: RunMode, deps: FlowRunDeps
           : new Set(wf.nodes.filter((n) => n.data.runStatus !== 'done' || !n.data.results?.length).map((n) => n.id));
   const status = new Map<string, 'pending' | 'running' | 'done' | 'error'>();
   const results = new Map<string, NodeResult[]>();
+  /** Bối cảnh chung rút từ kịch bản AI ("bối cảnh cố định tại …") — khóa cho mọi cảnh video của lượt chạy */
+  let settingHint = '';
+  const videoCount = wf.nodes.filter((n) => n.type === 'generate-video').length;
   const errors = new Map<string, string>();
   wf.nodes.forEach((n) => {
     if (reset.has(n.id)) {
@@ -715,6 +731,11 @@ ${got[i - 1]}` : ''),
           // Câu thoại trùng giữa các cảnh (AI hay chép lại thoại cảnh trước) → nhờ viết lại thoại của cảnh sau
           got = await fixDuplicateDialogue(got, idea, label(n), deps.log, imgs);
           raw = got.join('\n---\n');
+          const st = extractSetting(r.text) || extractSetting(raw);
+          if (st && !settingHint) {
+            settingHint = st;
+            deps.log(`${label(n)}: bối cảnh chung của video — ${short(st, 90)}`);
+          }
         } catch (err: any) {
           deps.log(`${label(n)}: AI lỗi (${String(err?.message || err).slice(0, 120)}) → dùng khung dựng sẵn`);
         }
@@ -792,6 +813,15 @@ ${got[i - 1]}` : ''),
         text = text.replace(/giọng nữ (trầm khàn|trầm ấm|trầm)/gi, 'giọng nữ ấm áp (giọng NỮ, không phải giọng nam)');
         // Chạy lại node đã có kết quả: đổi prompt một chút, nếu không Gateway trả lại đúng video cũ (bộ đệm theo prompt + ảnh)
         if (d.rerun) text += `\n[Lần tạo lại #${d.rerun}: tạo bản MỚI, giữ đúng tham chiếu]`;
+        // KHÓA BỐI CẢNH: kịch bản nhiều động tác (rót nước, uống, đẩy cốc…) → Muse tự đổi địa điểm giữa các cảnh
+        // (lỗi thật "Review sau 7 ngày dùng" v4: cảnh 1 văn phòng, cảnh 2 nhảy ra phố đi bộ). Có ảnh khóa bối cảnh thì ảnh đó đã giữ.
+        if (videoCount >= 2 && d.lockSetting !== false && !refItems.some((r) => r.info.role === 'scene')) {
+          const st = settingHint || extractSetting(text);
+          text +=
+            `\n[GIỮ BỐI CẢNH XUYÊN SUỐT: mọi cảnh của video quay tại CÙNG MỘT địa điểm${st ? ` — ${st}` : ''}; ` +
+            'giữ nguyên không gian, đồ vật chính, màu sắc và ánh sáng như các cảnh khác. KHÔNG tự chuyển sang nơi khác ' +
+            '(đường phố, ngoài trời, phòng khác) trừ khi mô tả của chính cảnh này ghi rõ chuyển địa điểm.]';
+        }
         // Tạo ẢNH KHUNG HÌNH trước (muse-image + ảnh tham chiếu) rồi làm khung mở đầu video.
         // Thí nghiệm mẫu Gia đình: tỉ lệ khung hình đúng người Bố 6% → 87%, Mẹ 7% → 48% so với Reference-to-Video thẳng.
         if (d.keyframeFirst && !firstFrame && m !== 'text-to-video' && refItems.some((r) => r.info.role !== 'keyframe')) {

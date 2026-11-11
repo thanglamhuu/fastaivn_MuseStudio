@@ -127,3 +127,31 @@ def test_key_check(ctx):
     c.put("/studio/ai/config", headers=AUTH, json={"gemini_keys_text": f"{GOOD}\n{BAD}"})
     res = c.post("/studio/ai/test", headers=AUTH, json={"provider": "gemini"}).json()["results"]
     assert [r["ok"] for r in res] == [True, False]
+
+
+def test_gemini_switches_model_when_one_hangs_or_is_retired(tmp_path):
+    """Model đang đặt treo (quá thời gian chờ) hoặc bị Google ngừng (404) → tự thử model mặc định rồi bản lite."""
+    settings = Settings(_env_file=None, data_dir=tmp_path / "data", api_key=KEY, driver="mock")
+    app = create_app(settings, MockDriver(delay=0))
+    app.include_router(studio_ai.router)
+    seen: list[str] = []
+    behaviour = {"gemini-slow": "timeout", studio_ai.DEFAULT_GEMINI_MODEL: 404}
+
+    def fake(request: httpx.Request) -> httpx.Response:
+        model = request.url.path.split("/models/")[1].split(":")[0]
+        seen.append(model)
+        b = behaviour.get(model, 200)
+        if b == "timeout":
+            raise httpx.ReadTimeout("hang", request=request)
+        if b != 200:
+            return httpx.Response(b, json={"error": {"message": "no longer available"}})
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": "OK"}]}}]})
+
+    app.state.ai_transport = httpx.MockTransport(fake)
+    studio_ai._next_key["i"] = 0
+    with TestClient(app) as c:
+        c.put("/studio/ai/config", headers=AUTH, json={"gemini_keys_text": f"{GOOD}\n{BAD}", "gemini_model": "gemini-slow"})
+        out = c.post("/studio/ai/chat", headers=AUTH, json={"prompt": "x", "json_output": False}).json()
+    assert out["source"] == "gemini" and out["model"] == studio_ai.FALLBACK_GEMINI_MODEL, out
+    # Model treo: không thử key thứ 2 của cùng model (mất thêm 60 s vô ích); 404: đổi model ngay
+    assert seen == ["gemini-slow", studio_ai.DEFAULT_GEMINI_MODEL, studio_ai.FALLBACK_GEMINI_MODEL]
