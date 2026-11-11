@@ -29,7 +29,7 @@ import { StudioCharacter, StudioProduct, newLibraryId } from '../types/library';
 import { aspectClass } from '../utils/image';
 import { NodeFlowProps, NodeFlowStudio } from './NodeFlowStudio';
 import { templateToFlow } from '../services/nodeFlow/fromTemplate';
-import { WorkflowTemplateGallery } from './WorkflowTemplateGallery';
+import { GalleryCols, WorkflowTemplateGallery, templateGroup } from './WorkflowTemplateGallery';
 import { APP_VERSION, CatalogState, catalogTemplates, loadCatalog, versionAtLeast } from '../services/templateCatalog';
 import { WorkflowBundleModal } from './WorkflowBundleModal';
 import type { ImportPlan } from '../services/workflowBundle';
@@ -329,12 +329,13 @@ export const WorkflowStudio: React.FC<{
 
   const categories = useMemo(() => [...new Set(allTemplates.map((t) => t.category || 'Khác'))], [allTemplates]);
   /** Nhóm lọc: gộp "HND · Thời trang" với "Thời trang"... như các tab lọc của HND */
-  const catGroup = (t: WorkflowTemplate) => (t.category || 'Khác').replace(/^HND\s*·\s*/, '');
+  const catGroup = (t: WorkflowTemplate) => templateGroup(t.category);
   const catGroups = useMemo(() => [...new Set(allTemplates.map(catGroup))], [allTemplates]);
   const [catFilter, setCatFilter] = usePersistentState('workflow.catFilter.v1', 'all');
   const [tplSearch, setTplSearch] = useState('');
-  /** Số card mẫu mỗi dòng (4 hoặc 6) */
-  const [galleryCols, setGalleryCols] = usePersistentState<4 | 6>('workflow.galleryCols.v1', 6);
+  /** Số card mẫu mỗi dòng (6 / 8 / 10 / 12) — giá trị cũ 4 lưu trong máy tự chuyển thành 6 */
+  const [galleryColsRaw, setGalleryCols] = usePersistentState<GalleryCols>('workflow.galleryCols.v1', 6);
+  const galleryCols: GalleryCols = ([6, 8, 10, 12] as number[]).includes(galleryColsRaw) ? galleryColsRaw : 6;
 
   /** Mở mẫu đang chọn trong Sơ đồ khối để chỉnh từng node */
   const [flowIncoming, setFlowIncoming] = useState<NodeFlowProps['incoming']>();
@@ -669,7 +670,7 @@ export const WorkflowStudio: React.FC<{
         templates={allTemplates}
         rows={rows}
         groupOf={catGroup}
-        filter={catFilter}
+        filter={catFilter === 'all' || catGroups.includes(catFilter) ? catFilter : 'all'}
         setFilter={setCatFilter}
         search={tplSearch}
         setSearch={setTplSearch}

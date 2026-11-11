@@ -7,7 +7,24 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { WorkflowRow, WorkflowTemplate } from '../types/workflow';
 import type { CatalogState } from '../services/templateCatalog';
-import { WfThumb, loadWfThumbConfig } from '../services/wfthumbConfig';
+import { WfThumb, loadWfThumbConfig, youtubeId } from '../services/wfthumbConfig';
+
+/** Số card mỗi dòng (10 / 12: lưới dày, card gọn) */
+export type GalleryCols = 6 | 8 | 10 | 12;
+
+/**
+ * Gộp loại mẫu (category) thành 3 nhóm lớn trên thanh lọc. Loại không có trong bảng (mẫu tự lưu, catalog) giữ nguyên tên.
+ */
+const GROUPS: [string, string[]][] = [
+  ['Review sản phẩm', ['bán hàng', 'review pov (fastaivn)', 'review pov', 'không lộ mặt', 'ăn uống', 'gia dụng', 'gia dụng bếp', 'đồ chơi', 'sức khỏe', 'sức khoẻ']],
+  ['Thời trang & Mỹ phẩm', ['thời trang', 'mỹ phẩm', 'thời trang nam', 'thiết kế']],
+  ['Làm phim', ['câu chuyện', 'gia đình']],
+];
+export const templateGroup = (category?: string): string => {
+  const c = (category || 'Khác').replace(/^HND\s*·\s*/, '').trim();
+  const k = c.toLowerCase();
+  return GROUPS.find(([, list]) => list.includes(k))?.[0] || c;
+};
 
 const BASE = import.meta.env.BASE_URL || './';
 
@@ -20,6 +37,8 @@ interface Thumb {
   youtube?: string;
   /** Nhúng YouTube khi không có file video */
   youtubeEmbed?: string;
+  /** Clip đầy đủ có tiếng (nút ▶ phóng to) */
+  full?: string;
 }
 
 const latestOwnVideo = (rows: WorkflowRow[], id: string): string | undefined => {
@@ -33,7 +52,8 @@ const latestOwnVideo = (rows: WorkflowRow[], id: string): string | undefined => 
 
 const thumbOf = (t: WorkflowTemplate, rows: WorkflowRow[], wf?: WfThumb): Thumb => {
   // Thumbnail khai báo trong wfthumb/wfthumb.config.json (chỉ sửa file config, không build lại app)
-  if (wf && (wf.img || wf.video || wf.youtubeEmbed)) return { img: wf.img, video: wf.video, youtube: wf.youtube, youtubeEmbed: wf.video ? undefined : wf.youtubeEmbed };
+  if (wf && (wf.img || wf.video || wf.youtubeEmbed))
+    return { img: wf.img, video: wf.video, full: wf.full, youtube: wf.youtube, youtubeEmbed: wf.video ? undefined : wf.youtubeEmbed };
   const own = latestOwnVideo(rows, t.id);
   if (own) return { video: own, own: true };
   // Mẫu từ fastaivn.com: thumbnail / video xem trước do trang quản trị tải lên
@@ -60,7 +80,11 @@ const TemplateCard: React.FC<{
   selected: boolean;
   onSelect: () => void;
   onOpenNodes: () => void;
-}> = ({ t, thumb, group, selected, onSelect, onOpenNodes }) => {
+  /** Lưới dày (10 / 12 mỗi dòng): ẩn mô tả, nút gọn */
+  compact?: boolean;
+  /** Bấm ▶: phóng to phát clip có tiếng */
+  onPlay?: () => void;
+}> = ({ t, thumb, group, selected, onSelect, onOpenNodes, compact, onPlay }) => {
   const vref = useRef<HTMLVideoElement>(null);
   const [hover, setHover] = useState(false);
   const play = () => {
@@ -118,8 +142,8 @@ const TemplateCard: React.FC<{
             <span className="text-[10px] px-2 text-center text-white/70">Chưa có video mẫu — chạy thử để có thumbnail</span>
           </div>
         )}
-        <span className="absolute top-1.5 left-1.5 text-[9px] font-semibold px-1.5 py-0.5 rounded bg-black/60 text-emerald-300 backdrop-blur">{group}</span>
-        <span className="absolute top-1.5 right-1.5 flex gap-1">
+        {!compact && <span className="absolute top-1.5 left-1.5 text-[9px] font-semibold px-1.5 py-0.5 rounded bg-black/60 text-emerald-300 backdrop-blur">{group}</span>}
+        <span className={`absolute top-1.5 right-1.5 flex gap-1 ${compact ? 'hidden' : ''}`}>
           {t.remote && (
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-sky-600/90 text-white" title={`Mẫu dùng chung từ fastaivn.com · phiên bản ${t.remote.version}`}>
               🌐 fastaivn
@@ -130,19 +154,35 @@ const TemplateCard: React.FC<{
           {!t.builtin && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/90 text-slate-950">Của tôi</span>}
           {thumb.own && <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-600/90 text-white" title="Thumbnail từ clip bạn đã tạo">▶ clip của bạn</span>}
         </span>
-        <div className="absolute inset-x-0 bottom-0 p-1.5 bg-gradient-to-t from-black/85 to-transparent">
+        <div className={`absolute inset-x-0 bottom-0 p-1.5 bg-gradient-to-t from-black/85 to-transparent ${compact ? 'hidden' : ''}`}>
           <p className="text-[10px] text-white/90">
             {t.icon} {t.sceneCount} cảnh × {t.duration}s · {t.aspectRatio}
             {t.faceless ? ' · không lộ mặt' : ''}
           </p>
         </div>
+        {onPlay && (thumb.full || thumb.video || thumb.youtube) && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onPlay();
+            }}
+            title="Phóng to, phát clip mẫu có âm thanh"
+            className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/55 hover:bg-indigo-600 text-white flex items-center justify-center backdrop-blur border border-white/30 shadow-lg transition ${
+              compact ? 'w-8 h-8 text-xs' : 'w-12 h-12 text-lg'
+            }`}
+          >
+            ▶
+          </button>
+        )}
         {selected && <span className="absolute inset-0 ring-2 ring-inset ring-indigo-400 pointer-events-none" />}
       </div>
       {/* Thông tin */}
-      <div className="p-2 space-y-1">
-        <p className="text-[11px] font-semibold text-slate-100 leading-snug line-clamp-2 min-h-[2.4em]">{t.name}</p>
-        <p className="text-[10px] text-slate-400 leading-snug line-clamp-2 min-h-[2.4em]">{t.description}</p>
-        <div className="flex gap-1 pt-0.5">
+      <div className={compact ? 'p-1 space-y-0.5' : 'p-2 space-y-1'}>
+        <p className={`${compact ? 'text-[9px]' : 'text-[11px]'} font-semibold text-slate-100 leading-snug line-clamp-2 min-h-[2.4em]`} title={t.name}>
+          {t.name}
+        </p>
+        {!compact && <p className="text-[10px] text-slate-400 leading-snug line-clamp-2 min-h-[2.4em]">{t.description}</p>}
+        <div className={`flex gap-1 pt-0.5 ${compact ? 'flex-wrap' : ''}`}>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -150,7 +190,7 @@ const TemplateCard: React.FC<{
             }}
             className={`flex-1 text-[10px] px-1.5 py-1 rounded-lg font-semibold ${selected ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-200 hover:bg-slate-700'}`}
           >
-            {selected ? '✓ Đang dùng' : 'Dùng mẫu'}
+            {compact ? (selected ? '✓' : 'Dùng') : selected ? '✓ Đang dùng' : 'Dùng mẫu'}
           </button>
           <button
             onClick={(e) => {
@@ -160,7 +200,7 @@ const TemplateCard: React.FC<{
             title="Mở mẫu trong Sơ đồ khối để chỉnh từng node"
             className="text-[10px] px-1.5 py-1 rounded-lg bg-emerald-700/80 text-white hover:bg-emerald-600"
           >
-            🧩 Sơ đồ
+            {compact ? '🧩' : '🧩 Sơ đồ'}
           </button>
           {thumb.youtube && (
             <button
@@ -171,7 +211,7 @@ const TemplateCard: React.FC<{
               title="Xem clip mẫu trên YouTube"
               className="text-[10px] px-1.5 py-1 rounded-lg bg-red-700/90 text-white hover:bg-red-600"
             >
-              ▶ YouTube
+              {compact ? 'YT' : '▶ YouTube'}
             </button>
           )}
           {(t.hnd?.videoUrl || t.remote?.trendUrl) && (
@@ -192,6 +232,44 @@ const TemplateCard: React.FC<{
   );
 };
 
+/** Khung phóng to phát clip mẫu có âm thanh (bấm nền / ✕ / Esc để đóng) */
+const PlayerModal: React.FC<{ t: WorkflowTemplate; thumb: Thumb; onClose: () => void }> = ({ t, thumb, onClose }) => {
+  const yt = youtubeId(thumb.youtube);
+  const src = thumb.full || thumb.video;
+  return (
+    <div className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="relative flex flex-col items-center gap-2 max-h-full" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2 w-full">
+          <p className="flex-1 text-sm font-semibold text-white truncate">
+            {t.icon} {t.name}
+          </p>
+          {thumb.youtube && (
+            <a href={thumb.youtube} target="_blank" rel="noopener noreferrer" className="text-[11px] px-2 py-1 rounded-lg bg-red-700 text-white">
+              ▶ Mở trên YouTube
+            </a>
+          )}
+          <button onClick={onClose} className="text-slate-300 hover:text-white text-lg px-2" title="Đóng (Esc)">
+            ✕
+          </button>
+        </div>
+        {yt ? (
+          <iframe
+            src={`https://www.youtube.com/embed/${yt}?autoplay=1&playsinline=1&rel=0`}
+            title={t.name}
+            allow="autoplay; encrypted-media; fullscreen"
+            allowFullScreen
+            className="h-[82vh] aspect-[9/16] max-w-[92vw] rounded-xl bg-black"
+          />
+        ) : src ? (
+          <video src={src} poster={thumb.img} autoPlay controls playsInline className="h-[82vh] max-w-[92vw] rounded-xl bg-black object-contain" />
+        ) : (
+          <p className="text-slate-400 text-sm">Mẫu này chưa có clip.</p>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export const WorkflowTemplateGallery: React.FC<{
   templates: WorkflowTemplate[];
   rows: WorkflowRow[];
@@ -200,8 +278,8 @@ export const WorkflowTemplateGallery: React.FC<{
   setFilter: (v: string) => void;
   search: string;
   setSearch: (v: string) => void;
-  cols: 4 | 6;
-  setCols: (v: 4 | 6) => void;
+  cols: GalleryCols;
+  setCols: (v: GalleryCols) => void;
   selectedId: string;
   onSelect: (id: string) => void;
   onOpenNodes: (t: WorkflowTemplate) => void;
@@ -244,9 +322,24 @@ export const WorkflowTemplateGallery: React.FC<{
       (!search.trim() || `${t.name} ${t.description}`.toLowerCase().includes(search.trim().toLowerCase()))
   );
   const grid =
-    cols === 6
-      ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6'
-      : 'grid-cols-2 md:grid-cols-3 xl:grid-cols-4';
+    cols === 8
+      ? 'grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'
+      : cols === 12
+      ? 'grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 2xl:grid-cols-12'
+      : cols === 10
+        ? 'grid-cols-3 sm:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10'
+        : cols === 6
+          ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6'
+          : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6';
+  const compact = cols >= 10;
+  // Nút ▶ trên card: phóng to phát clip có âm thanh (YouTube nếu đã điền link → clip đầy đủ → video xem trước)
+  const [playing, setPlaying] = useState<{ t: WorkflowTemplate; thumb: Thumb } | null>(null);
+  useEffect(() => {
+    if (!playing) return;
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setPlaying(null);
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [playing]);
   return (
     <section className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -263,7 +356,7 @@ export const WorkflowTemplateGallery: React.FC<{
           onChange={(e) => setSearch(e.target.value)}
         />
         <div className="flex bg-slate-950 border border-slate-800 rounded-lg p-0.5" title="Số card mỗi dòng">
-          {([4, 6] as const).map((c) => (
+          {([6, 8, 10, 12] as const).map((c) => (
             <button
               key={c}
               onClick={() => setCols(c)}
@@ -316,8 +409,9 @@ export const WorkflowTemplateGallery: React.FC<{
           </button>
         ))}
       </div>
+      {playing && <PlayerModal t={playing.t} thumb={playing.thumb} onClose={() => setPlaying(null)} />}
       {shown.length ? (
-        <div className={`grid ${grid} gap-3`}>
+        <div className={`grid ${grid} ${compact ? 'gap-2' : 'gap-3'}`}>
           {shown.map((t) => (
             <TemplateCard
               key={t.id}
@@ -327,6 +421,8 @@ export const WorkflowTemplateGallery: React.FC<{
               selected={t.id === selectedId}
               onSelect={() => onSelect(t.id)}
               onOpenNodes={() => onOpenNodes(t)}
+              compact={compact}
+              onPlay={() => setPlaying({ t, thumb: thumbOf(t, rows, wfThumbs[t.id]) })}
             />
           ))}
         </div>
