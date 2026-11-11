@@ -61,7 +61,9 @@ Dùng `.venv` của dự án (python hệ thống thiếu uvicorn).
 | `HuongDan_POV_HongTreoGio\…docx` | Hướng dẫn làm tay video POV Hồng treo gió (11 trang) |
 | `fastaivn_catalog_mau\workflows\` | Catalog mẫu để chép lên Firebase Hosting |
 
-## 5. Đang làm dở — xuất cả 22 mẫu có sẵn
+## 5. ~~Đang làm dở~~ Đã xong (11/11, máy mới) — xuất cả 22 mẫu có sẵn
+
+Đã làm theo đúng các bước dưới (xem `changeLog/261111.md` mục 4). Ghi chép gốc giữ lại để tra:
 
 Yêu cầu: hộp **📤 Xuất bộ workflow** đang chỉ liệt kê mẫu tự lưu (0) + sơ đồ khối (1); cần liệt kê **cả 22 mẫu có sẵn** (8 MuseStudio + 13 HND + Hieu POV AIO, cộng mẫu catalog nếu có), mặc định chọn hết.
 
@@ -85,7 +87,9 @@ Còn lại:
 
 ## 7. Công cụ thí nghiệm — `tools/workflow_lab/`
 
-Chép từ thư mục tạm của phiên làm việc (đường dẫn trong script trỏ máy cũ — sửa lại trước khi chạy).
+Chép từ thư mục tạm của phiên làm việc. Đường dẫn đã đổi sang máy mới: `I:\Claude\Srcs\MuseStudio`, `I:\Claude\Srcs\HNDWorkflow`,
+`I:\Claude\Srcs\TaiNguyen`. Còn trỏ máy cũ (không có trên máy mới): `D:\1FastAIVN\srcs\HND Muse AI` (gen_flow_json, gen_hnd_templates, make_reports),
+`D:\work\fastaivn\srcs\fastaivnflowList` (prep_pov_test); thư mục thí nghiệm `_exp` / scratchpad của phiên cũ cũng phải sửa lại.
 
 | Script | Dùng để |
 |---|---|

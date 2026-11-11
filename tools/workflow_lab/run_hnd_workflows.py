@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Chạy lần lượt các mẫu Workflow của HND Muse AI qua API nội bộ (127.0.0.1:5680),
-lưu video + báo cáo vào D:\\1FastAIVN\\srcs\\HNDWorkflow.
+lưu video + báo cáo vào I:\\Claude\\Srcs\\HNDWorkflow.
 Usage: python run_hnd_workflows.py [template_id ...]
 """
 import json, os, re, shutil, sys, time, urllib.request
@@ -8,8 +8,8 @@ from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 API = "http://127.0.0.1:5680/api/hnd-workflow/"
-OUT = Path(r"D:\1FastAIVN\srcs\HNDWorkflow")
-TN = Path(r"D:\1FastAIVN\srcs\TaiNguyen")
+OUT = Path(r"I:\Claude\Srcs\HNDWorkflow")
+TN = Path(r"I:\Claude\Srcs\TaiNguyen")
 WEB = TN / "web"
 STATUS = OUT / "_run_status.json"
 ACCOUNT = "8c4d9d2bad9e"  # <email tài khoản Muse 1>

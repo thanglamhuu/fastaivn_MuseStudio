@@ -28,6 +28,9 @@ app.include_router(library_router)
 from studio_catalog import router as catalog_router  # noqa: E402
 
 app.include_router(catalog_router)
+from studio_wfthumb import router as wfthumb_router  # noqa: E402
+
+app.include_router(wfthumb_router)
 
 # Bật CORS để Vite dev server (http://localhost:5173) gọi được Gateway
 app.add_middleware(

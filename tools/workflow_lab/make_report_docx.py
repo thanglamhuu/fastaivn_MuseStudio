@@ -12,7 +12,7 @@ from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 
 sys.stdout.reconfigure(encoding="utf-8")
-DIR = Path(r"D:\1FastAIVN\srcs\HNDWorkflow\BaoCao_DongNhat_Muse")
+DIR = Path(r"I:\Claude\Srcs\HNDWorkflow\BaoCao_DongNhat_Muse")
 OUT = DIR / "FastAIVN - Bao cao giu dong nhat tham chieu Muse v2.docx"
 
 # Nhận diện FastAIVN.com

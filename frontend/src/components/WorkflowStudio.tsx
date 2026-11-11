@@ -112,7 +112,8 @@ export const WorkflowStudio: React.FC<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const remote = useMemo(() => catalogTemplates(catalog?.catalog ?? null), [catalog]);
-  const allTemplates = useMemo(() => [...remote.templates, ...FASTAIVN_WORKFLOWS, ...BUILTIN_WORKFLOWS, ...HND_WORKFLOWS, ...customs], [remote, customs]);
+  const builtinTemplates = useMemo(() => [...remote.templates, ...FASTAIVN_WORKFLOWS, ...BUILTIN_WORKFLOWS, ...HND_WORKFLOWS], [remote]);
+  const allTemplates = useMemo(() => [...builtinTemplates, ...customs], [builtinTemplates, customs]);
   const selected = allTemplates.find((t) => t.id === selectedId) ?? BUILTIN_WORKFLOWS[0];
   const [draft, setDraft] = useState<WorkflowTemplate>(selected);
   useEffect(() => setDraft(selected), [selected]);
@@ -591,6 +592,7 @@ export const WorkflowStudio: React.FC<{
           mode={bundleMode}
           onClose={() => setBundleMode(null)}
           templates={customs}
+          builtinTemplates={builtinTemplates}
           flows={flowLib}
           characters={library.characters}
           products={library.products}
@@ -624,7 +626,7 @@ export const WorkflowStudio: React.FC<{
         </button>
         <button
           onClick={() => setBundleMode('export')}
-          title="Xuất mẫu tự lưu + sơ đồ khối + nhân vật / sản phẩm dùng kèm thành 1 file để mang sang máy khác"
+          title="Xuất mẫu có sẵn + mẫu tự lưu + sơ đồ khối + nhân vật / sản phẩm dùng kèm thành 1 file để mang sang máy khác"
           className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 border border-slate-700 text-slate-200 hover:border-indigo-500"
         >
           📤 Xuất bộ workflow

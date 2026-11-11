@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
 HND = Path(r"D:\1FastAIVN\srcs\HND Muse AI")
-OUT = Path(r"D:\1FastAIVN\srcs\fastaivn_MuseStudio\frontend\src\data\hndWorkflowTemplates.ts")
+OUT = Path(r"I:\Claude\Srcs\MuseStudio\frontend\src\data\hndWorkflowTemplates.ts")
 sys.path.insert(0, str(HND))
 import workflow_studio as ws  # noqa: E402
 

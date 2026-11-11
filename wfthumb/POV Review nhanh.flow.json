@@ -1,0 +1,252 @@
+{
+ "id": "wf-mwbksxyh2kbszg",
+ "kind": "flow-workflow",
+ "schemaVersion": 1,
+ "name": "POV Review nhanh",
+ "description": "Góc nhìn thứ nhất, tay cầm sản phẩm review như người thật, nhịp nhanh. Hợp đồ ăn vặt, gia dụng.",
+ "nodes": [
+  {
+   "id": "node-mwbksxyh2lv3za",
+   "type": "upload-image",
+   "position": {
+    "x": 0,
+    "y": 0
+   },
+   "data": {
+    "refRoles": [
+     "product"
+    ],
+    "memberRole": "custom",
+    "characterName": "",
+    "prompt": "",
+    "autoDescribe": true,
+    "productId": "prod_test_chao",
+    "batchLabel": "📦 Sản phẩm (chọn trong Cài đặt)"
+   }
+  },
+  {
+   "id": "node-mwbksxyh2m0a1r",
+   "type": "prompt",
+   "position": {
+    "x": 330,
+    "y": 0
+   },
+   "data": {
+    "prompt": "Sản phẩm: @@Chảo chống dính ceramic.\nGóc nhìn thứ nhất (POV), chỉ thấy tay cầm sản phẩm, không lộ mặt; nhịp nhanh như người thật review.\nCó lời thoại tiếng Việt.\nMỗi cảnh một câu thoại riêng, đúng hành động của cảnh (cảnh 1 khoe chảo, cảnh 2 cận lòng chảo / tay cầm, cảnh 3 chiên trứng không dính, cảnh 4 chốt đơn) — không lặp câu.",
+    "batchLabel": "Ý tưởng / sản phẩm"
+   }
+  },
+  {
+   "id": "node-mwbksxyh2ny2zn",
+   "type": "gemini-script",
+   "position": {
+    "x": 330,
+    "y": 300
+   },
+   "data": {
+    "prompt": "",
+    "outputCount": 4,
+    "sceneSeconds": 8,
+    "firstOutputIsCharacter": false,
+    "batchLabel": "AI viết kịch bản"
+   }
+  },
+  {
+   "id": "node-mwbksxyh2q6vcs",
+   "type": "generate-video",
+   "position": {
+    "x": 700,
+    "y": 0
+   },
+   "data": {
+    "videoMode": "reference-to-video",
+    "ratio": "9:16",
+    "duration": 8,
+    "prompt": "",
+    "imagePriority": true,
+    "keyframeFirst": true,
+    "batchLabel": "Cảnh 1"
+   }
+  },
+  {
+   "id": "node-mwbksxyh2tyih1",
+   "type": "generate-video",
+   "position": {
+    "x": 700,
+    "y": 230
+   },
+   "data": {
+    "videoMode": "reference-to-video",
+    "ratio": "9:16",
+    "duration": 8,
+    "prompt": "",
+    "imagePriority": true,
+    "keyframeFirst": true,
+    "batchLabel": "Cảnh 2"
+   }
+  },
+  {
+   "id": "node-mwbksxyh2wzt8b",
+   "type": "generate-video",
+   "position": {
+    "x": 700,
+    "y": 460
+   },
+   "data": {
+    "videoMode": "reference-to-video",
+    "ratio": "9:16",
+    "duration": 8,
+    "prompt": "",
+    "imagePriority": true,
+    "keyframeFirst": true,
+    "batchLabel": "Cảnh 3"
+   }
+  },
+  {
+   "id": "node-mwbksxyh2z3b2d",
+   "type": "generate-video",
+   "position": {
+    "x": 700,
+    "y": 690
+   },
+   "data": {
+    "videoMode": "reference-to-video",
+    "ratio": "9:16",
+    "duration": 8,
+    "prompt": "",
+    "imagePriority": true,
+    "keyframeFirst": true,
+    "batchLabel": "Cảnh 4"
+   }
+  },
+  {
+   "id": "node-mwbksxyh32cio3",
+   "type": "merge-video",
+   "position": {
+    "x": 1300,
+    "y": 100
+   },
+   "data": {
+    "portCount": 4,
+    "batchLabel": "Ghép 4 cảnh"
+   }
+  },
+  {
+   "id": "node-mwbksxyh374b9i",
+   "type": "result",
+   "position": {
+    "x": 1600,
+    "y": 100
+   },
+   "data": {}
+  }
+ ],
+ "edges": [
+  {
+   "id": "edge-mwbksxyh2ofxwo",
+   "source": "node-mwbksxyh2m0a1r",
+   "sourceHandle": "text-out",
+   "target": "node-mwbksxyh2ny2zn",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyh2pha4b",
+   "source": "node-mwbksxyh2lv3za",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyh2ny2zn",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyh2r6mpv",
+   "source": "node-mwbksxyh2ny2zn",
+   "sourceHandle": "text-out-0",
+   "target": "node-mwbksxyh2q6vcs",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyh2s535k",
+   "source": "node-mwbksxyh2lv3za",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyh2q6vcs",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyh2ugb1q",
+   "source": "node-mwbksxyh2ny2zn",
+   "sourceHandle": "text-out-1",
+   "target": "node-mwbksxyh2tyih1",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyh2vt26o",
+   "source": "node-mwbksxyh2lv3za",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyh2tyih1",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyh2x4g2z",
+   "source": "node-mwbksxyh2ny2zn",
+   "sourceHandle": "text-out-2",
+   "target": "node-mwbksxyh2wzt8b",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyh2ykejg",
+   "source": "node-mwbksxyh2lv3za",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyh2wzt8b",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyh30mj3c",
+   "source": "node-mwbksxyh2ny2zn",
+   "sourceHandle": "text-out-3",
+   "target": "node-mwbksxyh2z3b2d",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyh31ddoj",
+   "source": "node-mwbksxyh2lv3za",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyh2z3b2d",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyh33ya4p",
+   "source": "node-mwbksxyh2q6vcs",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyh32cio3",
+   "targetHandle": "video-in-0"
+  },
+  {
+   "id": "edge-mwbksxyh342i67",
+   "source": "node-mwbksxyh2tyih1",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyh32cio3",
+   "targetHandle": "video-in-1"
+  },
+  {
+   "id": "edge-mwbksxyh35hkuz",
+   "source": "node-mwbksxyh2wzt8b",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyh32cio3",
+   "targetHandle": "video-in-2"
+  },
+  {
+   "id": "edge-mwbksxyh3690uk",
+   "source": "node-mwbksxyh2z3b2d",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyh32cio3",
+   "targetHandle": "video-in-3"
+  },
+  {
+   "id": "edge-mwbksxyh38edx1",
+   "source": "node-mwbksxyh32cio3",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyh374b9i",
+   "targetHandle": "video-in"
+  }
+ ],
+ "category": "Không lộ mặt"
+}

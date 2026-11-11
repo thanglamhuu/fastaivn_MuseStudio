@@ -4,9 +4,9 @@ import base64, json, subprocess, sys
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
-SRC = Path(r"D:\1FastAIVN\srcs\TaiNguyen\HongTreoGio")
-OUT = Path(r"D:\1FastAIVN\srcs\HNDWorkflow\HND worflows export\6_pov_giu_bao_bi_mau")
-FE = Path(r"D:\1FastAIVN\srcs\fastaivn_MuseStudio\frontend")
+SRC = Path(r"I:\Claude\Srcs\TaiNguyen\HongTreoGio")
+OUT = Path(r"I:\Claude\Srcs\HNDWorkflow\HND worflows export\6_pov_giu_bao_bi_mau")
+FE = Path(r"I:\Claude\Srcs\MuseStudio\frontend")
 box = "data:image/jpeg;base64," + base64.b64encode((OUT / "in" / "hop.jpg").read_bytes()).decode()
 inner = "data:image/jpeg;base64," + base64.b64encode((OUT / "in" / "vn-11134201-81ztc-mv.jpg").read_bytes()).decode()
 desk = "data:image/jpeg;base64," + base64.b64encode((FE / "public/workflow-thumbs/fastaivn-pov-desk.jpg").read_bytes()).decode()

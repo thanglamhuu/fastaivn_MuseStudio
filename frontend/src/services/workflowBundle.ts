@@ -5,7 +5,7 @@ import { GATEWAY_URL, MUSE_API_KEY } from '../config/appConfig';
 import type { StudioCharacter, StudioProduct } from '../types/library';
 import { newLibraryId } from '../types/library';
 import type { WorkflowTemplate } from '../types/workflow';
-import type { FlowWorkflow } from './nodeFlow/definitions';
+import type { FlowNode, FlowWorkflow } from './nodeFlow/definitions';
 import { parseFlowJson } from './nodeFlow/flowIO';
 import { APP_VERSION } from './templateCatalog';
 
@@ -31,8 +31,10 @@ export interface WorkflowBundle {
 const RUN_KEYS = ['runStatus', 'error', 'results', 'progress', 'startedAt', 'finishedAt', 'taskId', 'accountId', 'previewUrl', 'prompts', 'keyframe'];
 
 const isData = (v: string) => v.startsWith('data:');
-/** Ảnh nằm trên Gateway / máy này (không mở được ở máy khác) → phải nhúng. Ảnh đi kèm app (workflow-thumbs/…) giữ nguyên. */
-const needsInline = (v: string) => /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//i.test(v) || v.startsWith('/v1/') || v.startsWith('/studio/');
+/** Ảnh nằm trên Gateway / máy này (không mở được ở máy khác) → phải nhúng. */
+const isLocal = (v: string) => /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//i.test(v) || v.startsWith('/v1/') || v.startsWith('/studio/');
+/** Ảnh đi kèm app (workflow-thumbs/…, đường dẫn tương đối) — app bản cũ có thể chưa có → nhúng khi xuất ảnh của node sơ đồ */
+const isAppAsset = (v: string) => /^(\.\/)?[\w.-]+\/[^:?#]+\.(jpe?g|png|webp|gif)$/i.test(v);
 
 const blobToDataUrl = (b: Blob) =>
   new Promise<string>((ok, fail) => {
@@ -42,11 +44,13 @@ const blobToDataUrl = (b: Blob) =>
     r.readAsDataURL(b);
   });
 
-const inlineImage = async (v: unknown, warn: (m: string) => void): Promise<unknown> => {
-  if (typeof v !== 'string' || !v || isData(v) || !needsInline(v)) return v;
+const inlineImage = async (v: unknown, warn: (m: string) => void, appAssets = false): Promise<unknown> => {
+  if (typeof v !== 'string' || !v || isData(v)) return v;
+  const asset = appAssets && isAppAsset(v);
+  if (!asset && !isLocal(v)) return v;
   try {
-    const url = v.startsWith('/') ? `${GATEWAY_URL}${v}` : v;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${MUSE_API_KEY}` } });
+    const url = asset ? new URL(v, window.location.href).href : v.startsWith('/') ? `${GATEWAY_URL}${v}` : v;
+    const res = await fetch(url, asset ? {} : { headers: { Authorization: `Bearer ${MUSE_API_KEY}` } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await blobToDataUrl(await res.blob());
   } catch (err: any) {
@@ -58,6 +62,21 @@ const inlineImage = async (v: unknown, warn: (m: string) => void): Promise<unkno
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 
 const norm = (s: string) => s.trim().toLowerCase();
+
+/** Node của sơ đồ nhúng trong mẫu (tpl.flowGraph) */
+const graphNodes = (t: WorkflowTemplate): FlowNode[] => {
+  const nodes = (t.flowGraph as { nodes?: unknown } | undefined)?.nodes;
+  return Array.isArray(nodes) ? (nodes as FlowNode[]) : [];
+};
+
+/** Bỏ dữ liệu lượt chạy + nhúng ảnh (Gateway và ảnh đi kèm app) của các node sơ đồ */
+const cleanNodes = async (nodes: FlowNode[], warn: (m: string) => void) => {
+  for (const n of nodes) {
+    if (!n.data) continue;
+    RUN_KEYS.forEach((k) => delete (n.data as Record<string, unknown>)[k]);
+    for (const k of ['image', 'faceImage'] as const) if (n.data[k]) (n.data as any)[k] = await inlineImage(n.data[k], warn, true);
+  }
+};
 
 /** Tên chưa dùng: "Tên", "Tên (nhập)", "Tên (nhập 2)"… — ghi nhận vào taken */
 const uniqueName = (base: string, taken: Set<string>) => {
@@ -81,13 +100,13 @@ export const referencedLibrary = (
     t.characterIds?.forEach((id) => cIds.add(id));
     text += `\n${t.extraNote || ''}\n${(t.manualScenes || []).join('\n')}`;
   });
-  flows.forEach((w) =>
-    w.nodes.forEach((n) => {
-      if (n.data.characterId) cIds.add(String(n.data.characterId));
-      if (n.data.productId) pIds.add(String(n.data.productId));
-      text += `\n${n.data.prompt || ''}`;
-    })
-  );
+  const nodes = [...flows.flatMap((w) => w.nodes), ...templates.flatMap(graphNodes)];
+  nodes.forEach((n) => {
+    if (!n.data) return;
+    if (n.data.characterId) cIds.add(String(n.data.characterId));
+    if (n.data.productId) pIds.add(String(n.data.productId));
+    text += `\n${n.data.prompt || ''}`;
+  });
   // @tên nhân vật / @@tên sản phẩm (tên có thể nhiều chữ: "@@Quạt mini Jisulife")
   const low = text.toLowerCase();
   const mentioned = (prefix: string, name: string) => {
@@ -106,22 +125,43 @@ export const buildBundle = async (opts: {
   name: string;
   description?: string;
   templates: WorkflowTemplate[];
+  /** Mẫu có sẵn của app (8 MuseStudio + 13 HND + FastAIVN + catalog): nhúng sơ đồ node (flowGraph), giữ id gốc */
+  builtinTemplates?: WorkflowTemplate[];
   flows: FlowWorkflow[];
   characters: StudioCharacter[];
   products: StudioProduct[];
   includeLibrary: boolean;
+  onProgress?: (msg: string) => void;
 }): Promise<{ bundle: WorkflowBundle; warnings: string[] }> => {
   const warnings: string[] = [];
   const warn = (m: string) => warnings.push(m);
   const templates = clone(opts.templates).map((t) => ({ ...t, builtin: false }));
-  for (const t of templates) if (t.outfit?.image) t.outfit.image = String(await inlineImage(t.outfit.image, warn));
+  if (opts.builtinTemplates?.length) {
+    // import động: fromTemplate.ts cũng import file này
+    const { templateToFlow } = await import('./nodeFlow/fromTemplate');
+    let i = 0;
+    for (const src of opts.builtinTemplates) {
+      opts.onProgress?.(`Dựng sơ đồ mẫu có sẵn ${++i}/${opts.builtinTemplates.length}: ${src.name}`);
+      const t = { ...clone(src), builtin: false };
+      try {
+        const g = clone((await templateToFlow(src)).workflow);
+        delete g.updatedAt;
+        t.flowGraph = g;
+      } catch (err: any) {
+        warn(`Không dựng được sơ đồ mẫu "${src.name}" (${err?.message || err}) — xuất mẫu không kèm sơ đồ.`);
+      }
+      templates.push(t);
+    }
+  }
+  opts.onProgress?.('Nhúng ảnh…');
+  for (const t of templates) {
+    if (t.outfit?.image) t.outfit.image = String(await inlineImage(t.outfit.image, warn));
+    await cleanNodes(graphNodes(t), warn);
+  }
   const flows = clone(opts.flows);
   for (const w of flows) {
     delete w.updatedAt;
-    for (const n of w.nodes) {
-      RUN_KEYS.forEach((k) => delete (n.data as Record<string, unknown>)[k]);
-      for (const k of ['image', 'faceImage'] as const) if (n.data[k]) (n.data as any)[k] = await inlineImage(n.data[k], warn);
-    }
+    await cleanNodes(w.nodes, warn);
   }
   const lib = opts.includeLibrary ? referencedLibrary(templates, flows, opts.characters, opts.products) : { characters: [], products: [] };
   const characters = clone(lib.characters);
@@ -194,6 +234,8 @@ export const parseBundle = (raw: unknown, fallbackName = 'Bộ nhập'): Workflo
 
 export interface ImportPlan {
   templates: WorkflowTemplate[];
+  /** Theo thứ tự bundle.templates: tên sẽ nhập, hoặc null = mẫu có sẵn ở máy này (bỏ qua) */
+  templateTargets: (string | null)[];
   flows: FlowWorkflow[];
   /** Nhân vật / sản phẩm thêm mới vào Cài đặt */
   newCharacters: StudioCharacter[];
@@ -210,7 +252,14 @@ export interface ImportPlan {
  */
 export const planImport = (
   b: WorkflowBundle,
-  existing: { templates: WorkflowTemplate[]; flows: FlowWorkflow[]; characters: StudioCharacter[]; products: StudioProduct[] }
+  existing: {
+    templates: WorkflowTemplate[];
+    /** Mẫu có sẵn của app ở máy nhận — mẫu trong bộ trùng id thì bỏ qua (đã có) */
+    builtinTemplates?: WorkflowTemplate[];
+    flows: FlowWorkflow[];
+    characters: StudioCharacter[];
+    products: StudioProduct[];
+  }
 ): ImportPlan => {
   const notes: string[] = [];
   const cMap = new Map<string, string>();
@@ -241,16 +290,43 @@ export const planImport = (
       newProducts.push({ ...clone(p), id, createdAt: Date.now() });
     }
   });
-  const takenT = new Set(existing.templates.map((t) => norm(t.name)));
-  const templates = b.templates.map((t) => {
+  /** Nối lại characterId / productId của node theo id mới; id không có ở máy nhận thì bỏ chọn */
+  const remapNodes = (owner: string, nodes: FlowNode[]) =>
+    nodes.forEach((n) => {
+      if (!n.data) return;
+      if (n.data.characterId) {
+        const id = cMap.get(String(n.data.characterId));
+        if (id) n.data.characterId = id;
+        else if (!existing.characters.some((c) => c.id === n.data.characterId)) {
+          notes.push(`${owner}: "${n.data.batchLabel || 'Upload Image'}" chọn nhân vật không có trong bộ — chọn lại trong Cài đặt.`);
+          delete n.data.characterId;
+        }
+      }
+      if (n.data.productId) {
+        const id = pMap.get(String(n.data.productId));
+        if (id) n.data.productId = id;
+        else if (!existing.products.some((p) => p.id === n.data.productId)) {
+          notes.push(`${owner}: "${n.data.batchLabel || 'Upload Image'}" chọn sản phẩm không có trong bộ — chọn lại trong Cài đặt.`);
+          delete n.data.productId;
+        }
+      }
+    });
+  const builtinIds = new Set((existing.builtinTemplates || []).map((t) => t.id));
+  const takenT = new Set([...existing.templates, ...(existing.builtinTemplates || [])].map((t) => norm(t.name)));
+  const templates: WorkflowTemplate[] = [];
+  const templateTargets = b.templates.map((t) => {
+    if (builtinIds.has(t.id)) return null;
     const name = uniqueName(t.name, takenT);
-    return {
+    const nt = {
       ...clone(t),
       id: `wf_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`,
       name,
       builtin: false,
       characterIds: t.characterIds?.map((id) => cMap.get(id)).filter((x): x is string => !!x),
     } as WorkflowTemplate;
+    remapNodes(name, graphNodes(nt));
+    templates.push(nt);
+    return name;
   });
   const takenF = new Set(existing.flows.map((w) => norm(w.name)));
   const flows = b.flows.map((src) => {
@@ -261,27 +337,10 @@ export const planImport = (
     w.category = src.category;
     w.videoUrl = src.videoUrl;
     w.name = uniqueName(w.name, takenF);
-    w.nodes.forEach((n) => {
-      if (n.data.characterId) {
-        const id = cMap.get(String(n.data.characterId));
-        if (id) n.data.characterId = id;
-        else if (!existing.characters.some((c) => c.id === n.data.characterId)) {
-          notes.push(`${w.name}: "${n.data.batchLabel || 'Upload Image'}" chọn nhân vật không có trong bộ — chọn lại trong Cài đặt.`);
-          delete n.data.characterId;
-        }
-      }
-      if (n.data.productId) {
-        const id = pMap.get(String(n.data.productId));
-        if (id) n.data.productId = id;
-        else if (!existing.products.some((p) => p.id === n.data.productId)) {
-          notes.push(`${w.name}: "${n.data.batchLabel || 'Upload Image'}" chọn sản phẩm không có trong bộ — chọn lại trong Cài đặt.`);
-          delete n.data.productId;
-        }
-      }
-    });
+    remapNodes(w.name, w.nodes);
     return w;
   });
-  return { templates, flows, newCharacters, newProducts, reusedCharacters, reusedProducts, notes };
+  return { templates, templateTargets, flows, newCharacters, newProducts, reusedCharacters, reusedProducts, notes };
 };
 
 /** Tải bộ workflow từ link (fastaivn.com, Firebase, Google Drive public…) qua Gateway (không vướng CORS, file lớn). */

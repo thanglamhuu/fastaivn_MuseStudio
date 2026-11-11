@@ -5,7 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 sys.stdout.reconfigure(encoding="utf-8")
-ROOT = Path(r"D:\1FastAIVN\srcs\fastaivn_MuseStudio")
+ROOT = Path(r"I:\Claude\Srcs\MuseStudio")
 sys.path[:0] = [str(ROOT), str(ROOT / "muse2api" / "src")]
 from fastapi import FastAPI  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

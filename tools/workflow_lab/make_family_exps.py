@@ -9,10 +9,10 @@ import base64, copy, json, subprocess, sys, tempfile, uuid
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
-TN = Path(r"D:\1FastAIVN\srcs\TaiNguyen")
-OUT = Path(r"D:\1FastAIVN\srcs\HNDWorkflow\HND worflows export\4_thi_nghiem_dong_nhat")
+TN = Path(r"I:\Claude\Srcs\TaiNguyen")
+OUT = Path(r"I:\Claude\Srcs\HNDWorkflow\HND worflows export\4_thi_nghiem_dong_nhat")
 OUT.mkdir(parents=True, exist_ok=True)
-tpl = next(t for t in json.loads(Path(r"D:\1FastAIVN\srcs\fastaivn_MuseStudio\frontend\src\data\hndFlowTemplates.json").read_text(encoding="utf-8"))
+tpl = next(t for t in json.loads(Path(r"I:\Claude\Srcs\MuseStudio\frontend\src\data\hndFlowTemplates.json").read_text(encoding="utf-8"))
            if t["id"] == "hnd-ai-family-video-creator")
 
 

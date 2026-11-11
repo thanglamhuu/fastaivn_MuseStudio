@@ -369,8 +369,23 @@ const LocksField: React.FC<{ d: FlowNodeData; set: (p: Partial<FlowNodeData>) =>
           </select>
           {pr && (
             <span className="flex items-center gap-1.5 mt-1">
-              {pr.images[0] && <img src={pr.images[0]} className="w-10 h-10 rounded object-cover" />}
+              {pr.images[0] && <img src={pr.images[(Number(d.productImageIndex) || 0) % pr.images.length] || pr.images[0]} className="w-10 h-10 rounded object-cover" />}
               <span className="text-[9px] text-slate-400 line-clamp-3">{pr.visual || pr.description}</span>
+            </span>
+          )}
+          {pr && pr.images.length > 1 && (
+            <span className="flex items-center gap-1 mt-1 text-[10px] text-slate-500">
+              Ảnh dùng (lookbook):
+              {pr.images.map((img, k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => set({ productImageIndex: k })}
+                  className={`w-7 h-7 rounded overflow-hidden border ${((Number(d.productImageIndex) || 0) % pr.images.length) === k ? 'border-indigo-400' : 'border-slate-700'}`}
+                >
+                  <img src={img} className="w-full h-full object-cover" />
+                </button>
+              ))}
             </span>
           )}
         </label>

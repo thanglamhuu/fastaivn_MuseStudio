@@ -25,6 +25,8 @@ interface Props {
   onClose: () => void;
   /** Mẫu tự lưu ("Mẫu & danh sách dòng") */
   templates: WorkflowTemplate[];
+  /** Mẫu có sẵn của app (MuseStudio + HND + FastAIVN + catalog) */
+  builtinTemplates: WorkflowTemplate[];
   /** Sơ đồ đã lưu trong Sơ đồ khối */
   flows: FlowWorkflow[];
   characters: StudioCharacter[];
@@ -49,8 +51,9 @@ const Check: React.FC<{ checked: boolean; onChange: (v: boolean) => void; label:
   </label>
 );
 
-export const WorkflowBundleModal: React.FC<Props> = ({ mode, onClose, templates, flows, characters, products, remoteBundles, onImport }) => {
+export const WorkflowBundleModal: React.FC<Props> = ({ mode, onClose, templates, builtinTemplates, flows, characters, products, remoteBundles, onImport }) => {
   // ---------------- Xuất ----------------
+  const [pickB, setPickB] = useState<Set<string>>(() => new Set(builtinTemplates.map((t) => t.id)));
   const [pickT, setPickT] = useState<Set<string>>(() => new Set(templates.map((t) => t.id)));
   const [pickF, setPickF] = useState<Set<string>>(() => new Set(flows.map((w) => w.id)));
   const [withLib, setWithLib] = useState(true);
@@ -58,6 +61,8 @@ export const WorkflowBundleModal: React.FC<Props> = ({ mode, onClose, templates,
   const [desc, setDesc] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok?: string; err?: string; warn?: string[] }>({});
+  const [progress, setProgress] = useState('');
+  const chosenB = builtinTemplates.filter((t) => pickB.has(t.id));
   const chosenT = templates.filter((t) => pickT.has(t.id));
   const chosenF = flows.filter((w) => pickF.has(w.id));
   const lib = useMemo(() => referencedLibrary(chosenT, chosenF, characters, products), [chosenT, chosenF, characters, products]);
@@ -72,7 +77,17 @@ export const WorkflowBundleModal: React.FC<Props> = ({ mode, onClose, templates,
     setBusy(true);
     setMsg({});
     try {
-      const { bundle, warnings } = await buildBundle({ name, description: desc, templates: chosenT, flows: chosenF, characters, products, includeLibrary: withLib });
+      const { bundle, warnings } = await buildBundle({
+        name,
+        description: desc,
+        templates: chosenT,
+        builtinTemplates: chosenB,
+        flows: chosenF,
+        characters,
+        products,
+        includeLibrary: withLib,
+        onProgress: setProgress,
+      });
       const text = JSON.stringify(bundle);
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
@@ -84,6 +99,7 @@ export const WorkflowBundleModal: React.FC<Props> = ({ mode, onClose, templates,
       setMsg({ err: err?.message || String(err) });
     } finally {
       setBusy(false);
+      setProgress('');
     }
   };
 
@@ -97,10 +113,12 @@ export const WorkflowBundleModal: React.FC<Props> = ({ mode, onClose, templates,
 
   const load = (raw: unknown, fallback: string) => {
     const b = parseBundle(raw, fallback);
+    const pl = planImport(b, { templates, builtinTemplates, flows, characters, products });
     setBundle(b);
-    setUseT(new Set(b.templates.map((_, i) => i)));
+    // Mẫu đã có sẵn ở máy này → bỏ qua (không tích)
+    setUseT(new Set(b.templates.map((_, i) => i).filter((i) => pl.templateTargets[i] !== null)));
     setUseF(new Set(b.flows.map((_, i) => i)));
-    setPlan(planImport(b, { templates, flows, characters, products }));
+    setPlan(pl);
     setMsg({});
   };
   const fromFile = async (f?: File | null) => {
@@ -133,7 +151,7 @@ export const WorkflowBundleModal: React.FC<Props> = ({ mode, onClose, templates,
     // Chỉ nhập phần đã tích; nhân vật / sản phẩm chỉ thêm cái mà phần được nhập còn dùng
     const sub: WorkflowBundle = { ...bundle, templates: bundle.templates.filter((_, i) => useT.has(i)), flows: bundle.flows.filter((_, i) => useF.has(i)) };
     const need = referencedLibrary(sub.templates, sub.flows, bundle.characters, bundle.products);
-    const p = planImport({ ...sub, characters: need.characters, products: need.products }, { templates, flows, characters, products });
+    const p = planImport({ ...sub, characters: need.characters, products: need.products }, { templates, builtinTemplates, flows, characters, products });
     onImport(p, sub);
     setMsg({
       ok:
@@ -160,27 +178,43 @@ export const WorkflowBundleModal: React.FC<Props> = ({ mode, onClose, templates,
           {mode === 'export' ? (
             <>
               <p className="text-slate-400">
-                Gói các mẫu tự lưu + sơ đồ khối thành 1 file <b>.musestudio.json</b> (ảnh nhúng sẵn). Mở MuseStudio ở máy khác → 📥 Nhập bộ workflow là chạy được;
+                Gói mẫu có sẵn + mẫu tự lưu + sơ đồ khối thành 1 file <b>.musestudio.json</b> (ảnh nhúng sẵn). Mở MuseStudio ở máy khác → 📥 Nhập bộ workflow là chạy được;
                 hoặc tải file lên fastaivn.com để mọi người cài.
               </p>
               <div className="grid md:grid-cols-2 gap-3">
                 <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Tên bộ" />
                 <input className={inputCls} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Mô tả (tùy chọn)" />
               </div>
+              <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+                <div className="flex items-center mb-1">
+                  <b className="text-slate-100 flex-1">
+                    📚 Mẫu có sẵn ({chosenB.length}/{builtinTemplates.length})
+                    <span className="font-normal text-slate-500"> — kèm sơ đồ node, máy nhận đã có mẫu này thì bỏ qua</span>
+                  </b>
+                  <button className="text-indigo-300" onClick={() => setPickB(new Set(pickB.size ? [] : builtinTemplates.map((t) => t.id)))}>
+                    {pickB.size ? 'Bỏ hết' : 'Chọn hết'}
+                  </button>
+                </div>
+                <div className="grid md:grid-cols-2 gap-x-3 max-h-56 overflow-y-auto pr-1">
+                  {builtinTemplates.map((t) => (
+                    <Check key={t.id} checked={pickB.has(t.id)} onChange={(v) => toggle(pickB, setPickB, t.id, v)} label={`${t.icon || '🎬'} ${t.name}`} sub={`${t.category} · ${t.sceneCount} cảnh`} />
+                  ))}
+                </div>
+              </div>
               <div className="grid md:grid-cols-2 gap-3">
-                <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+                <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3 max-h-64 overflow-y-auto">
                   <div className="flex items-center mb-1">
                     <b className="text-slate-100 flex-1">📋 Mẫu tự lưu ({chosenT.length}/{templates.length})</b>
                     <button className="text-indigo-300" onClick={() => setPickT(new Set(pickT.size ? [] : templates.map((t) => t.id)))}>
                       {pickT.size ? 'Bỏ hết' : 'Chọn hết'}
                     </button>
                   </div>
-                  {!templates.length && <p className="text-slate-500">Chưa có mẫu tự lưu (mẫu có sẵn của app không cần xuất).</p>}
+                  {!templates.length && <p className="text-slate-500">Chưa có mẫu tự lưu.</p>}
                   {templates.map((t) => (
                     <Check key={t.id} checked={pickT.has(t.id)} onChange={(v) => toggle(pickT, setPickT, t.id, v)} label={`${t.icon || '🎬'} ${t.name}`} sub={`${t.category} · ${t.sceneCount} cảnh`} />
                   ))}
                 </div>
-                <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+                <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3 max-h-64 overflow-y-auto">
                   <div className="flex items-center mb-1">
                     <b className="text-slate-100 flex-1">🧩 Sơ đồ khối ({chosenF.length}/{flows.length})</b>
                     <button className="text-indigo-300" onClick={() => setPickF(new Set(pickF.size ? [] : flows.map((w) => w.id)))}>
@@ -209,9 +243,10 @@ export const WorkflowBundleModal: React.FC<Props> = ({ mode, onClose, templates,
                 }
               />
               <div className="flex gap-2">
-                <button disabled={busy || (!chosenT.length && !chosenF.length)} onClick={doExport} className={`${btn} bg-indigo-600 text-white`}>
-                  {busy ? 'Đang đóng gói (nhúng ảnh)…' : `📤 Xuất ${chosenT.length + chosenF.length} mục`}
+                <button disabled={busy || (!chosenB.length && !chosenT.length && !chosenF.length)} onClick={doExport} className={`${btn} bg-indigo-600 text-white`}>
+                  {busy ? 'Đang đóng gói…' : `📤 Xuất ${chosenB.length + chosenT.length + chosenF.length} mục`}
                 </button>
+                {busy && progress && <span className="self-center text-indigo-300">{progress}</span>}
               </div>
             </>
           ) : (
@@ -259,12 +294,25 @@ export const WorkflowBundleModal: React.FC<Props> = ({ mode, onClose, templates,
                   </p>
                   {bundle.description && <p className="text-slate-400">{bundle.description}</p>}
                   <div className={`grid gap-3 ${bundle.templates.length && bundle.flows.length ? 'md:grid-cols-2' : ''}`}>
-                    <div className={bundle.templates.length ? '' : 'hidden'}>
-                      {bundle.templates.map((t, i) => (
-                        <Check key={i} checked={useT.has(i)} onChange={(v) => { const n = new Set(useT); v ? n.add(i) : n.delete(i); setUseT(n); }} label={`📋 ${t.name}`} sub={`→ ${plan.templates[i]?.name}`} />
-                      ))}
+                    <div className={bundle.templates.length ? 'max-h-72 overflow-y-auto' : 'hidden'}>
+                      {bundle.templates.map((t, i) =>
+                        plan.templateTargets[i] === null ? (
+                          <div key={i} className="py-1 text-xs text-slate-500">
+                            ✓ {t.name}
+                            <span className="block text-[11px]">mẫu có sẵn ở máy này — bỏ qua</span>
+                          </div>
+                        ) : (
+                          <Check
+                            key={i}
+                            checked={useT.has(i)}
+                            onChange={(v) => { const n = new Set(useT); v ? n.add(i) : n.delete(i); setUseT(n); }}
+                            label={`📋 ${t.name}`}
+                            sub={`→ ${plan.templateTargets[i]}${t.flowGraph ? ' · kèm sơ đồ node' : ''}`}
+                          />
+                        )
+                      )}
                     </div>
-                    <div className={bundle.flows.length ? '' : 'hidden'}>
+                    <div className={bundle.flows.length ? 'max-h-72 overflow-y-auto' : 'hidden'}>
                       {bundle.flows.map((w, i) => (
                         <Check key={i} checked={useF.has(i)} onChange={(v) => { const n = new Set(useF); v ? n.add(i) : n.delete(i); setUseF(n); }} label={`🧩 ${w.name}`} sub={`${w.nodes.length} node → ${plan.flows[i]?.name}`} />
                       ))}

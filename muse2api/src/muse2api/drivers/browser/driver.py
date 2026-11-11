@@ -200,7 +200,7 @@ class BrowserDriver(MuseDriver):
         per-account limit. An idle tab matching ``prefer`` wins; without one, a new
         tab beats reusing (and so wiping) a tab that holds another conversation.
         Pair every call with ``_checkin``."""
-        limit = max(1, self.settings.account_max_concurrency)
+        limit = self._tab_limit(account)
         try:
             await self._ensure_browser()
         except (CDPError, OSError, RuntimeError) as exc:
@@ -213,6 +213,15 @@ class BrowserDriver(MuseDriver):
                           if t.closed or (not t.busy and (t.stale or t.session.closed))]:
                     tabs.remove(t)
                     dead.append(t)
+                # [MuseStudio patch] Tab rảnh vượt giới hạn (vd. sau khi hạ số luồng tài khoản)
+                # → đóng bớt, giữ tab warm. Mỗi tab muse.ai giữ trang thread cũ (video) 300-600 MB RAM.
+                extra = len(tabs) - limit
+                for t in sorted((t for t in tabs if not t.busy), key=lambda t: (t.warm, not t.has_state)):
+                    if extra <= 0:
+                        break
+                    tabs.remove(t)
+                    dead.append(t)
+                    extra -= 1
                 # A warm tab first: whoever needs a new thread gets a started one.
                 idle = sorted((t for t in tabs if not t.busy), key=lambda t: not t.warm)
                 can_open = len(tabs) + self._opening.get(account.id, 0) < limit
@@ -246,6 +255,20 @@ class BrowserDriver(MuseDriver):
                 self._tab_cond.notify_all()
         log.info("opened tab %d for account %s", len(self._tabs[account.id]), account.id)
         return tab
+
+    def _tab_limit(self, account: Account) -> int:
+        """[MuseStudio patch] Số tab tối đa của 1 tài khoản. Trước đây luôn = account_max_concurrency (4)
+        nên dù Studio đặt tài khoản 1 luồng, driver vẫn mở tới 4 tab + tab warm và giữ chúng mãi
+        (5 tài khoản → 22 tab, ~7,6 GB RAM). Tài khoản có giới hạn riêng: số luồng + 1 tab warm
+        (pool đã chặn số việc song song nên tab thứ 3 trở đi không bao giờ được dùng cùng lúc)."""
+        base = max(1, self.settings.account_max_concurrency)
+        try:
+            own = int(account.meta.get("max_concurrency") or 0)
+        except (TypeError, ValueError):
+            own = 0
+        if own <= 0:
+            return base
+        return max(1, min(base, own) + (1 if self.settings.warm_threads > 0 else 0))
 
     async def _checkin(self, tab: _Tab) -> None:
         # Free the tab before taking the lock: a request cancelled while waiting for
@@ -712,7 +735,7 @@ class BrowserDriver(MuseDriver):
     async def _checkout_for_warming(self, account: Account, pending: int = 0) -> _Tab | None:
         """A tab to warm, but only while the account has warm threads missing (counting
         the ``pending`` ones being warmed) and a slot is still left for a real request."""
-        limit = max(1, self.settings.account_max_concurrency)
+        limit = self._tab_limit(account)
         async with self._tab_cond:
             tabs = [t for t in self._tabs.get(account.id, []) if not t.closed]
             if sum(t.warm for t in tabs) + pending >= self.settings.warm_threads:

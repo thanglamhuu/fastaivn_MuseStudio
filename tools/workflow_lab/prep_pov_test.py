@@ -5,9 +5,9 @@ from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
 SRC = Path(r"D:\work\fastaivn\srcs\fastaivnflowList\lamclip\POVAIO")
-OUT = Path(r"D:\1FastAIVN\srcs\HNDWorkflow\HND worflows export\5_hieu_pov_aio")
+OUT = Path(r"I:\Claude\Srcs\HNDWorkflow\HND worflows export\5_hieu_pov_aio")
 OUT.mkdir(parents=True, exist_ok=True)
-FE = Path(r"D:\1FastAIVN\srcs\fastaivn_MuseStudio\frontend")
+FE = Path(r"I:\Claude\Srcs\MuseStudio\frontend")
 
 
 def data_url(p: Path) -> str:

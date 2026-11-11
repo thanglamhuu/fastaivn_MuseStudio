@@ -95,8 +95,26 @@ const templateToFlowLocal = async (tpl: WorkflowTemplate): Promise<{ workflow: F
     refs.push(add('upload-image', 0, y, { refRoles: ['outfit'], image: tpl.outfit.image || '', prompt: tpl.outfit.description, batchLabel: '👗 Trang phục' }));
     y += 260;
   }
-  refs.push(add('upload-image', 0, y, { refRoles: ['product'], productId: '', batchLabel: '📦 Sản phẩm (chọn trong Cài đặt)', prompt: '' }));
-  y += 260;
+  // Lookbook (rotateProductImages): mỗi cảnh 1 khối sản phẩm riêng = ảnh thứ i của sản phẩm (mẫu / màu khác) — nối riêng vào cảnh i
+  const n0 = Math.max(1, tpl.manualScenes?.length || tpl.sceneCount || 4);
+  const perScene: FlowNode[] = [];
+  if (tpl.rotateProductImages) {
+    for (let i = 0; i < n0; i++) {
+      perScene.push(
+        add('upload-image', 0, y, {
+          refRoles: ['product'],
+          productId: '',
+          productImageIndex: i,
+          batchLabel: `📦 Sản phẩm cảnh ${i + 1} — ảnh thứ ${i + 1} của sản phẩm (hoặc tải ảnh mẫu / màu riêng)`,
+          prompt: '',
+        })
+      );
+      y += 200;
+    }
+  } else {
+    refs.push(add('upload-image', 0, y, { refRoles: ['product'], productId: '', batchLabel: '📦 Sản phẩm (chọn trong Cài đặt)', prompt: '' }));
+    y += 260;
+  }
 
   // Cột 2: nguồn cảnh
   const n = Math.max(1, tpl.manualScenes?.length || tpl.sceneCount || 4);
@@ -118,6 +136,7 @@ const templateToFlowLocal = async (tpl: WorkflowTemplate): Promise<{ workflow: F
     const g = add('gemini-script', 330, 300, { batchLabel: 'AI viết kịch bản', outputCount: n, sceneSeconds: tpl.duration });
     link(idea, 'text-out', g, 'text-in');
     refs.forEach((r) => link(r, 'image-out', g, 'image-in'));
+    if (perScene[0]) link(perScene[0], 'image-out', g, 'image-in');
     for (let i = 0; i < n; i++) sceneText.push({ node: g, handle: `text-out-${i}` });
   }
 
@@ -133,6 +152,7 @@ const templateToFlowLocal = async (tpl: WorkflowTemplate): Promise<{ workflow: F
     });
     link(s.node, s.handle, v, 'text-in');
     refs.forEach((r) => link(r, 'image-out', v, 'image-in'));
+    if (perScene.length) link(perScene[i % perScene.length], 'image-out', v, 'image-in');
     if (chained) {
       const ef = add('extract-endframe', 1000, i * 230 - 110, { batchLabel: `Khung cuối cảnh ${i}` });
       link(videos[i - 1], 'video-out', ef, 'video-in');

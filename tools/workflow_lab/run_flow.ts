@@ -1,8 +1,8 @@
 // Chạy 1 file sơ đồ flow-workflow bằng đúng runtime của MuseStudio (frontend/src/services/nodeFlow/runtime.ts),
 // ngoài trình duyệt. Dùng cho thí nghiệm đồng nhất. node run_flow.cjs <file.json> [threads]
 import { readFileSync, writeFileSync } from 'node:fs';
-import { parseFlowJson } from 'D:/1FastAIVN/srcs/fastaivn_MuseStudio/frontend/src/services/nodeFlow/flowIO';
-import { runFlow } from 'D:/1FastAIVN/srcs/fastaivn_MuseStudio/frontend/src/services/nodeFlow/runtime';
+import { parseFlowJson } from 'I:/Claude/Srcs/MuseStudio/frontend/src/services/nodeFlow/flowIO';
+import { runFlow } from 'I:/Claude/Srcs/MuseStudio/frontend/src/services/nodeFlow/runtime';
 
 const file = process.argv[2];
 const threads = Number(process.argv[3] || 2);

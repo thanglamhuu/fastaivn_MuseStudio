@@ -117,18 +117,31 @@ interface Input extends NodeResult {
  * Gateway trả "all accounts are busy" khi mọi tài khoản Muse đang đủ luồng (vd. chạy 2 workflow cùng lúc,
  * hoặc tab Tạo video đang render) → chờ rồi thử lại thay vì báo lỗi node.
  */
-const BUSY_RE = /all accounts are busy|try again later|tài khoản.*bận|rate.?limit|429/i;
+const BUSY_RE = /all accounts are busy|try again later|tài khoản.*bận|rate.?limit|429|fetch failed|failed to fetch|ECONNRESET|socket hang up/i;
 const withBusyRetry = async <T,>(fn: () => Promise<T>, opts: { shouldStop: () => boolean; log: (m: string) => void; what: string }): Promise<T> => {
   for (let attempt = 1; ; attempt++) {
     try {
       return await fn();
     } catch (err: any) {
       const msg = String(err?.message || err);
-      if (!BUSY_RE.test(msg) || attempt >= 30 || opts.shouldStop()) throw err;
+      if (!BUSY_RE.test(msg) || attempt >= 90 || opts.shouldStop()) throw err;
       const wait = Math.min(60, 10 + attempt * 5);
       opts.log(`${opts.what}: tài khoản Muse đang bận — chờ ${wait}s rồi thử lại (lần ${attempt})`);
       const end = Date.now() + wait * 1000;
       while (Date.now() < end && !opts.shouldStop()) await new Promise((r) => setTimeout(r, 500));
+    }
+  }
+};
+
+/** muse.ai đôi khi trả lời bằng chữ / lỗi render / quá giờ thay vì ảnh, video → làm lại tối đa 2 lần */
+const NO_MEDIA_RE = /Internal Server Error|Bad Gateway|text only|no video|no image|did not (produce|return) an? (video|image)|Timeout|quá thời gian chờ|báo lỗi trong lúc render/i;
+const retryNoMedia = async <T,>(fn: () => Promise<T>, what: string, deps: { shouldStop: () => boolean; log: (m: string) => void }): Promise<T> => {
+  for (let k = 0; ; k++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      if (k >= 2 || deps.shouldStop() || !NO_MEDIA_RE.test(String(err?.message || err))) throw err;
+      deps.log(`${what}: muse.ai không trả kết quả (trả lời bằng chữ / lỗi render / quá giờ) → làm lại (lần ${k + 2})`);
     }
   }
 };
@@ -174,6 +187,18 @@ const toDataUrl = async (value: string) => (isData(value) ? value : urlToResized
 
 /** Gọi AI viết chữ: Gemini / OpenAI (Cài đặt ➔ Trợ lý AI), lỗi thì dùng muse-chat. */
 export const aiText = async (prompt: string, images: string[]): Promise<{ text: string; source: string }> => {
+  // Tài khoản Muse bận / lỗi mạng → chờ rồi thử lại (lỗi thật: "viết tiếp đoạn thiếu" gặp busy → mất cả kịch bản AI)
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await aiTextOnce(prompt, images);
+    } catch (err: any) {
+      if (attempt >= 12 || !BUSY_RE.test(String(err?.message || err))) throw err;
+      await new Promise((r) => setTimeout(r, Math.min(60, 10 + attempt * 5) * 1000));
+    }
+  }
+};
+
+const aiTextOnce = async (prompt: string, images: string[]): Promise<{ text: string; source: string }> => {
   try {
     const r = await gw<{ text: string; source?: string; model?: string }>('/studio/ai/chat', {
       prompt,
@@ -213,6 +238,9 @@ const scriptInstruction = (idea: string, count: number, firstIsChar: boolean, se
     (firstIsChar && count >= 2
       ? `Viết đúng ${count} đoạn, ngăn cách bằng dòng ---\n- Đoạn 1: prompt ẢNH NHÂN VẬT GỐC (1 người, 1 khung, nền studio sáng) khóa khuôn mặt, tuổi, tóc, trang phục.\n- Đoạn 2..${count}: prompt VIDEO từng cảnh 1..${scenes}.\n`
       : `Viết đúng ${count} đoạn prompt VIDEO cho Cảnh 1..${count}, ngăn cách bằng dòng ---\n`) +
+    'Đây là một yêu cầu MỚI, độc lập: bỏ qua mọi cuộc trò chuyện, dự án, video đã làm trước đó. ' +
+    'KHÔNG hỏi lại người dùng: nếu mô tả chữ khác ảnh tham chiếu thì tự theo ẢNH và viết luôn. ' +
+    'Mỗi đoạn là prompt video đầy đủ (hành động, camera, bối cảnh, lời thoại riêng của cảnh đó — không lặp câu thoại giữa các cảnh). ' +
     'Chỉ trả về các đoạn prompt, không giải thích, không đánh số tiêu đề thừa.'
   );
 };
@@ -225,17 +253,133 @@ export const parseScriptParts = (raw: string): string[] => {
   const text = raw.replace(/```[a-z]*\n?/gi, '').trim();
   let parts = text.split(/\n\s*-{3,}\s*\n/);
   if (parts.length < 2) parts = text.split(/\n(?=\s*\**\s*(?:CẢNH|Cảnh|SCENE|Scene)\s*0?\d+\s*(?:\/\s*\d+)?\s*[—:\-–|])/);
-  // AI đôi khi dán tiếp đoạn khác ngay giữa dòng ("…| CẢNH 01/03 — HOOK …") → tách thêm theo tiêu đề "CẢNH x/y"
-  parts = parts.flatMap((p) => p.split(/(?=(?:CẢNH|SCENE)\s*0?\d+\s*\/\s*0?\d+\s*[—–\-:])/).filter((s, i, a) => a.length === 1 || s.trim().length > 15));
+  // AI đôi khi dán tiếp đoạn khác ngay giữa dòng ("…| CẢNH 01/03 — HOOK …", "…Cảnh 2/5 DIỄN BIẾN…") → 1 đoạn chứa từ 2 nhãn cảnh trở lên
+  // thì cắt tại nhãn thứ 2 trở đi (nhãn đầu có thể đứng sau phần mở đầu "Video dọc 9:16…" — phần đó đi cùng cảnh đầu).
+  const LABEL_RE = /(?:CẢNH|SCENE)\s*0?\d+\s*\/\s*0?\d+\s*[—–\-:]|(?:Cảnh|Scene)\s*0?\d+\s*\/\s*0?\d+\s*(?:[—–\-:]|[A-ZĐÂĂÊÔƠƯ]{3,})/g;
+  parts = parts.flatMap((p) => {
+    const at = [...p.matchAll(LABEL_RE)].map((m) => m.index || 0);
+    if (at.length < 2) return [p];
+    const cuts = [0, ...at.slice(1), p.length];
+    return cuts.slice(0, -1).map((c, i) => p.slice(c, cuts[i + 1])).filter((x) => x.trim().length > 15);
+  });
+  // Đoạn bị dính 2 cảnh (AI viết tiếp ngay sau dấu nháy, không xuống dòng: "…năm|Video dọc 9:16…") → tách tại chỗ phần mở đầu lặp lại
+  parts = parts.flatMap((p) => {
+    const t = p.trim();
+    const head = t.slice(0, 40);
+    if (head.length < 40) return [t];
+    const out: string[] = [];
+    let rest = t;
+    for (let k = rest.indexOf(head, 200); k > 0; k = rest.indexOf(head, 200)) {
+      out.push(rest.slice(0, k));
+      rest = rest.slice(k);
+    }
+    return [...out, rest];
+  });
   const out: string[] = [];
+  const key = (x: string) => x.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
   parts
     .map((s) => s.trim().replace(/\s*\|\s*$/, ''))
     .filter((s) => s.length > 15)
     .forEach((p) => {
-      if (!out.some((o) => o.slice(0, 60) === p.slice(0, 60))) out.push(p);
+      // Trùng = giống hệt cả đoạn (các cảnh hay mở đầu bằng cùng 1 câu khóa bối cảnh nên không so phần đầu)
+      if (!out.some((o) => key(o) === key(p))) out.push(p);
     });
+  // Đoạn có nhãn "SCENE k/N" / "CẢNH k/N": AI hay viết đi viết lại 1 cảnh nhiều bản nháp (lỗi thật: 4 bản "SCENE 1/5" rồi mới tới cảnh 2
+  // → 4 cảnh đầu đều là cảnh 1). Bản nháp = cùng số cảnh VÀ (cùng câu thoại hoặc 1 bản không có thoại) → giữ bản dài nhất.
+  // Cùng số mà thoại khác nhau thì là 2 cảnh khác (AI ghi nhầm nhãn) → giữ cả hai, đúng thứ tự.
+  const sceneNo = (p: string) => Number(/(?:SCENE|CẢNH|Cảnh|Scene)\s*0?(\d+)\s*\/\s*0?\d+/.exec(p.slice(0, 400))?.[1] || 0);
+  const lines = (p: string) => new Set(dialogueLines(p).map((l) => l.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()));
+  const merged: string[] = [];
+  out.forEach((p) => {
+    const k = sceneNo(p);
+    const j = k ? merged.findIndex((m) => sceneNo(m) === k) : -1;
+    if (j >= 0) {
+      const a = lines(merged[j]);
+      const b = lines(p);
+      const draft = !a.size || !b.size || [...b].some((x) => a.has(x));
+      if (draft) {
+        if (p.length > merged[j].length) merged[j] = p;
+        return;
+      }
+    }
+    merged.push(p);
+  });
+  return merged;
+};
+
+/** Câu thoại tiếng Việt trong ngoặc kép (bỏ chữ in trên bao bì: viết hoa toàn bộ / quá ngắn) */
+export const dialogueLines = (part: string): string[] =>
+  // Bỏ trước các cụm ngắn trong ngoặc kép (chữ in trên sản phẩm: "01", "500 mL") — chúng làm lệch cặp ngoặc của câu thoại
+  [...part.replace(/["“][^"“”\n]{0,11}["”]/g, ' ').matchAll(/["“]([^"“”]{12,})["”]/g)]
+    .map((m) => m[1].trim())
+    .filter((s) => s !== s.toUpperCase() && s.split(/\s+/).length >= 4);
+
+const normLine = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+
+/**
+ * Hai cảnh trùng câu thoại (lỗi thật gặp khi chạy mẫu Đập hộp: cảnh 1 và 2 đọc y một câu) → nhờ AI viết câu mới cho cảnh sau,
+ * đúng vai trò của cảnh đó, rồi thay vào. Lỗi AI thì giữ nguyên.
+ */
+export const fixDuplicateDialogue = async (
+  parts: string[],
+  idea: string,
+  who: string,
+  log: (m: string) => void,
+  imgs: string[] = []
+): Promise<string[]> => {
+  const out = [...parts];
+  const seen = new Map<string, number>();
+  for (let i = 0; i < out.length; i++) {
+    for (const line of dialogueLines(out[i])) {
+      const key = normLine(line);
+      // Trùng cả khi chỉ khác vài chữ (lỗi thật: "chảo chống dính ceramic này xinh quá" / "chảo chống dính này xinh quá trời") — ≥ 60% từ chung
+      let prev = seen.get(key);
+      if (prev === undefined) {
+        const w = new Set(key.split(' '));
+        for (const [k2, i2] of seen) {
+          const w2 = new Set(k2.split(' '));
+          const common = [...w].filter((x) => w2.has(x)).length;
+          if (i2 !== i && common / Math.max(w.size, w2.size) >= 0.6) {
+            prev = i2;
+            break;
+          }
+        }
+      }
+      if (prev === i) continue; // lặp lại trong cùng 1 cảnh (vd. nhắc lại câu thoại trong khóa khớp miệng) — không phải lỗi
+      if (prev === undefined) {
+        seen.set(key, i);
+        continue;
+      }
+      try {
+        const r = await aiText(
+          `Kịch bản video ngắn:\n${idea.slice(0, 800)}\n\nCảnh ${i + 1}:\n${out[i]}\n\n` +
+            `Câu thoại "${line}" của cảnh ${i + 1} bị TRÙNG với cảnh ${prev + 1}. Viết 1 câu thoại tiếng Việt MỚI cho cảnh ${i + 1}, ` +
+            'đúng hành động và vai trò của cảnh này, cùng người nói, cùng độ dài, không lặp ý cảnh trước. Chỉ trả về đúng câu thoại, không ngoặc kép.',
+          imgs
+        );
+        const fresh = r.text.replace(/["“”]/g, '').split('\n').map((s) => s.trim()).find((s) => s.length > 8);
+        if (fresh && !seen.has(normLine(fresh))) {
+          out[i] = out[i].split(line).join(fresh);
+          seen.set(normLine(fresh), i);
+          log(`${who}: cảnh ${i + 1} trùng thoại cảnh ${prev + 1} → viết lại: "${short(fresh, 80)}"`);
+        }
+      } catch {
+        /* giữ nguyên */
+      }
+    }
+  }
   return out;
 };
+
+/** Câu trả lời của AI không phải kịch bản: hỏi lại người dùng, hoặc các đoạn quá ngắn (< 120 ký tự) */
+/** Câu nói chuyện / hỏi lại người dùng thay vì prompt (muse.ai có bộ nhớ chung theo tài khoản nên hay "nhớ" dự án cũ và hỏi lại) */
+export const CHATTY_RE =
+  /bạn muốn|bạn có muốn|bạn chọn|bạn thích bản|anh chốt|chốt giúp|em chưa viết|em sẽ sửa|em đối chiếu|anh muốn|khoan,|mình hỏi lại|which (one|version)|do you want/i;
+
+export const badScript = (raw: string, parts: string[], count: number): boolean =>
+  CHATTY_RE.test(raw) ||
+  !parts.length ||
+  parts.slice(0, count).some((p) => p.length < 120);
 
 export const splitScript = (raw: string, count: number, idea: string, firstIsChar: boolean): string[] => {
   let parts = parseScriptParts(raw);
@@ -417,8 +561,10 @@ export async function runFlow(wf: FlowWorkflow, mode: RunMode, deps: FlowRunDeps
             covered.add('outfit');
           }
         }
-        if (pr?.images[0]) {
-          out.push({ kind: 'image', value: pr.images[0], roles: ['product'], name: pr.name, desc: pr.visual || pr.description });
+        // Lookbook: khối sản phẩm của cảnh i dùng ảnh thứ i (mẫu / màu khác) của sản phẩm, xoay vòng
+        const prImg = pr?.images.length ? pr.images[(Number(d.productImageIndex) || 0) % pr.images.length] : '';
+        if (pr && prImg && !d.image) {
+          out.push({ kind: 'image', value: prImg, roles: ['product'], name: pr.name, desc: pr.images.length > 1 ? `${pr.name} — mẫu / màu số ${((Number(d.productImageIndex) || 0) % pr.images.length) + 1}` : pr.visual || pr.description });
           covered.add('product');
         }
         const rest = locks.filter((l) => !covered.has(l));
@@ -438,11 +584,11 @@ export async function runFlow(wf: FlowWorkflow, mode: RunMode, deps: FlowRunDeps
             out.push({ kind: 'image', value: img, roles: rest, name, desc });
           } else if (desc || d.sheetPrompt) {
             deps.log(`${label(n)}: chưa có ảnh ${rest.map((x) => ROLE_VI[x]).join(' + ')} → AI (muse-image) tự tạo ảnh tham chiếu`);
-            const img = await withBusyRetry(() => generateMuseKeyframe({ ...DEFAULT_MUSE_CONFIG, aspectRatio: '9:16' }, autoImagePrompt(d, rest), []), {
+            const img = await retryNoMedia(() => withBusyRetry(() => generateMuseKeyframe({ ...DEFAULT_MUSE_CONFIG, aspectRatio: '9:16' }, autoImagePrompt(d, rest), []), {
               shouldStop: deps.shouldStop,
               log: deps.log,
               what: label(n),
-            });
+            }), label(n), deps);
             // Giữ ảnh vừa tạo trong node để các lần chạy sau dùng lại (như HND generatedPath)
             deps.patchNode(n.id, { image: img, fileName: 'AI tự tạo', autoGenerated: true });
             out.push({ kind: 'image', value: img, roles: rest, name, desc });
@@ -481,25 +627,76 @@ export async function runFlow(wf: FlowWorkflow, mode: RunMode, deps: FlowRunDeps
         let raw = '';
         const secs = Math.max(2, Math.min(10, Number(d.sceneSeconds) || 10));
         try {
-          const r = await aiText(scriptInstruction(idea, count, first, secs), imgs);
+          const r = await withBusyRetry(() => aiText(scriptInstruction(idea, count, first, secs), imgs), { shouldStop: deps.shouldStop, log: deps.log, what: label(n) });
           raw = r.text;
           deps.log(`${label(n)}: AI viết kịch bản (${r.source})`);
           // AI trả thiếu đoạn (thường do câu trả lời dài bị cắt) → nhờ viết tiếp đúng các đoạn còn thiếu
           let got = parseScriptParts(raw);
+          // AI hỏi lại / trả lời cụt (lỗi thật: muse-chat hỏi "Bạn muốn giữ bản nào?" → 5 "cảnh" vô nghĩa) → bắt viết lại 1 lần
+          if (badScript(raw, got, count)) {
+            stop();
+            deps.log(`${label(n)}: AI trả lời không phải kịch bản (hỏi lại / quá ngắn) → yêu cầu viết lại`);
+            const again = await aiText(
+              `${scriptInstruction(idea, count, first, secs)}
+
+Câu trả lời trước KHÔNG HỢP LỆ (hỏi lại hoặc quá ngắn). ` +
+                'Không hỏi gì cả, tự quyết theo ảnh tham chiếu, viết NGAY đủ các đoạn prompt chi tiết.',
+              imgs
+            );
+            const p2 = parseScriptParts(again.text);
+            if (!badScript(again.text, p2, count) || p2.length > got.length) {
+              raw = again.text;
+              got = p2;
+            }
+          }
           for (let tries = 0; got.length < count && got.length > 0 && tries < 2; tries++) {
             stop();
             const missing = count - got.length;
             deps.log(`${label(n)}: AI mới viết ${got.length}/${count} đoạn → viết tiếp ${missing} đoạn còn thiếu`);
-            const more = await aiText(
-              `${scriptInstruction(idea, count, first, secs)}\n\nĐÃ VIẾT ${got.length} đoạn đầu:\n${got.join('\n---\n')}\n\n` +
-                `Hãy viết TIẾP đúng ${missing} đoạn còn lại (đoạn ${got.length + 1}..${count}), cùng định dạng, ngăn cách bằng dòng ---. ` +
-                'Không lặp lại các đoạn đã viết.',
-              imgs,
-            );
-            const add = parseScriptParts(more.text).filter((p) => !got.some((g) => g.slice(0, 60) === p.slice(0, 60)));
+            let more: { text: string };
+            try {
+              more = await aiText(
+                `${scriptInstruction(idea, count, first, secs)}\n\nĐÃ VIẾT ${got.length} đoạn đầu:\n${got.join('\n---\n')}\n\n` +
+                  `Hãy viết TIẾP đúng ${missing} đoạn còn lại (đoạn ${got.length + 1}..${count}), cùng định dạng, ngăn cách bằng dòng ---. ` +
+                  'Không lặp lại các đoạn đã viết.',
+                imgs,
+              );
+            } catch (err: any) {
+              // Lỗi khi viết tiếp: giữ các đoạn đã có, phần thiếu dùng khung dựng sẵn (không bỏ cả kịch bản AI)
+              deps.log(`${label(n)}: viết tiếp lỗi (${String(err?.message || err).slice(0, 80)}) — giữ ${got.length} đoạn đã viết`);
+              break;
+            }
+            const add = parseScriptParts(more.text).filter((p) => !got.some((g) => g.trim() === p.trim()));
             if (!add.length) break;
             got = [...got, ...add];
           }
+          // Từng đoạn: là câu nói chuyện / hỏi lại hoặc quá ngắn → viết lại riêng đoạn đó (vẫn hỏng thì dùng khung dựng sẵn ở splitScript)
+          for (let i = 0; i < Math.min(got.length, count); i++) {
+            if (!CHATTY_RE.test(got[i]) && got[i].length >= 120) continue;
+            stop();
+            deps.log(`${label(n)}: đoạn ${i + 1} không phải prompt cảnh (hỏi lại / quá ngắn) → viết lại riêng đoạn này`);
+            try {
+              const one = await aiText(
+                `${scriptInstruction(idea, count, first, secs)}
+
+CHỈ viết DUY NHẤT đoạn ${i + 1}/${count} (không viết đoạn khác, không hỏi lại).` +
+                  (i > 0 ? `
+Đoạn ${i} trước đó để nối tiếp:
+${got[i - 1]}` : ''),
+                imgs
+              );
+              const p1 = parseScriptParts(one.text)[0] || '';
+              got[i] = !CHATTY_RE.test(p1) && p1.length >= 120 ? p1 : '';
+            } catch {
+              got[i] = '';
+            }
+          }
+          if (got.some((x) => !x)) {
+            const fb = splitScript('', count, idea, first);
+            got = got.map((x, i) => x || fb[i] || fb[fb.length - 1]);
+          }
+          // Câu thoại trùng giữa các cảnh (AI hay chép lại thoại cảnh trước) → nhờ viết lại thoại của cảnh sau
+          got = await fixDuplicateDialogue(got, idea, label(n), deps.log, imgs);
           raw = got.join('\n---\n');
         } catch (err: any) {
           deps.log(`${label(n)}: AI lỗi (${String(err?.message || err).slice(0, 120)}) → dùng khung dựng sẵn`);
@@ -528,11 +725,11 @@ export async function runFlow(wf: FlowWorkflow, mode: RunMode, deps: FlowRunDeps
           stop();
           out.push({
             kind: 'image',
-            value: await withBusyRetry(() => generateMuseKeyframe({ ...DEFAULT_MUSE_CONFIG, aspectRatio: ratioOf(d) }, stillPrompt, useRefs), {
+            value: await retryNoMedia(() => withBusyRetry(() => generateMuseKeyframe({ ...DEFAULT_MUSE_CONFIG, aspectRatio: ratioOf(d) }, stillPrompt, useRefs), {
               shouldStop: deps.shouldStop,
               log: deps.log,
               what: label(n),
-            }),
+            }), label(n), deps),
           });
         }
         return out;
@@ -587,20 +784,34 @@ export async function runFlow(wf: FlowWorkflow, mode: RunMode, deps: FlowRunDeps
                 'KHÔNG có mặt người (nếu cần chỉ thấy đôi tay).\n') +
             text;
           deps.log(`${label(n)}: tạo ảnh khung hình mở đầu trước (giữ mặt / trang phục tốt hơn)…`);
-          firstFrame = await withBusyRetry(() => generateMuseKeyframe({ ...DEFAULT_MUSE_CONFIG, aspectRatio: ratioOf(d) }, still, kfRefs), {
+          firstFrame = await retryNoMedia(() => withBusyRetry(() => generateMuseKeyframe({ ...DEFAULT_MUSE_CONFIG, aspectRatio: ratioOf(d) }, still, kfRefs), {
             shouldStop: deps.shouldStop,
             log: deps.log,
             what: label(n),
-          });
+          }), label(n), deps);
           deps.patchNode(n.id, { keyframe: firstFrame });
         }
         // muse.ai nhận tối đa 4 ảnh / tin nhắn: có khung mở đầu thì còn 3 chỗ cho tham chiếu
         const refs = refItems.slice(0, firstFrame ? 3 : 4);
         if (refItems.length > refs.length) deps.log(`${label(n)}: ${refItems.length} ảnh tham chiếu, muse.ai chỉ nhận ${refs.length} — bỏ bớt ảnh cuối`);
         const hasMap = /BẢNG ÁNH XẠ|ATTACHMENT ROLES|\[Khóa đồng nhất/i.test(text);
+        // Prompt tự mang số ảnh (mẫu HND: "Ảnh #1 = Bố") nhưng khung mở đầu được gửi làm ảnh ĐẦU TIÊN → mọi số ảnh lệch 1
+        // (lỗi thật mẫu Gia đình: model nhầm ai là Ảnh #1 → Mẹ nói lời của Bố). Dời số ảnh +1 và ghi rõ Ảnh #1 = khung mở đầu.
+        if (firstFrame && /Ảnh(?:\s+tham\s+chiếu)?\s*#\s*\d|Image\s+\d/i.test(text)) {
+          text =
+            '[Ảnh #1 / Image 1 = KHUNG HÌNH MỞ ĐẦU của cảnh (không phải nhân vật / sản phẩm); ảnh tham chiếu bắt đầu từ Ảnh #2]\n' +
+            text.replace(/(Ảnh(?:\s+tham\s+chiếu)?\s*#\s*|Image\s+)(\d+)/gi, (_m, a: string, d: string) => `${a}${Number(d) + 1}`);
+        }
+        // Có khung mở đầu: muse.ai nhận nó là ảnh đầu tiên → bảng ánh xạ phải tính nó là Ảnh #1, khớp số với khóa ƯU TIÊN ẢNH bên dưới
+        // (trước đây bảng ánh xạ ghi hộp = Ảnh #1 trong khi khóa ưu tiên ghi hộp = Ảnh #2 → model vẽ lại bao bì).
+        // Mô tả ảnh: ưu tiên bản AI nhìn ảnh tả lại (khớp đúng ảnh) thay cho chữ nhập tay / chữ hướng dẫn của mẫu.
+        const mapInfos: RefImageInfo[] = [
+          ...(firstFrame ? [{ role: 'keyframe' as const }] : []),
+          ...refs.map((r) => (r.ai && r.info.role !== 'keyframe' ? { ...r.info, description: r.ai } : r.info)),
+        ];
         let prompt =
           refs.length && !hasMap
-            ? buildReferencePrompt({ images: refs.map((r) => r.info), scenePrompt: text, realism: true })
+            ? buildReferencePrompt({ images: mapInfos, scenePrompt: text, realism: true })
             : text;
         // Khóa ƯU TIÊN ẢNH: prompt (nhất là prompt mẫu HND) hay mô tả trang phục / ngoại hình khác ảnh thật
         // → model bám chữ, đổi màu áo, sai người. Nhắc lại ở CUỐI prompt: chữ khác ảnh thì theo ảnh.
@@ -624,7 +835,18 @@ export async function runFlow(wf: FlowWorkflow, mode: RunMode, deps: FlowRunDeps
         }
         const ff = firstFrame ? await toDataUrl(firstFrame) : '';
         const refData = await Promise.all(refs.map((r) => toDataUrl(r.value)));
-        const url = await withBusyRetry(
+        // muse.ai đôi khi trả lời bằng chữ thay vì video ("replied with text only…") → tạo lại tối đa 2 lần
+        const createVideo = async () => {
+          for (let k = 0; ; k++) {
+            try {
+              return await createOnce();
+            } catch (err: any) {
+              if (k >= 2 || deps.shouldStop() || !/text only|no video|did not (produce|return) a video|Timeout|quá thời gian chờ|báo lỗi trong lúc render/i.test(String(err?.message || err))) throw err;
+              deps.log(`${label(n)}: muse.ai không trả video (trả lời bằng chữ / lỗi render / quá giờ) → tạo lại (lần ${k + 2})`);
+            }
+          }
+        };
+        const createOnce = () => withBusyRetry(
           () =>
             createAndPollMuseVideo(
               { ...DEFAULT_MUSE_CONFIG, aspectRatio: ratioOf(d), duration: durationOf(d), voice: String(d.voice || '') },
@@ -640,6 +862,7 @@ export async function runFlow(wf: FlowWorkflow, mode: RunMode, deps: FlowRunDeps
             ),
           { shouldStop: deps.shouldStop, log: deps.log, what: label(n) }
         );
+        const url = await createVideo();
         let path: string | undefined;
         try {
           path = (await exportVideo(url, deps.project, `${stamp()}_${label(n).replace(/[^\p{L}\p{N}]+/gu, '_').slice(0, 40)}`)).path;

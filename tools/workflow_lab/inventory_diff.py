@@ -4,7 +4,7 @@ import json, re, subprocess, sys
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
-R = Path(r"D:\1FastAIVN\srcs\fastaivn_MuseStudio")
+R = Path(r"I:\Claude\Srcs\MuseStudio")
 ST = R / "data/studio/state"
 
 

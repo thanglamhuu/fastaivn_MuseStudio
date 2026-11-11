@@ -1,0 +1,381 @@
+{
+ "id": "wf-mwbksxyi54gjx2",
+ "kind": "flow-workflow",
+ "schemaVersion": 1,
+ "name": "Đi bộ tạo dáng Street Look",
+ "description": "Người mẫu đi bộ trên phố, quay lưng, tạo dáng slow-mo. Các cảnh nối khung cuối → khung đầu cho liền mạch.",
+ "nodes": [
+  {
+   "id": "node-mwbksxyi55i8j1",
+   "type": "upload-image",
+   "position": {
+    "x": 0,
+    "y": 0
+   },
+   "data": {
+    "refRoles": [
+     "character"
+    ],
+    "memberRole": "custom",
+    "characterName": "",
+    "prompt": "",
+    "autoDescribe": true,
+    "characterId": "char_test_bo",
+    "batchLabel": "👤 Nhân vật chính"
+   }
+  },
+  {
+   "id": "node-mwbksxyi56xl7u",
+   "type": "upload-image",
+   "position": {
+    "x": 0,
+    "y": 260
+   },
+   "data": {
+    "refRoles": [
+     "product"
+    ],
+    "memberRole": "custom",
+    "characterName": "",
+    "prompt": "",
+    "autoDescribe": true,
+    "productId": "prod_test_coc",
+    "batchLabel": "📦 Sản phẩm (chọn trong Cài đặt)"
+   }
+  },
+  {
+   "id": "node-mwbksxyi5769bg",
+   "type": "prompt",
+   "position": {
+    "x": 330,
+    "y": 0
+   },
+   "data": {
+    "prompt": "Sản phẩm: @@Cốc giữ nhiệt Cyber — nhân vật chính: @AnhTuan.\nPhim ngắn / cốt truyện liền mạch giữa các cảnh, đối thoại tự nhiên.\nKhông có lời thoại. Người mẫu đi bộ tự tin trên phố đẹp, quay lưng, ngoái lại, tạo dáng slow-motion; mỗi cảnh nối tiếp động tác của cảnh trước.\nKhông có lời thoại.",
+    "batchLabel": "Ý tưởng / sản phẩm"
+   }
+  },
+  {
+   "id": "node-mwbksxyi581fd1",
+   "type": "gemini-script",
+   "position": {
+    "x": 330,
+    "y": 300
+   },
+   "data": {
+    "prompt": "",
+    "outputCount": 4,
+    "sceneSeconds": 8,
+    "firstOutputIsCharacter": false,
+    "batchLabel": "AI viết kịch bản"
+   }
+  },
+  {
+   "id": "node-mwbksxyi5c4yrx",
+   "type": "generate-video",
+   "position": {
+    "x": 700,
+    "y": 0
+   },
+   "data": {
+    "videoMode": "reference-to-video",
+    "ratio": "9:16",
+    "duration": 8,
+    "prompt": "",
+    "imagePriority": true,
+    "keyframeFirst": true,
+    "batchLabel": "Cảnh 1"
+   }
+  },
+  {
+   "id": "node-mwbksxyi5gr4ku",
+   "type": "generate-video",
+   "position": {
+    "x": 700,
+    "y": 230
+   },
+   "data": {
+    "videoMode": "frame-to-frame",
+    "ratio": "9:16",
+    "duration": 8,
+    "prompt": "",
+    "imagePriority": true,
+    "keyframeFirst": true,
+    "batchLabel": "Cảnh 2"
+   }
+  },
+  {
+   "id": "node-mwbksxyi5klmb5",
+   "type": "extract-endframe",
+   "position": {
+    "x": 1000,
+    "y": 120
+   },
+   "data": {
+    "batchLabel": "Khung cuối cảnh 1"
+   }
+  },
+  {
+   "id": "node-mwbksxyi5negeo",
+   "type": "generate-video",
+   "position": {
+    "x": 700,
+    "y": 460
+   },
+   "data": {
+    "videoMode": "frame-to-frame",
+    "ratio": "9:16",
+    "duration": 8,
+    "prompt": "",
+    "imagePriority": true,
+    "keyframeFirst": true,
+    "batchLabel": "Cảnh 3"
+   }
+  },
+  {
+   "id": "node-mwbksxyi5rvzf9",
+   "type": "extract-endframe",
+   "position": {
+    "x": 1000,
+    "y": 350
+   },
+   "data": {
+    "batchLabel": "Khung cuối cảnh 2"
+   }
+  },
+  {
+   "id": "node-mwbksxyi5uwkr1",
+   "type": "generate-video",
+   "position": {
+    "x": 700,
+    "y": 690
+   },
+   "data": {
+    "videoMode": "frame-to-frame",
+    "ratio": "9:16",
+    "duration": 8,
+    "prompt": "",
+    "imagePriority": true,
+    "keyframeFirst": true,
+    "batchLabel": "Cảnh 4"
+   }
+  },
+  {
+   "id": "node-mwbksxyi5yanc7",
+   "type": "extract-endframe",
+   "position": {
+    "x": 1000,
+    "y": 580
+   },
+   "data": {
+    "batchLabel": "Khung cuối cảnh 3"
+   }
+  },
+  {
+   "id": "node-mwbksxyi61cnwa",
+   "type": "merge-video",
+   "position": {
+    "x": 1300,
+    "y": 100
+   },
+   "data": {
+    "portCount": 4,
+    "batchLabel": "Ghép 4 cảnh"
+   }
+  },
+  {
+   "id": "node-mwbksxyi66urp0",
+   "type": "result",
+   "position": {
+    "x": 1600,
+    "y": 100
+   },
+   "data": {}
+  }
+ ],
+ "edges": [
+  {
+   "id": "edge-mwbksxyi59s743",
+   "source": "node-mwbksxyi5769bg",
+   "sourceHandle": "text-out",
+   "target": "node-mwbksxyi581fd1",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyi5aw756",
+   "source": "node-mwbksxyi55i8j1",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi581fd1",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyi5b2kf7",
+   "source": "node-mwbksxyi56xl7u",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi581fd1",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyi5d86ue",
+   "source": "node-mwbksxyi581fd1",
+   "sourceHandle": "text-out-0",
+   "target": "node-mwbksxyi5c4yrx",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyi5em8io",
+   "source": "node-mwbksxyi55i8j1",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi5c4yrx",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyi5f3tz1",
+   "source": "node-mwbksxyi56xl7u",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi5c4yrx",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyi5hietc",
+   "source": "node-mwbksxyi581fd1",
+   "sourceHandle": "text-out-1",
+   "target": "node-mwbksxyi5gr4ku",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyi5iv9hh",
+   "source": "node-mwbksxyi55i8j1",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi5gr4ku",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyi5jk502",
+   "source": "node-mwbksxyi56xl7u",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi5gr4ku",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyi5l8exh",
+   "source": "node-mwbksxyi5c4yrx",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyi5klmb5",
+   "targetHandle": "video-in"
+  },
+  {
+   "id": "edge-mwbksxyi5m7196",
+   "source": "node-mwbksxyi5klmb5",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi5gr4ku",
+   "targetHandle": "image-in-start"
+  },
+  {
+   "id": "edge-mwbksxyi5ot2g1",
+   "source": "node-mwbksxyi581fd1",
+   "sourceHandle": "text-out-2",
+   "target": "node-mwbksxyi5negeo",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyi5pju8u",
+   "source": "node-mwbksxyi55i8j1",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi5negeo",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyi5ql03l",
+   "source": "node-mwbksxyi56xl7u",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi5negeo",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyi5spn4n",
+   "source": "node-mwbksxyi5gr4ku",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyi5rvzf9",
+   "targetHandle": "video-in"
+  },
+  {
+   "id": "edge-mwbksxyi5t4qto",
+   "source": "node-mwbksxyi5rvzf9",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi5negeo",
+   "targetHandle": "image-in-start"
+  },
+  {
+   "id": "edge-mwbksxyi5vxp8x",
+   "source": "node-mwbksxyi581fd1",
+   "sourceHandle": "text-out-3",
+   "target": "node-mwbksxyi5uwkr1",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyi5w1h66",
+   "source": "node-mwbksxyi55i8j1",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi5uwkr1",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyi5x6xt4",
+   "source": "node-mwbksxyi56xl7u",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi5uwkr1",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyi5zc6py",
+   "source": "node-mwbksxyi5negeo",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyi5yanc7",
+   "targetHandle": "video-in"
+  },
+  {
+   "id": "edge-mwbksxyi60rjhv",
+   "source": "node-mwbksxyi5yanc7",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi5uwkr1",
+   "targetHandle": "image-in-start"
+  },
+  {
+   "id": "edge-mwbksxyi629uod",
+   "source": "node-mwbksxyi5c4yrx",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyi61cnwa",
+   "targetHandle": "video-in-0"
+  },
+  {
+   "id": "edge-mwbksxyi63r25c",
+   "source": "node-mwbksxyi5gr4ku",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyi61cnwa",
+   "targetHandle": "video-in-1"
+  },
+  {
+   "id": "edge-mwbksxyi64m8xd",
+   "source": "node-mwbksxyi5negeo",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyi61cnwa",
+   "targetHandle": "video-in-2"
+  },
+  {
+   "id": "edge-mwbksxyi65ejcl",
+   "source": "node-mwbksxyi5uwkr1",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyi61cnwa",
+   "targetHandle": "video-in-3"
+  },
+  {
+   "id": "edge-mwbksxyi67lyoc",
+   "source": "node-mwbksxyi61cnwa",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyi66urp0",
+   "targetHandle": "video-in"
+  }
+ ],
+ "category": "Thời trang"
+}

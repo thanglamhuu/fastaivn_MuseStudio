@@ -1,0 +1,306 @@
+{
+ "id": "wf-mwbksxyj7890pt",
+ "kind": "flow-workflow",
+ "schemaVersion": 1,
+ "name": "Review sau 7 ngày dùng",
+ "description": "Chia sẻ trải nghiệm thật sau 1 tuần: điều thích nhất, thay đổi nhận thấy, có nên mua.",
+ "nodes": [
+  {
+   "id": "node-mwbksxyj79o29t",
+   "type": "upload-image",
+   "position": {
+    "x": 0,
+    "y": 0
+   },
+   "data": {
+    "refRoles": [
+     "character"
+    ],
+    "memberRole": "custom",
+    "characterName": "",
+    "prompt": "",
+    "autoDescribe": true,
+    "characterId": "char_test_bo",
+    "batchLabel": "👤 Nhân vật chính"
+   }
+  },
+  {
+   "id": "node-mwbksxyj7ayfzg",
+   "type": "upload-image",
+   "position": {
+    "x": 0,
+    "y": 260
+   },
+   "data": {
+    "refRoles": [
+     "product"
+    ],
+    "memberRole": "custom",
+    "characterName": "",
+    "prompt": "",
+    "autoDescribe": true,
+    "productId": "prod_test_coc",
+    "batchLabel": "📦 Sản phẩm (chọn trong Cài đặt)"
+   }
+  },
+  {
+   "id": "node-mwbksxyj7b2ugl",
+   "type": "prompt",
+   "position": {
+    "x": 330,
+    "y": 0
+   },
+   "data": {
+    "prompt": "Sản phẩm: @@Cốc giữ nhiệt Cyber — nhân vật chính: @AnhTuan.\nTheo mẫu kịch bản bán hàng.\nCó lời thoại tiếng Việt.",
+    "batchLabel": "Ý tưởng / sản phẩm"
+   }
+  },
+  {
+   "id": "node-mwbksxyj7c94ht",
+   "type": "gemini-script",
+   "position": {
+    "x": 330,
+    "y": 300
+   },
+   "data": {
+    "prompt": "",
+    "outputCount": 4,
+    "sceneSeconds": 8,
+    "firstOutputIsCharacter": false,
+    "batchLabel": "AI viết kịch bản"
+   }
+  },
+  {
+   "id": "node-mwbksxyj7gx1ca",
+   "type": "generate-video",
+   "position": {
+    "x": 700,
+    "y": 0
+   },
+   "data": {
+    "videoMode": "reference-to-video",
+    "ratio": "9:16",
+    "duration": 8,
+    "prompt": "",
+    "imagePriority": true,
+    "keyframeFirst": true,
+    "batchLabel": "Cảnh 1"
+   }
+  },
+  {
+   "id": "node-mwbksxyj7kxcwz",
+   "type": "generate-video",
+   "position": {
+    "x": 700,
+    "y": 230
+   },
+   "data": {
+    "videoMode": "reference-to-video",
+    "ratio": "9:16",
+    "duration": 8,
+    "prompt": "",
+    "imagePriority": true,
+    "keyframeFirst": true,
+    "batchLabel": "Cảnh 2"
+   }
+  },
+  {
+   "id": "node-mwbksxyj7ooxg8",
+   "type": "generate-video",
+   "position": {
+    "x": 700,
+    "y": 460
+   },
+   "data": {
+    "videoMode": "reference-to-video",
+    "ratio": "9:16",
+    "duration": 8,
+    "prompt": "",
+    "imagePriority": true,
+    "keyframeFirst": true,
+    "batchLabel": "Cảnh 3"
+   }
+  },
+  {
+   "id": "node-mwbksxyj7spe8j",
+   "type": "generate-video",
+   "position": {
+    "x": 700,
+    "y": 690
+   },
+   "data": {
+    "videoMode": "reference-to-video",
+    "ratio": "9:16",
+    "duration": 8,
+    "prompt": "",
+    "imagePriority": true,
+    "keyframeFirst": true,
+    "batchLabel": "Cảnh 4"
+   }
+  },
+  {
+   "id": "node-mwbksxyj7w1iqf",
+   "type": "merge-video",
+   "position": {
+    "x": 1300,
+    "y": 100
+   },
+   "data": {
+    "portCount": 4,
+    "batchLabel": "Ghép 4 cảnh"
+   }
+  },
+  {
+   "id": "node-mwbksxyj81dfpr",
+   "type": "result",
+   "position": {
+    "x": 1600,
+    "y": 100
+   },
+   "data": {}
+  }
+ ],
+ "edges": [
+  {
+   "id": "edge-mwbksxyj7dgpo8",
+   "source": "node-mwbksxyj7b2ugl",
+   "sourceHandle": "text-out",
+   "target": "node-mwbksxyj7c94ht",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyj7e4ftk",
+   "source": "node-mwbksxyj79o29t",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyj7c94ht",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyj7fguem",
+   "source": "node-mwbksxyj7ayfzg",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyj7c94ht",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyj7hkeow",
+   "source": "node-mwbksxyj7c94ht",
+   "sourceHandle": "text-out-0",
+   "target": "node-mwbksxyj7gx1ca",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyj7ib300",
+   "source": "node-mwbksxyj79o29t",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyj7gx1ca",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyj7jjdpl",
+   "source": "node-mwbksxyj7ayfzg",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyj7gx1ca",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyj7lyd05",
+   "source": "node-mwbksxyj7c94ht",
+   "sourceHandle": "text-out-1",
+   "target": "node-mwbksxyj7kxcwz",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyj7m7a09",
+   "source": "node-mwbksxyj79o29t",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyj7kxcwz",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyj7n90p1",
+   "source": "node-mwbksxyj7ayfzg",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyj7kxcwz",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyj7ph7u7",
+   "source": "node-mwbksxyj7c94ht",
+   "sourceHandle": "text-out-2",
+   "target": "node-mwbksxyj7ooxg8",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyj7qx0tz",
+   "source": "node-mwbksxyj79o29t",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyj7ooxg8",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyj7rqmyd",
+   "source": "node-mwbksxyj7ayfzg",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyj7ooxg8",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyj7td9d8",
+   "source": "node-mwbksxyj7c94ht",
+   "sourceHandle": "text-out-3",
+   "target": "node-mwbksxyj7spe8j",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyj7uq72s",
+   "source": "node-mwbksxyj79o29t",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyj7spe8j",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyj7vamjg",
+   "source": "node-mwbksxyj7ayfzg",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyj7spe8j",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyj7xph6b",
+   "source": "node-mwbksxyj7gx1ca",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyj7w1iqf",
+   "targetHandle": "video-in-0"
+  },
+  {
+   "id": "edge-mwbksxyj7yzs43",
+   "source": "node-mwbksxyj7kxcwz",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyj7w1iqf",
+   "targetHandle": "video-in-1"
+  },
+  {
+   "id": "edge-mwbksxyj7zwqoo",
+   "source": "node-mwbksxyj7ooxg8",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyj7w1iqf",
+   "targetHandle": "video-in-2"
+  },
+  {
+   "id": "edge-mwbksxyj80dxl9",
+   "source": "node-mwbksxyj7spe8j",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyj7w1iqf",
+   "targetHandle": "video-in-3"
+  },
+  {
+   "id": "edge-mwbksxyj82l9co",
+   "source": "node-mwbksxyj7w1iqf",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyj81dfpr",
+   "targetHandle": "video-in"
+  }
+ ],
+ "category": "Bán hàng"
+}

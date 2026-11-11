@@ -73,6 +73,9 @@ muse_fastapi_app.include_router(library_router)
 from studio_catalog import router as catalog_router  # noqa: E402
 
 muse_fastapi_app.include_router(catalog_router)
+from studio_wfthumb import router as wfthumb_router  # noqa: E402
+
+muse_fastapi_app.include_router(wfthumb_router)
 
 # Thêm đoạn cấu hình này ngay sau khi khởi tạo muse_fastapi_app
 muse_fastapi_app.add_middleware(

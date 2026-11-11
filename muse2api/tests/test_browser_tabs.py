@@ -29,7 +29,17 @@ def driver(tmp_path, monkeypatch) -> BrowserDriver:
         return _Tab(account.id, "ctx", f"t{next(ids)}", _FakeSession())
 
     monkeypatch.setattr(drv, "_open_tab", fake_open)
+    _no_browser(drv, monkeypatch)
     return drv
+
+
+def _no_browser(drv: BrowserDriver, monkeypatch) -> None:
+    """[MuseStudio patch] _ensure_browser giờ báo lỗi khi chưa khởi động Chromium — test dùng tab giả."""
+
+    async def ready() -> None:
+        return None
+
+    monkeypatch.setattr(drv, "_ensure_browser", ready)
 
 
 ACC = Account(id="a0", cookies={"hatch_sess": "x"})
@@ -440,6 +450,7 @@ async def test_warming_keeps_a_slot_free_for_real_requests(tmp_path, monkeypatch
         return _Tab(account.id, "ctx", f"t{next(ids)}", _FakeSession())
 
     monkeypatch.setattr(drv, "_open_tab", fake_open)
+    _no_browser(drv, monkeypatch)
     busy = await drv._checkout(ACC)
     assert await drv._checkout_for_warming(ACC) is None  # one slot left: keep it for a request
     await drv._checkin(busy)
@@ -503,6 +514,7 @@ async def test_missing_warm_threads_are_taken_together(tmp_path, monkeypatch):
         return _Tab(account.id, "ctx", f"t{next(ids)}", _FakeSession())
 
     monkeypatch.setattr(drv, "_open_tab", fake_open)
+    _no_browser(drv, monkeypatch)
     batch = []
     while (tab := await drv._checkout_for_warming(ACC, len(batch))) is not None:
         batch.append(tab)
@@ -526,7 +538,57 @@ async def test_a_failed_warm_round_is_retried(tmp_path, monkeypatch, fast):
         tab.warm = True
 
     monkeypatch.setattr(drv, "_open_tab", fake_open)
+    _no_browser(drv, monkeypatch)
     monkeypatch.setattr(drv, "_warm_up", warm_up)
     await drv._fill_warm(ACC)
     assert len(attempts) == 2
     assert sum(t.warm for t in drv._tabs[ACC.id]) == 1
+
+
+# [MuseStudio patch] giới hạn tab theo số luồng riêng của tài khoản (Studio) + 1 tab warm
+async def test_tab_limit_follows_account_concurrency(tmp_path, monkeypatch):
+    drv = BrowserDriver(Settings(_env_file=None, data_dir=tmp_path, account_max_concurrency=4, warm_threads=2))
+    ids = itertools.count()
+
+    async def fake_open(account: Account) -> _Tab:
+        return _Tab(account.id, "ctx", f"t{next(ids)}", _FakeSession())
+
+    monkeypatch.setattr(drv, "_open_tab", fake_open)
+    _no_browser(drv, monkeypatch)
+    acc = Account(id="a1", cookies={"hatch_sess": "x"}, meta={"max_concurrency": 1})
+    assert drv._tab_limit(acc) == 2
+    assert drv._tab_limit(Account(id="a2", cookies={"hatch_sess": "x"})) == 4  # không đặt riêng → như cũ
+    t1 = await drv._checkout(acc)
+    t2 = await drv._checkout(acc)
+    third = asyncio.create_task(drv._checkout(acc))
+    await asyncio.sleep(0.01)
+    assert not third.done()  # tối đa 2 tab
+    await drv._checkin(t1)
+    assert await asyncio.wait_for(third, 1) is t1
+    await drv._checkin(t1)
+    await drv._checkin(t2)
+
+
+async def test_excess_idle_tabs_are_closed_after_lowering_the_limit(tmp_path, monkeypatch):
+    drv = BrowserDriver(Settings(_env_file=None, data_dir=tmp_path, account_max_concurrency=4, warm_threads=0))
+    ids = itertools.count()
+
+    async def fake_open(account: Account) -> _Tab:
+        return _Tab(account.id, "ctx", f"t{next(ids)}", _FakeSession())
+
+    closed: list[str] = []
+
+    async def fake_close(tab: _Tab) -> None:
+        closed.append(tab.target_id)
+
+    monkeypatch.setattr(drv, "_open_tab", fake_open)
+    monkeypatch.setattr(drv, "_close_tab", fake_close)
+    _no_browser(drv, monkeypatch)
+    acc = Account(id="a3", cookies={"hatch_sess": "x"})
+    tabs = [await drv._checkout(acc) for _ in range(4)]
+    for t in tabs:
+        await drv._checkin(t)
+    acc.meta["max_concurrency"] = 1  # Studio hạ xuống 1 luồng
+    t = await drv._checkout(acc)
+    assert len(drv._tabs[acc.id]) == 1 and len(closed) == 3
+    await drv._checkin(t)

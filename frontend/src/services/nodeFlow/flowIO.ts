@@ -1,5 +1,5 @@
 // Nhập / xuất sơ đồ Node dạng JSON "flow-workflow" — tương thích file Export của HND Muse AI.
-import { FlowEdge, FlowNode, FlowNodeData, FlowWorkflow, NODE_DEFS, NodeType, newId } from './definitions';
+import { FlowEdge, FlowNode, FlowNodeData, FlowWorkflow, NODE_DEFS, NodeType, RefLock, newId } from './definitions';
 
 export interface HndFlowTemplate {
   id: string;
@@ -44,6 +44,9 @@ const cleanData = (type: NodeType, raw: Record<string, unknown> = {}): FlowNodeD
     data[k] = v as never;
   });
   if (type === 'generate-video' && data.duration) data.duration = Number(data.duration);
+  // Sơ đồ HND chỉ có refRole (1 vai: product / outfit / scene…) → không để refRoles mặc định ['character'] đè lên
+  // (trước đây khối "KHÓA SẢN PHẨM" bị coi là ảnh nhân vật: sai bảng ánh xạ ảnh, thiếu khóa bao bì / màu sản phẩm)
+  if (type === 'upload-image' && raw.refRole && !(Array.isArray(raw.refRoles) && raw.refRoles.length)) data.refRoles = [raw.refRole as RefLock];
   return data;
 };
 

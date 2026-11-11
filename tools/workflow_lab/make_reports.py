@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 HND = Path(r"D:\1FastAIVN\srcs\HND Muse AI")
-OUT = Path(r"D:\1FastAIVN\srcs\HNDWorkflow")
+OUT = Path(r"I:\Claude\Srcs\HNDWorkflow")
 STATUS = json.loads((OUT / "_run_status.json").read_text(encoding="utf-8"))
 CATALOG = json.loads((HND / "assets/workflows/catalog.json").read_text(encoding="utf-8"))["templates"]
 CAT = {"gia-dinh": "Gia đình (Linh Mít)", "thoi-trang": "Thời trang", "thoi-trang-nam": "Thời trang nam",

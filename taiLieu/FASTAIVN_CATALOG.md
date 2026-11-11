@@ -160,11 +160,14 @@ Màn 🧩 Workflow làm clip → **📤 Xuất bộ workflow** / **📥 Nhập b
 }
 ```
 
-- **Xuất:** chọn mẫu tự lưu + sơ đồ; tùy chọn kèm nhân vật / sản phẩm đang dùng. Ảnh trên Gateway / máy này (`http://127.0.0.1:18610/v1/media/…`)
-  được **nhúng thành data URL**; ảnh đi kèm app (`workflow-thumbs/…`) giữ đường dẫn. Bỏ kết quả / khung hình / trạng thái lượt chạy.
+- **Xuất:** chọn **mẫu có sẵn** (mặc định chọn hết: FastAIVN + 8 MuseStudio + 13 HND + mẫu catalog), mẫu tự lưu + sơ đồ; tùy chọn kèm nhân vật / sản phẩm đang dùng.
+  Mẫu có sẵn được nhúng sơ đồ node (`flowGraph` = sơ đồ mà 🧩 Sơ đồ dựng ra) và **giữ `id` gốc**.
+  Ảnh trên Gateway / máy này (`http://127.0.0.1:18610/v1/media/…`) được **nhúng thành data URL**; ảnh của node sơ đồ đi kèm app
+  (`workflow-thumbs/…`, vd. ảnh bàn POV) cũng được nhúng để app bản cũ vẫn có ảnh. Bỏ kết quả / khung hình / trạng thái lượt chạy.
 - **Nhập:** từ file, link (tải qua Gateway `GET /studio/catalog/bundle?url=` — tới 80MB, có bản đệm khi mất mạng, link tương đối tính theo địa chỉ catalog)
   hoặc mục **🌐 Bộ workflow trên fastaivn.com**. Xem trước, tích chọn từng mục rồi nhập:
-  mẫu / sơ đồ được **thêm mới** (id mới, trùng tên thì thêm "(nhập)"); nhân vật / sản phẩm **trùng tên dùng cái có sẵn**, chưa có thì thêm vào Cài đặt;
+  mẫu trùng `id` với mẫu có sẵn của app ở máy nhận → **bỏ qua** ("mẫu có sẵn ở máy này"); mẫu / sơ đồ khác được **thêm mới** (id mới, trùng tên thì thêm "(nhập)"),
+  mẫu có `flowGraph` mở đúng sơ đồ nhúng; nhân vật / sản phẩm **trùng tên dùng cái có sẵn**, chưa có thì thêm vào Cài đặt;
   `characterId` / `productId` / `characterIds` được nối lại theo id mới. Cũng nhận 1 sơ đồ JSON (MuseStudio / HND export) hay gói `fastaivn-template`.
 - **Đăng lên fastaivn.com:** tải file lên `workflows/bundles/<id>.musestudio.json`, thêm `"bundleUrl": "bundles/<id>.musestudio.json"` vào mẫu trong
   `catalog.v1.json` → mẫu hiện trong 📥 Nhập bộ workflow → 🌐; nếu mẫu không có `graphUrl` thì 🧩 Sơ đồ trên card mở sơ đồ đầu tiên của bộ.

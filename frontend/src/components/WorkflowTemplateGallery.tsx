@@ -1,11 +1,13 @@
 // Lưới card mẫu Workflow (màn "Mẫu & danh sách dòng"): mỗi mẫu 1 card có thumbnail 9:16 lấy từ video đã tạo,
 // rê chuột vào thì phát đoạn xem trước. Nguồn thumbnail, theo thứ tự ưu tiên:
-//  1. Clip mới nhất bạn đã chạy bằng mẫu đó trong MuseStudio (clip ghép / sau hậu kỳ / cảnh đầu)
-//  2. Video chạy thử sẵn của 13 mẫu HND (public/workflow-thumbs/hnd-<id>.jpg + .mp4)
-//  3. Không có video: ô màu với biểu tượng mẫu
-import React, { useMemo, useRef } from 'react';
+//  1. wfthumb/wfthumb.config.json (thumbnail + clip chạy thử đạt chuẩn của từng mẫu, link YouTube khi đã tải lên)
+//  2. Clip mới nhất bạn đã chạy bằng mẫu đó trong MuseStudio (clip ghép / sau hậu kỳ / cảnh đầu)
+//  3. Video chạy thử sẵn của 13 mẫu HND (public/workflow-thumbs/hnd-<id>.jpg + .mp4)
+//  4. Không có video: ô màu với biểu tượng mẫu
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { WorkflowRow, WorkflowTemplate } from '../types/workflow';
 import type { CatalogState } from '../services/templateCatalog';
+import { WfThumb, loadWfThumbConfig } from '../services/wfthumbConfig';
 
 const BASE = import.meta.env.BASE_URL || './';
 
@@ -14,6 +16,10 @@ interface Thumb {
   video?: string;
   /** Video lấy từ lượt chạy của bạn */
   own?: boolean;
+  /** Link YouTube (wfthumb config) */
+  youtube?: string;
+  /** Nhúng YouTube khi không có file video */
+  youtubeEmbed?: string;
 }
 
 const latestOwnVideo = (rows: WorkflowRow[], id: string): string | undefined => {
@@ -25,7 +31,9 @@ const latestOwnVideo = (rows: WorkflowRow[], id: string): string | undefined => 
   return mine[0]?.url;
 };
 
-const thumbOf = (t: WorkflowTemplate, rows: WorkflowRow[]): Thumb => {
+const thumbOf = (t: WorkflowTemplate, rows: WorkflowRow[], wf?: WfThumb): Thumb => {
+  // Thumbnail khai báo trong wfthumb/wfthumb.config.json (chỉ sửa file config, không build lại app)
+  if (wf && (wf.img || wf.video || wf.youtubeEmbed)) return { img: wf.img, video: wf.video, youtube: wf.youtube, youtubeEmbed: wf.video ? undefined : wf.youtubeEmbed };
   const own = latestOwnVideo(rows, t.id);
   if (own) return { video: own, own: true };
   // Mẫu từ fastaivn.com: thumbnail / video xem trước do trang quản trị tải lên
@@ -54,13 +62,16 @@ const TemplateCard: React.FC<{
   onOpenNodes: () => void;
 }> = ({ t, thumb, group, selected, onSelect, onOpenNodes }) => {
   const vref = useRef<HTMLVideoElement>(null);
+  const [hover, setHover] = useState(false);
   const play = () => {
+    setHover(true);
     const v = vref.current;
     if (!v) return;
     v.currentTime = 0;
     v.play().catch(() => undefined);
   };
   const stop = () => {
+    setHover(false);
     const v = vref.current;
     if (!v) return;
     v.pause();
@@ -92,7 +103,16 @@ const TemplateCard: React.FC<{
             className={`absolute inset-0 w-full h-full object-cover ${thumb.img ? 'opacity-0 group-hover:opacity-100 transition-opacity' : ''}`}
           />
         )}
-        {!thumb.img && !thumb.video && (
+        {/* Chỉ có link YouTube (không có file video): rê chuột phát bản nhúng */}
+        {!thumb.video && thumb.youtubeEmbed && hover && (
+          <iframe
+            src={thumb.youtubeEmbed}
+            title={t.name}
+            allow="autoplay; encrypted-media"
+            className="absolute inset-0 w-full h-full pointer-events-none"
+          />
+        )}
+        {!thumb.img && !thumb.video && !thumb.youtubeEmbed && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white/90">
             <span className="text-5xl drop-shadow">{t.icon}</span>
             <span className="text-[10px] px-2 text-center text-white/70">Chưa có video mẫu — chạy thử để có thumbnail</span>
@@ -142,6 +162,18 @@ const TemplateCard: React.FC<{
           >
             🧩 Sơ đồ
           </button>
+          {thumb.youtube && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                window.open(thumb.youtube, '_blank', 'noopener');
+              }}
+              title="Xem clip mẫu trên YouTube"
+              className="text-[10px] px-1.5 py-1 rounded-lg bg-red-700/90 text-white hover:bg-red-600"
+            >
+              ▶ YouTube
+            </button>
+          )}
           {(t.hnd?.videoUrl || t.remote?.trendUrl) && (
             <button
               onClick={(e) => {
@@ -199,6 +231,13 @@ export const WorkflowTemplateGallery: React.FC<{
   onRefreshCatalog,
 }) => {
   const groups = useMemo(() => [...new Set(templates.map(groupOf))], [templates, groupOf]);
+  // wfthumb/wfthumb.config.json — đọc lại mỗi lần mở màn (sửa file config là thấy ngay)
+  const [wfThumbs, setWfThumbs] = useState<Record<string, WfThumb>>({});
+  useEffect(() => {
+    loadWfThumbConfig()
+      .then(setWfThumbs)
+      .catch(() => undefined); // Gateway cũ chưa có API / chưa có config: dùng nguồn thumbnail cũ
+  }, []);
   const shown = templates.filter(
     (t) =>
       (filter === 'all' || groupOf(t) === filter) &&
@@ -283,7 +322,7 @@ export const WorkflowTemplateGallery: React.FC<{
             <TemplateCard
               key={t.id}
               t={t}
-              thumb={thumbOf(t, rows)}
+              thumb={thumbOf(t, rows, wfThumbs[t.id])}
               group={groupOf(t)}
               selected={t.id === selectedId}
               onSelect={() => onSelect(t.id)}

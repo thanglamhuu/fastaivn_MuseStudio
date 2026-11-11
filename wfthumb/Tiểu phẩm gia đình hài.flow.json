@@ -1,0 +1,356 @@
+{
+ "id": "wf-mwbksxyi68242j",
+ "kind": "flow-workflow",
+ "schemaVersion": 1,
+ "name": "Tiểu phẩm gia đình hài",
+ "description": "Tình huống vui trong gia đình xoay quanh sản phẩm. Dùng nhân vật trong thư viện (gọi đúng tên để giữ mặt + giọng).",
+ "nodes": [
+  {
+   "id": "node-mwbksxyi692iin",
+   "type": "upload-image",
+   "position": {
+    "x": 0,
+    "y": 0
+   },
+   "data": {
+    "refRoles": [
+     "character"
+    ],
+    "memberRole": "custom",
+    "characterName": "",
+    "prompt": "",
+    "autoDescribe": true,
+    "characterId": "char_test_bo",
+    "batchLabel": "👤 Nhân vật chính"
+   }
+  },
+  {
+   "id": "node-mwbksxyi6aipvx",
+   "type": "upload-image",
+   "position": {
+    "x": 0,
+    "y": 260
+   },
+   "data": {
+    "refRoles": [
+     "product"
+    ],
+    "memberRole": "custom",
+    "characterName": "",
+    "prompt": "",
+    "autoDescribe": true,
+    "productId": "prod_test_garan",
+    "batchLabel": "📦 Sản phẩm (chọn trong Cài đặt)"
+   }
+  },
+  {
+   "id": "node-mwbksxyi6b48px",
+   "type": "prompt",
+   "position": {
+    "x": 330,
+    "y": 0
+   },
+   "data": {
+    "prompt": "Sản phẩm: @@Gà rán giòn — nhân vật chính: @AnhTuan.\nPhim ngắn / cốt truyện liền mạch giữa các cảnh, đối thoại tự nhiên.\nTiểu phẩm gia đình Việt hài hước, đáng yêu: có mâu thuẫn nhỏ (chê mua đồ linh tinh, tranh nhau dùng...) rồi sản phẩm giải quyết; kết vui vẻ và nhắc mua.\nCó lời thoại tiếng Việt.",
+    "batchLabel": "Ý tưởng / sản phẩm"
+   }
+  },
+  {
+   "id": "node-mwbksxyi6c1316",
+   "type": "gemini-script",
+   "position": {
+    "x": 330,
+    "y": 300
+   },
+   "data": {
+    "prompt": "",
+    "outputCount": 5,
+    "sceneSeconds": 8,
+    "firstOutputIsCharacter": false,
+    "batchLabel": "AI viết kịch bản"
+   }
+  },
+  {
+   "id": "node-mwbksxyi6g8qq4",
+   "type": "generate-video",
+   "position": {
+    "x": 700,
+    "y": 0
+   },
+   "data": {
+    "videoMode": "reference-to-video",
+    "ratio": "9:16",
+    "duration": 8,
+    "prompt": "",
+    "imagePriority": true,
+    "keyframeFirst": true,
+    "batchLabel": "Cảnh 1",
+    "voice": "avocado_v2:vd2_r8_rep5k_3491_v068_28k_g5k"
+   }
+  },
+  {
+   "id": "node-mwbksxyi6ks0r5",
+   "type": "generate-video",
+   "position": {
+    "x": 700,
+    "y": 230
+   },
+   "data": {
+    "videoMode": "reference-to-video",
+    "ratio": "9:16",
+    "duration": 8,
+    "prompt": "",
+    "imagePriority": true,
+    "keyframeFirst": true,
+    "batchLabel": "Cảnh 2",
+    "voice": "avocado_v2:vd2_r8_rep5k_3491_v068_28k_g5k"
+   }
+  },
+  {
+   "id": "node-mwbksxyi6opjxu",
+   "type": "generate-video",
+   "position": {
+    "x": 700,
+    "y": 460
+   },
+   "data": {
+    "videoMode": "reference-to-video",
+    "ratio": "9:16",
+    "duration": 8,
+    "prompt": "",
+    "imagePriority": true,
+    "keyframeFirst": true,
+    "batchLabel": "Cảnh 3",
+    "voice": "avocado_v2:vd2_r8_rep5k_3491_v068_28k_g5k"
+   }
+  },
+  {
+   "id": "node-mwbksxyi6sgjx5",
+   "type": "generate-video",
+   "position": {
+    "x": 700,
+    "y": 690
+   },
+   "data": {
+    "videoMode": "reference-to-video",
+    "ratio": "9:16",
+    "duration": 8,
+    "prompt": "",
+    "imagePriority": true,
+    "keyframeFirst": true,
+    "batchLabel": "Cảnh 4",
+    "voice": "avocado_v2:vd2_r8_rep5k_3491_v068_28k_g5k"
+   }
+  },
+  {
+   "id": "node-mwbksxyi6w1z64",
+   "type": "generate-video",
+   "position": {
+    "x": 700,
+    "y": 920
+   },
+   "data": {
+    "videoMode": "reference-to-video",
+    "ratio": "9:16",
+    "duration": 8,
+    "prompt": "",
+    "imagePriority": true,
+    "keyframeFirst": true,
+    "batchLabel": "Cảnh 5",
+    "voice": "avocado_v2:vd2_r8_rep5k_3491_v068_28k_g5k"
+   }
+  },
+  {
+   "id": "node-mwbksxyi7078dn",
+   "type": "merge-video",
+   "position": {
+    "x": 1300,
+    "y": 100
+   },
+   "data": {
+    "portCount": 5,
+    "batchLabel": "Ghép 5 cảnh"
+   }
+  },
+  {
+   "id": "node-mwbksxyi768omr",
+   "type": "result",
+   "position": {
+    "x": 1600,
+    "y": 100
+   },
+   "data": {}
+  }
+ ],
+ "edges": [
+  {
+   "id": "edge-mwbksxyi6dhdan",
+   "source": "node-mwbksxyi6b48px",
+   "sourceHandle": "text-out",
+   "target": "node-mwbksxyi6c1316",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyi6eneb9",
+   "source": "node-mwbksxyi692iin",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi6c1316",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyi6fi56x",
+   "source": "node-mwbksxyi6aipvx",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi6c1316",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyi6hsplx",
+   "source": "node-mwbksxyi6c1316",
+   "sourceHandle": "text-out-0",
+   "target": "node-mwbksxyi6g8qq4",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyi6iftj7",
+   "source": "node-mwbksxyi692iin",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi6g8qq4",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyi6j9m8o",
+   "source": "node-mwbksxyi6aipvx",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi6g8qq4",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyi6l7e47",
+   "source": "node-mwbksxyi6c1316",
+   "sourceHandle": "text-out-1",
+   "target": "node-mwbksxyi6ks0r5",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyi6mizza",
+   "source": "node-mwbksxyi692iin",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi6ks0r5",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyi6nlht3",
+   "source": "node-mwbksxyi6aipvx",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi6ks0r5",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyi6pubve",
+   "source": "node-mwbksxyi6c1316",
+   "sourceHandle": "text-out-2",
+   "target": "node-mwbksxyi6opjxu",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyi6qfn6j",
+   "source": "node-mwbksxyi692iin",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi6opjxu",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyi6r983v",
+   "source": "node-mwbksxyi6aipvx",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi6opjxu",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyi6trj50",
+   "source": "node-mwbksxyi6c1316",
+   "sourceHandle": "text-out-3",
+   "target": "node-mwbksxyi6sgjx5",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyi6udrol",
+   "source": "node-mwbksxyi692iin",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi6sgjx5",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyi6v06cl",
+   "source": "node-mwbksxyi6aipvx",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi6sgjx5",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyi6xbuh4",
+   "source": "node-mwbksxyi6c1316",
+   "sourceHandle": "text-out-4",
+   "target": "node-mwbksxyi6w1z64",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyi6yteoz",
+   "source": "node-mwbksxyi692iin",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi6w1z64",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyi6ztfbz",
+   "source": "node-mwbksxyi6aipvx",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyi6w1z64",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyi714f0l",
+   "source": "node-mwbksxyi6g8qq4",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyi7078dn",
+   "targetHandle": "video-in-0"
+  },
+  {
+   "id": "edge-mwbksxyi72tlbd",
+   "source": "node-mwbksxyi6ks0r5",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyi7078dn",
+   "targetHandle": "video-in-1"
+  },
+  {
+   "id": "edge-mwbksxyi736858",
+   "source": "node-mwbksxyi6opjxu",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyi7078dn",
+   "targetHandle": "video-in-2"
+  },
+  {
+   "id": "edge-mwbksxyi7466d2",
+   "source": "node-mwbksxyi6sgjx5",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyi7078dn",
+   "targetHandle": "video-in-3"
+  },
+  {
+   "id": "edge-mwbksxyi7537rg",
+   "source": "node-mwbksxyi6w1z64",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyi7078dn",
+   "targetHandle": "video-in-4"
+  },
+  {
+   "id": "edge-mwbksxyi77r2fp",
+   "source": "node-mwbksxyi7078dn",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyi768omr",
+   "targetHandle": "video-in"
+  }
+ ],
+ "category": "Câu chuyện"
+}

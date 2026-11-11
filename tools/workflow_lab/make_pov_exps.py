@@ -6,10 +6,10 @@ import base64, json, subprocess, sys
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
-SRC = Path(r"D:\1FastAIVN\srcs\TaiNguyen\HongTreoGio")
-OUT = Path(r"D:\1FastAIVN\srcs\HNDWorkflow\HND worflows export\6_pov_giu_bao_bi_mau")
+SRC = Path(r"I:\Claude\Srcs\TaiNguyen\HongTreoGio")
+OUT = Path(r"I:\Claude\Srcs\HNDWorkflow\HND worflows export\6_pov_giu_bao_bi_mau")
 OUT.mkdir(parents=True, exist_ok=True)
-DESK = Path(r"D:\1FastAIVN\srcs\fastaivn_MuseStudio\frontend\public\workflow-thumbs\fastaivn-pov-desk.jpg")
+DESK = Path(r"I:\Claude\Srcs\MuseStudio\frontend\public\workflow-thumbs\fastaivn-pov-desk.jpg")
 
 
 def data_url(p: Path) -> str:

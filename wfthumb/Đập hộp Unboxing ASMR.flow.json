@@ -1,0 +1,252 @@
+{
+ "id": "wf-mwbksxyg1v4jbx",
+ "kind": "flow-workflow",
+ "schemaVersion": 1,
+ "name": "Đập hộp Unboxing ASMR",
+ "description": "Chỉ thấy tay mở hộp, cận cảnh sản phẩm, âm thanh ASMR, ít lời. Hợp mỹ phẩm, đồ công nghệ, blindbox.",
+ "nodes": [
+  {
+   "id": "node-mwbksxyg1wo998",
+   "type": "upload-image",
+   "position": {
+    "x": 0,
+    "y": 0
+   },
+   "data": {
+    "refRoles": [
+     "product"
+    ],
+    "memberRole": "custom",
+    "characterName": "",
+    "prompt": "",
+    "autoDescribe": true,
+    "productId": "prod_test_coc",
+    "batchLabel": "📦 Sản phẩm (chọn trong Cài đặt)"
+   }
+  },
+  {
+   "id": "node-mwbksxyg1xrvsh",
+   "type": "prompt",
+   "position": {
+    "x": 330,
+    "y": 0
+   },
+   "data": {
+    "prompt": "Sản phẩm: @@Cốc giữ nhiệt Cyber.\nGóc nhìn thứ nhất (POV), chỉ thấy tay cầm sản phẩm, không lộ mặt; nhịp nhanh như người thật review.\nVideo ASMR đập hộp: tiếng bóc seal, mở nắp, sột soạt giấy gói rõ ràng; lời thoại rất ngắn, thì thầm. Cảnh cuối đặt sản phẩm lên bàn đẹp mắt.\nCó lời thoại tiếng Việt.\nLưu ý hình ảnh: cốc LUÔN có quai cầm màu đen bên hông, nắp đen có nút bấm màu cam giữ đúng hình dạng như ảnh; khi mở nắp thấy LÒNG CỐC MÀU TRẮNG (không phải inox). Mỗi cảnh một câu thoại khác nhau, không lặp lại câu của cảnh trước.\nChi tiết nắp: nắp đen vuông bo tròn có khe xách phía trên, nút lẫy màu CAM nhỏ ở mép phải; bấm nút thì nắp bật lên. Không chèn chữ / chú thích quảng cáo lên video.",
+    "batchLabel": "Ý tưởng / sản phẩm"
+   }
+  },
+  {
+   "id": "node-mwbksxyg1ykmzg",
+   "type": "gemini-script",
+   "position": {
+    "x": 330,
+    "y": 300
+   },
+   "data": {
+    "prompt": "",
+    "outputCount": 4,
+    "sceneSeconds": 8,
+    "firstOutputIsCharacter": false,
+    "batchLabel": "AI viết kịch bản"
+   }
+  },
+  {
+   "id": "node-mwbksxyg21c3tz",
+   "type": "generate-video",
+   "position": {
+    "x": 700,
+    "y": 0
+   },
+   "data": {
+    "videoMode": "reference-to-video",
+    "ratio": "9:16",
+    "duration": 8,
+    "prompt": "",
+    "imagePriority": true,
+    "keyframeFirst": true,
+    "batchLabel": "Cảnh 1"
+   }
+  },
+  {
+   "id": "node-mwbksxyg24iklf",
+   "type": "generate-video",
+   "position": {
+    "x": 700,
+    "y": 230
+   },
+   "data": {
+    "videoMode": "reference-to-video",
+    "ratio": "9:16",
+    "duration": 8,
+    "prompt": "",
+    "imagePriority": true,
+    "keyframeFirst": true,
+    "batchLabel": "Cảnh 2"
+   }
+  },
+  {
+   "id": "node-mwbksxyg278apr",
+   "type": "generate-video",
+   "position": {
+    "x": 700,
+    "y": 460
+   },
+   "data": {
+    "videoMode": "reference-to-video",
+    "ratio": "9:16",
+    "duration": 8,
+    "prompt": "",
+    "imagePriority": true,
+    "keyframeFirst": true,
+    "batchLabel": "Cảnh 3"
+   }
+  },
+  {
+   "id": "node-mwbksxyg2a062r",
+   "type": "generate-video",
+   "position": {
+    "x": 700,
+    "y": 690
+   },
+   "data": {
+    "videoMode": "reference-to-video",
+    "ratio": "9:16",
+    "duration": 8,
+    "prompt": "",
+    "imagePriority": true,
+    "keyframeFirst": true,
+    "batchLabel": "Cảnh 4"
+   }
+  },
+  {
+   "id": "node-mwbksxyg2dgz70",
+   "type": "merge-video",
+   "position": {
+    "x": 1300,
+    "y": 100
+   },
+   "data": {
+    "portCount": 4,
+    "batchLabel": "Ghép 4 cảnh"
+   }
+  },
+  {
+   "id": "node-mwbksxyg2ijh0b",
+   "type": "result",
+   "position": {
+    "x": 1600,
+    "y": 100
+   },
+   "data": {}
+  }
+ ],
+ "edges": [
+  {
+   "id": "edge-mwbksxyg1zgtli",
+   "source": "node-mwbksxyg1xrvsh",
+   "sourceHandle": "text-out",
+   "target": "node-mwbksxyg1ykmzg",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyg20s3fz",
+   "source": "node-mwbksxyg1wo998",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyg1ykmzg",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyg22e35q",
+   "source": "node-mwbksxyg1ykmzg",
+   "sourceHandle": "text-out-0",
+   "target": "node-mwbksxyg21c3tz",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyg233r9p",
+   "source": "node-mwbksxyg1wo998",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyg21c3tz",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyg25s2j8",
+   "source": "node-mwbksxyg1ykmzg",
+   "sourceHandle": "text-out-1",
+   "target": "node-mwbksxyg24iklf",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyg26fbsa",
+   "source": "node-mwbksxyg1wo998",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyg24iklf",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyg2854sv",
+   "source": "node-mwbksxyg1ykmzg",
+   "sourceHandle": "text-out-2",
+   "target": "node-mwbksxyg278apr",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyg29gch2",
+   "source": "node-mwbksxyg1wo998",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyg278apr",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyg2bk108",
+   "source": "node-mwbksxyg1ykmzg",
+   "sourceHandle": "text-out-3",
+   "target": "node-mwbksxyg2a062r",
+   "targetHandle": "text-in"
+  },
+  {
+   "id": "edge-mwbksxyg2c71cy",
+   "source": "node-mwbksxyg1wo998",
+   "sourceHandle": "image-out",
+   "target": "node-mwbksxyg2a062r",
+   "targetHandle": "image-in"
+  },
+  {
+   "id": "edge-mwbksxyg2e6y52",
+   "source": "node-mwbksxyg21c3tz",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyg2dgz70",
+   "targetHandle": "video-in-0"
+  },
+  {
+   "id": "edge-mwbksxyg2f9ir3",
+   "source": "node-mwbksxyg24iklf",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyg2dgz70",
+   "targetHandle": "video-in-1"
+  },
+  {
+   "id": "edge-mwbksxyg2gzwwm",
+   "source": "node-mwbksxyg278apr",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyg2dgz70",
+   "targetHandle": "video-in-2"
+  },
+  {
+   "id": "edge-mwbksxyg2htf3f",
+   "source": "node-mwbksxyg2a062r",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyg2dgz70",
+   "targetHandle": "video-in-3"
+  },
+  {
+   "id": "edge-mwbksxyg2j0yb0",
+   "source": "node-mwbksxyg2dgz70",
+   "sourceHandle": "video-out",
+   "target": "node-mwbksxyg2ijh0b",
+   "targetHandle": "video-in"
+  }
+ ],
+ "category": "Không lộ mặt"
+}

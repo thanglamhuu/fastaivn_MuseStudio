@@ -62,6 +62,8 @@ export interface FlowNodeData {
   refRoles?: RefLock[];
   /** Sản phẩm trong Cài đặt (khi tích Khóa sản phẩm) */
   productId?: string;
+  /** Lookbook: dùng ảnh thứ N (0 = ảnh chính) của sản phẩm trong Cài đặt */
+  productImageIndex?: number;
   /** Ảnh cận mặt riêng (khóa nhân vật): ghép cạnh ảnh toàn thân thành 1 ảnh tham chiếu */
   faceImage?: string;
   /** Ảnh tải lên là character sheet 2×2 → tự cắt ô toàn thân + ô cận mặt */

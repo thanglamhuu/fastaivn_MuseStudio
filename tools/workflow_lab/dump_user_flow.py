@@ -4,7 +4,7 @@ import base64, json, re, sys
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
-p = Path(r"D:\1FastAIVN\srcs\fastaivn_MuseStudio\data\studio\state\nodeflow.library.v1.json")
+p = Path(r"I:\Claude\Srcs\MuseStudio\data\studio\state\nodeflow.library.v1.json")
 raw = json.loads(p.read_text(encoding="utf-8"))
 lib = raw.get("value", raw)
 out = Path(sys.argv[1])

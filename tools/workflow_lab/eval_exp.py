@@ -11,8 +11,8 @@ import numpy as np
 
 sys.stdout.reconfigure(encoding="utf-8")
 HERE = Path(__file__).parent
-TN = Path(r"D:\1FastAIVN\srcs\TaiNguyen")
-OUT = Path(r"D:\1FastAIVN\srcs\HNDWorkflow\HND worflows export\4_thi_nghiem_dong_nhat")
+TN = Path(r"I:\Claude\Srcs\TaiNguyen")
+OUT = Path(r"I:\Claude\Srcs\HNDWorkflow\HND worflows export\4_thi_nghiem_dong_nhat")
 tag = sys.argv[1]
 root = Path(os.environ["USERPROFILE"]) / "Downloads" / "MuseStudio"
 folder = next(p for p in root.iterdir() if p.is_dir() and p.name.startswith(f"Node - EXP {tag} "))

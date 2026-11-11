@@ -115,7 +115,10 @@ export const buildReferencePrompt = (input: ReferencePromptInput): string => {
     tail.push(`[KHÓA BỐI CẢNH CỐ ĐỊNH XUYÊN SUỐT: ${clip(input.setting, 400)} — cố định 100% xuyên suốt mọi cảnh]`);
   }
   const speaker = imgs.find((i) => i.role === 'character');
-  if (hasQuotedDialogue(scene) && !has(scene, 'KHÓA KHỚP MIỆNG')) {
+  if (hasQuotedDialogue(scene) && !speaker && imgs.some((i) => i.role !== 'keyframe') && !has(scene, 'KHÓA KHỚP MIỆNG', '[THOẠI VOICE-OVER')) {
+    // Cảnh không có nhân vật (POV chỉ thấy tay, cận sản phẩm): khóa khớp miệng làm model vẽ thêm mặt / môi người
+    tail.push('[THOẠI VOICE-OVER: câu trong ngoặc kép là giọng đọc ngoài khung hình, KHÔNG hiện mặt / miệng người nói, chỉ thấy tay và sản phẩm]');
+  } else if (hasQuotedDialogue(scene) && !has(scene, 'KHÓA KHỚP MIỆNG')) {
     const who = speaker?.name ? `@${tagOf(speaker.name)} (Ảnh #${imgs.indexOf(speaker) + 1})` : 'nhân vật đang nói';
     tail.push(
       `[KHÓA KHỚP MIỆNG (LIP-SYNC): ${who} nói đúng câu thoại trong ngoặc kép, cử động môi khớp chính xác từng âm tiết tiếng Việt, ` +
