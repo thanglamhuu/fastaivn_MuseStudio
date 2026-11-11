@@ -1,12 +1,12 @@
 {
  "version": 1,
- "fullVideoDir": "I:/Claude/Srcs/TestWorkFlow/thumFull",
+ "fullVideoDir": "../../TestWorkFlow/thumFull",
  "_huong_dan": [
   "Thumbnail + video xem trước của các mẫu Workflow trong MuseStudio (lưới card 'Mẫu & danh sách dòng').",
   "templateId: id mẫu trong app (không sửa). image / video: tên file trong thư mục wfthumb này, hoặc link http(s) tới ảnh / mp4.",
   "youtube: dán link YouTube (https://youtu.be/<id>, https://www.youtube.com/shorts/<id> hoặc watch?v=<id>) sau khi tải clip lên — card hiện nút ▶ YouTube; để trống 'video' thì rê chuột phát bản nhúng YouTube.",
   "youtubeThumbnail: (tùy chọn) link ảnh thumbnail riêng; để trống thì dùng image, không có image thì lấy ảnh của YouTube.",
-  "fullVideo: tên clip đầy đủ (có tiếng) trong thư mục fullVideoDir (để ngoài repo cho nhẹ git) — nút ▶ phóng to trên card phát clip này; có 'youtube' thì nút ▶ phát YouTube. Để trống fullVideoDir thì ▶ phát video xem trước 8 giây.",
+  "fullVideo: tên clip đầy đủ (có tiếng) trong thư mục fullVideoDir — đường dẫn tuyệt đối hoặc tương đối so với thư mục wfthumb (để ngoài repo cho nhẹ git) — nút ▶ phóng to trên card phát clip này; có 'youtube' thì nút ▶ phát YouTube. Để trống fullVideoDir thì ▶ phát video xem trước 8 giây.",
   "Sửa xong chỉ cần lưu file — app đọc lại mỗi khi mở màn Workflow (Gateway: GET /studio/wfthumb/config)."
  ],
  "templates": [
@@ -20,7 +20,7 @@
    "youtube": "",
    "youtubeThumbnail": "",
    "testVersion": "v3",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/01 Hieu POV AIO — Review sản phẩm góc nhìn thứ nhất/Hieu POV AIO — Review sản phẩm góc nhìn thứ nhất_v3.mp4"
+   "testClip": "../../TestWorkFlow/01 Hieu POV AIO — Review sản phẩm góc nhìn thứ nhất/Hieu POV AIO — Review sản phẩm góc nhìn thứ nhất_v3.mp4"
   },
   {
    "templateId": "wf-tvc5",
@@ -32,7 +32,7 @@
    "youtube": "",
    "youtubeThumbnail": "",
    "testVersion": "v5",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/02 TVC - Review 5 bước/TVC - Review 5 bước_v5.mp4"
+   "testClip": "../../TestWorkFlow/02 TVC - Review 5 bước/TVC - Review 5 bước_v5.mp4"
   },
   {
    "templateId": "wf-unbox-asmr",
@@ -44,7 +44,7 @@
    "youtube": "",
    "youtubeThumbnail": "",
    "testVersion": "v3",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/03 Đập hộp Unboxing ASMR/Đập hộp Unboxing ASMR_v3.mp4"
+   "testClip": "../../TestWorkFlow/03 Đập hộp Unboxing ASMR/Đập hộp Unboxing ASMR_v3.mp4"
   },
   {
    "templateId": "wf-pov-review",
@@ -56,7 +56,7 @@
    "youtube": "",
    "youtubeThumbnail": "",
    "testVersion": "v3",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/04 POV Review nhanh/POV Review nhanh_v3.mp4"
+   "testClip": "../../TestWorkFlow/04 POV Review nhanh/POV Review nhanh_v3.mp4"
   },
   {
    "templateId": "wf-truoc-sau",
@@ -68,7 +68,7 @@
    "youtube": "",
    "youtubeThumbnail": "",
    "testVersion": "v3",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/05 Trước & Sau khi dùng/Trước & Sau khi dùng_v3.mp4"
+   "testClip": "../../TestWorkFlow/05 Trước & Sau khi dùng/Trước & Sau khi dùng_v3.mp4"
   },
   {
    "templateId": "wf-lookbook",
@@ -80,7 +80,7 @@
    "youtube": "",
    "youtubeThumbnail": "",
    "testVersion": "v3",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/06 Lookbook nhiều mẫu - màu/Lookbook nhiều mẫu - màu_v3.mp4"
+   "testClip": "../../TestWorkFlow/06 Lookbook nhiều mẫu - màu/Lookbook nhiều mẫu - màu_v3.mp4"
   },
   {
    "templateId": "wf-street-walk",
@@ -92,7 +92,7 @@
    "youtube": "",
    "youtubeThumbnail": "",
    "testVersion": "v1",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/07 Đi bộ tạo dáng Street Look/Đi bộ tạo dáng Street Look_v1.mp4"
+   "testClip": "../../TestWorkFlow/07 Đi bộ tạo dáng Street Look/Đi bộ tạo dáng Street Look_v1.mp4"
   },
   {
    "templateId": "wf-gia-dinh",
@@ -104,7 +104,7 @@
    "youtube": "",
    "youtubeThumbnail": "",
    "testVersion": "v4",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/08 Tiểu phẩm gia đình hài/Tiểu phẩm gia đình hài_v4.mp4"
+   "testClip": "../../TestWorkFlow/08 Tiểu phẩm gia đình hài/Tiểu phẩm gia đình hài_v4.mp4"
   },
   {
    "templateId": "wf-review-7-ngay",
@@ -116,7 +116,7 @@
    "youtube": "",
    "youtubeThumbnail": "",
    "testVersion": "v5",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/09 Review sau 7 ngày dùng/Review sau 7 ngày dùng_v5.mp4"
+   "testClip": "../../TestWorkFlow/09 Review sau 7 ngày dùng/Review sau 7 ngày dùng_v5.mp4"
   },
   {
    "templateId": "hnd-ai-family-video-creator",
@@ -128,7 +128,7 @@
    "youtube": "",
    "youtubeThumbnail": "",
    "testVersion": "v4",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/10 Workflow Gia Đình Nhỏ Hài Hước Đáng Yêu (30 Chủ Đề)/Workflow Gia Đình Nhỏ Hài Hước Đáng Yêu (30 Chủ Đề)_v4.mp4"
+   "testClip": "../../TestWorkFlow/10 Workflow Gia Đình Nhỏ Hài Hước Đáng Yêu (30 Chủ Đề)/Workflow Gia Đình Nhỏ Hài Hước Đáng Yêu (30 Chủ Đề)_v4.mp4"
   },
   {
    "templateId": "hnd-nghia_mmo_super_flow_id",
@@ -140,7 +140,7 @@
    "youtube": "",
    "youtubeThumbnail": "",
    "testVersion": "v1",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/11 Workflow Đi Bộ Tạo Dáng (5 Scenes)/Workflow Đi Bộ Tạo Dáng (5 Scenes)_v1.mp4"
+   "testClip": "../../TestWorkFlow/11 Workflow Đi Bộ Tạo Dáng (5 Scenes)/Workflow Đi Bộ Tạo Dáng (5 Scenes)_v1.mp4"
   },
   {
    "templateId": "hnd-bc4f02e6-0ea4-4f6e-858b-0cccc279c666",
@@ -152,7 +152,7 @@
    "youtube": "",
    "youtubeThumbnail": "",
    "testVersion": "v1",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/12 Trend Đồ Ăn Vặt POV & Mukbang Cận Cảnh/Trend Đồ Ăn Vặt POV & Mukbang Cận Cảnh_v1.mp4"
+   "testClip": "../../TestWorkFlow/12 Trend Đồ Ăn Vặt POV & Mukbang Cận Cảnh/Trend Đồ Ăn Vặt POV & Mukbang Cận Cảnh_v1.mp4"
   },
   {
    "templateId": "hnd-women-outfit",
@@ -164,7 +164,7 @@
    "youtube": "",
    "youtubeThumbnail": "",
    "testVersion": "v2",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/13 Trend Biến Hình Thay Trang Phục Nữ (OOTD TikTok)/Trend Biến Hình Thay Trang Phục Nữ (OOTD TikTok)_v2.mp4"
+   "testClip": "../../TestWorkFlow/13 Trend Biến Hình Thay Trang Phục Nữ (OOTD TikTok)/Trend Biến Hình Thay Trang Phục Nữ (OOTD TikTok)_v2.mp4"
   },
   {
    "templateId": "hnd-studio-outfits",
@@ -176,7 +176,7 @@
    "youtube": "",
    "youtubeThumbnail": "",
    "testVersion": "v1",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/14 Lookbook Studio Đa Trang Phục & Sản Phẩm (5 Outfits)/Lookbook Studio Đa Trang Phục & Sản Phẩm (5 Outfits)_v1.mp4"
+   "testClip": "../../TestWorkFlow/14 Lookbook Studio Đa Trang Phục & Sản Phẩm (5 Outfits)/Lookbook Studio Đa Trang Phục & Sản Phẩm (5 Outfits)_v1.mp4"
   },
   {
    "templateId": "hnd-tiktok-street-catwalk-pose",
@@ -188,7 +188,7 @@
    "youtube": "",
    "youtubeThumbnail": "",
    "testVersion": "v1",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/15 Trend Đi Bộ Quay Lưng & Tạo Dáng Slow-Mo (Street Look)/Trend Đi Bộ Quay Lưng & Tạo Dáng Slow-Mo (Street Look)_v1.mp4"
+   "testClip": "../../TestWorkFlow/15 Trend Đi Bộ Quay Lưng & Tạo Dáng Slow-Mo (Street Look)/Trend Đi Bộ Quay Lưng & Tạo Dáng Slow-Mo (Street Look)_v1.mp4"
   },
   {
    "templateId": "hnd-tiktok-koc-unboxing-asmr",
@@ -200,7 +200,7 @@
    "youtube": "",
    "youtubeThumbnail": "",
    "testVersion": "v1",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/16 Trend TikTok Đập Hộp Unboxing ASMR & Test Lên Da/Trend TikTok Đập Hộp Unboxing ASMR & Test Lên Da_v1.mp4"
+   "testClip": "../../TestWorkFlow/16 Trend TikTok Đập Hộp Unboxing ASMR & Test Lên Da/Trend TikTok Đập Hộp Unboxing ASMR & Test Lên Da_v1.mp4"
   },
   {
    "templateId": "hnd-tiktok-menswear-gentleman",
@@ -212,7 +212,7 @@
    "youtube": "",
    "youtubeThumbnail": "",
    "testVersion": "v1",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/17 Trend Phối Đồ Nam Smart-Casual & Đi Bộ Tạo Dáng/Trend Phối Đồ Nam Smart-Casual & Đi Bộ Tạo Dáng_v1.mp4"
+   "testClip": "../../TestWorkFlow/17 Trend Phối Đồ Nam Smart-Casual & Đi Bộ Tạo Dáng/Trend Phối Đồ Nam Smart-Casual & Đi Bộ Tạo Dáng_v1.mp4"
   },
   {
    "templateId": "hnd-tiktok-home-appliance-hack",
@@ -224,7 +224,7 @@
    "youtube": "",
    "youtubeThumbnail": "",
    "testVersion": "v1",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/18 Trend Review Gia Dụng Thông Minh- Trước & Sau Khi Dùng/Trend Review Gia Dụng Thông Minh- Trước & Sau Khi Dùng_v1.mp4"
+   "testClip": "../../TestWorkFlow/18 Trend Review Gia Dụng Thông Minh- Trước & Sau Khi Dùng/Trend Review Gia Dụng Thông Minh- Trước & Sau Khi Dùng_v1.mp4"
   },
   {
    "templateId": "hnd-tiktok-kitchen-cooking-chill",
@@ -236,7 +236,7 @@
    "youtube": "",
    "youtubeThumbnail": "",
    "testVersion": "v3",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/19 Trend Vào Bếp Chill & Review Dụng Cụ Bếp Thông Minh/Trend Vào Bếp Chill & Review Dụng Cụ Bếp Thông Minh_v3.mp4"
+   "testClip": "../../TestWorkFlow/19 Trend Vào Bếp Chill & Review Dụng Cụ Bếp Thông Minh/Trend Vào Bếp Chill & Review Dụng Cụ Bếp Thông Minh_v3.mp4"
   },
   {
    "templateId": "hnd-tiktok-luxury-perfume-jewelry",
@@ -248,7 +248,7 @@
    "youtube": "",
    "youtubeThumbnail": "",
    "testVersion": "v5",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/20 Trend Nước Hoa & Trang Sức Luxury Điện Ảnh/Trend Nước Hoa & Trang Sức Luxury Điện Ảnh_v5.mp4"
+   "testClip": "../../TestWorkFlow/20 Trend Nước Hoa & Trang Sức Luxury Điện Ảnh/Trend Nước Hoa & Trang Sức Luxury Điện Ảnh_v5.mp4"
   },
   {
    "templateId": "hnd-tiktok-fitness-wellness-routine",
@@ -260,7 +260,7 @@
    "youtube": "",
    "youtubeThumbnail": "",
    "testVersion": "v1",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/21 Trend Morning Routine & Thực Phẩm Bổ Sung Sức Khỏe/Trend Morning Routine & Thực Phẩm Bổ Sung Sức Khỏe_v1.mp4"
+   "testClip": "../../TestWorkFlow/21 Trend Morning Routine & Thực Phẩm Bổ Sung Sức Khỏe/Trend Morning Routine & Thực Phẩm Bổ Sung Sức Khỏe_v1.mp4"
   },
   {
    "templateId": "hnd-tiktok-desk-setup-toy-unbox",
@@ -272,7 +272,7 @@
    "youtube": "",
    "youtubeThumbnail": "",
    "testVersion": "v1",
-   "testClip": "I:/Claude/Srcs/TestWorkFlow/22 Trend Blindbox - Mô Hình Đồ Chơi & Decor Góc Làm Việc/Trend Blindbox - Mô Hình Đồ Chơi & Decor Góc Làm Việc_v1.mp4"
+   "testClip": "../../TestWorkFlow/22 Trend Blindbox - Mô Hình Đồ Chơi & Decor Góc Làm Việc/Trend Blindbox - Mô Hình Đồ Chơi & Decor Góc Làm Việc_v1.mp4"
   }
  ]
 }

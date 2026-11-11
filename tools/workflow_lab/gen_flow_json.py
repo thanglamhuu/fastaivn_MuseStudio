@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
 HND = Path(r"D:\1FastAIVN\srcs\HND Muse AI")
-OUT = Path(r"I:\Claude\Srcs\MuseStudio\frontend\src\data\hndFlowTemplates.json")
+OUT = Path(__file__).resolve().parents[2].joinpath(r"frontend\src\data\hndFlowTemplates.json")
 CAT = {"gia-dinh": "Gia đình", "thoi-trang": "Thời trang", "thoi-trang-nam": "Thời trang nam", "my-pham": "Mỹ phẩm",
        "an-uong": "Ăn uống", "gia-dung": "Gia dụng", "gia-dung-bep": "Gia dụng bếp", "suc-khoe": "Sức khỏe",
        "do-choi": "Đồ chơi", "thiet-ke": "Thiết kế", "khac": "Khác"}

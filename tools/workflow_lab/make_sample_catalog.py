@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
 out = Path(sys.argv[1])
-FE = Path(r"I:\Claude\Srcs\MuseStudio\frontend")
+FE = Path(__file__).resolve().parents[2].joinpath(r"frontend")
 tpls = {t["id"]: t for t in json.loads((FE / "src/data/hndFlowTemplates.json").read_text(encoding="utf-8"))}
 pick = [
     ("hnd-ai-family-video-creator", "gia-dinh-linh-mit", "👨‍👩‍👧", 10, {"scriptMode": "short_film", "sceneCount": 3, "duration": 10}),

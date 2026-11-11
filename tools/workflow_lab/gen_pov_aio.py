@@ -6,7 +6,7 @@ import json, sys
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
-FE = Path(r"I:\Claude\Srcs\MuseStudio\frontend")
+FE = Path(__file__).resolve().parents[2].joinpath(r"frontend")
 
 BRIEF = """=== THÔNG TIN SẢN PHẨM (sửa các dòng này — để trống thì AI tự nhận diện từ ảnh) ===
 Sản phẩm:

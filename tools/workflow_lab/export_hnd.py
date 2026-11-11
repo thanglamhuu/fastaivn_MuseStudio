@@ -5,7 +5,7 @@ API = "http://127.0.0.1:5680/api/hnd-workflow/"
 def api(m, p=None):
     req = urllib.request.Request(API + m, data=json.dumps({"payload": p or {}}, ensure_ascii=False).encode(), headers={"Content-Type": "application/json"})
     return json.loads(urllib.request.urlopen(req, timeout=120).read().decode("utf-8", "replace"))
-root = Path(r"I:\Claude\Srcs\HNDWorkflow\HND worflows export")
+root = Path(__file__).resolve().parents[3].joinpath(r"HNDWorkflow\HND worflows export")
 a, b = root / "1_mau_goc (Dung mau)", root / "2_da_dong_bo_chay_thu"
 a.mkdir(parents=True, exist_ok=True); b.mkdir(parents=True, exist_ok=True)
 for t in api("get_workflow_templates")["templates"]:

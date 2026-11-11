@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from pathlib import Path
 
-p = Path(r"I:\Claude\Srcs\MuseStudio\frontend\src\components\WorkflowStudio.tsx")
+p = Path(__file__).resolve().parents[2].joinpath(r"frontend\src\components\WorkflowStudio.tsx")
 L = p.read_text(encoding="utf-8").split("\n")
 assert L[599].strip().startswith('<div className="p-4 lg:p-6 grid'), L[599]
 assert L[673].strip() == "</section>", L[673]

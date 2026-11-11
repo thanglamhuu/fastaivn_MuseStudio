@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
-R = Path(r"I:\Claude\Srcs\MuseStudio")
+R = Path(__file__).resolve().parents[2]
 ST = R / "data/studio/state"
 
 

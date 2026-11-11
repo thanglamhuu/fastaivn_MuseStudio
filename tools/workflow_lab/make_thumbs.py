@@ -6,8 +6,8 @@ import json, subprocess, sys
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
-SRC = Path(r"I:\Claude\Srcs\HNDWorkflow")
-OUT = Path(r"I:\Claude\Srcs\MuseStudio\frontend\public\workflow-thumbs")
+SRC = Path(__file__).resolve().parents[3].joinpath(r"HNDWorkflow")
+OUT = Path(__file__).resolve().parents[2].joinpath(r"frontend\public\workflow-thumbs")
 OUT.mkdir(parents=True, exist_ok=True)
 status = json.loads((SRC / "_run_status.json").read_text(encoding="utf-8"))
 for tid, st in status.items():

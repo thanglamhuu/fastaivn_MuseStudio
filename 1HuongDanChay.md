@@ -1,4 +1,4 @@
-alias favms='d:/1FastAIVN/srcs/fastaivn_MuseStudio/run_dev.bat'
+alias favms='e:/1FastAIVN/Srcs/MuseStudio/run_dev.bat'
 
 
 Bước 2: Trên máy khác

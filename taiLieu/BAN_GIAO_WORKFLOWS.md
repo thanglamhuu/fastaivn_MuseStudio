@@ -87,8 +87,10 @@ Còn lại:
 
 ## 7. Công cụ thí nghiệm — `tools/workflow_lab/`
 
-Chép từ thư mục tạm của phiên làm việc. Đường dẫn đã đổi sang máy mới: `I:\Claude\Srcs\MuseStudio`, `I:\Claude\Srcs\HNDWorkflow`,
-`I:\Claude\Srcs\TaiNguyen`. Còn trỏ máy cũ (không có trên máy mới): `D:\1FastAIVN\srcs\HND Muse AI` (gen_flow_json, gen_hnd_templates, make_reports),
+Đường dẫn tính **tương đối theo vị trí script** (từ 11/11/2026): repo MuseStudio = `parents[2]`, thư mục cha chứa
+`TaiNguyen\`, `HNDWorkflow\`, `TestWorkFlow\` = `parents[3]` — chuyển cả bộ `Srcs` sang ổ / máy khác không phải sửa.
+Thư mục `HNDWorkflow` đã mất trên máy KmdPc (ổ I: lỗi NTFS) nên các script đọc / ghi vào đó (eval_exp, export_hnd, make_*_exps,
+make_report_docx, make_thumbs, prep_pov_*, run_hnd_workflows) cần tạo lại thư mục trước khi chạy. Còn trỏ máy cũ (không có trên máy mới): `D:\1FastAIVN\srcs\HND Muse AI` (gen_flow_json, gen_hnd_templates, make_reports),
 `D:\work\fastaivn\srcs\fastaivnflowList` (prep_pov_test); thư mục thí nghiệm `_exp` / scratchpad của phiên cũ cũng phải sửa lại.
 
 | Script | Dùng để |

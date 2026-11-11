@@ -13,7 +13,7 @@ from docx.oxml import OxmlElement  # noqa: E402
 from docx.oxml.ns import qn  # noqa: E402
 from docx.shared import Cm, Pt  # noqa: E402
 
-DIR = Path(r"I:\Claude\Srcs\HNDWorkflow\HuongDan_POV_HongTreoGio")
+DIR = Path(__file__).resolve().parents[3].joinpath(r"HNDWorkflow\HuongDan_POV_HongTreoGio")
 IMG = DIR / "anh"
 OUT = DIR / "FastAIVN - Huong dan thuc hanh video POV review Hong treo gio.docx"
 FONT_MONO = "Consolas"
