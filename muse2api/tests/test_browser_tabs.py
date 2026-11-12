@@ -602,3 +602,57 @@ def test_seen_media_survives_restart(tmp_path):
     drv._remember_media("abc")
     drv2 = BrowserDriver(Settings(_env_file=None, data_dir=tmp_path))
     assert "abc" in drv2._seen_media()
+
+
+# [MuseStudio patch] muse.ai ngắt kết nối tài khoản ("Muse is disconnected") → lỗi xác thực, không phải lỗi thường
+class _PageSession(_FakeSession):
+    def __init__(self, body: str):
+        self.body = body
+
+    async def evaluate(self, expr, **_):
+        if "innerText" in expr and "slice(0, 800)" in expr and "ready" not in expr:
+            return self.body
+        return {"ok": False, "err": "no-input"}  # fill_input / attach_file không thấy ô
+
+
+@pytest.mark.parametrize("what", ["send", "attach"])
+async def test_disconnected_account_page_raises_auth_error(tmp_path, what):
+    from muse2api.drivers.base import InputImage
+    from muse2api.errors import UpstreamAuthError, UpstreamError
+
+    drv = BrowserDriver(Settings(_env_file=None, data_dir=tmp_path))
+    tab = _Tab("a1", "ctx", "t1", _PageSession(
+        "Muse is disconnected We disconnected Muse to protect your information. Submit a feedback ticket to reconnect."))
+    with pytest.raises(UpstreamAuthError, match="bị muse.ai khóa"):
+        if what == "send":
+            await drv._send(tab, "hello")
+        else:
+            await drv._attach(tab, [InputImage(data=b"x", mime="image/png")])
+    # Trang bình thường mà thiếu ô chat (đang tải…) vẫn là lỗi thường (thử lại / tài khoản khác), không khóa tài khoản
+    tab2 = _Tab("a1", "ctx", "t2", _PageSession("Muse  What can I help with?"))
+    with pytest.raises(UpstreamError) as ei:
+        await drv._send(tab2, "hello")
+    assert not isinstance(ei.value, UpstreamAuthError)
+
+
+async def test_warming_a_blocked_account_disables_and_saves_it(tmp_path, monkeypatch):
+    # [MuseStudio patch] làm nóng luồng gặp "Muse is disconnected" → tự tắt tài khoản (không xoá) + gọi lưu
+    from muse2api.errors import UpstreamAccountBlocked
+
+    drv = BrowserDriver(Settings(_env_file=None, data_dir=tmp_path))
+    _no_browser(drv, monkeypatch)
+    saved: list[str] = []
+
+    async def save(acc):
+        saved.append(acc.id)
+    drv.on_account_blocked = save
+
+    async def blocked(tab):
+        raise UpstreamAccountBlocked("⛔ Nghi tài khoản đã bị muse.ai khóa")
+    monkeypatch.setattr(drv, "_warm_up", blocked)
+    acc = Account(id="b1", cookies={"hatch_sess": "x"})
+    tab = _Tab(acc.id, "ctx", "t1", _FakeSession())
+    drv._tabs[acc.id] = [tab]
+    tab.busy = True
+    assert await drv._warm_one(acc, tab) is False
+    assert acc.enabled is False and acc.meta.get("blocked_at") and saved == ["b1"]

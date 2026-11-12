@@ -13,6 +13,7 @@ import {
   deleteMuseAccount,
   getBrowserLogin,
   importMuseCookieAccount,
+  isAccountBlocked,
   isAccountUsable,
   renewMuseAccount,
   resetMuseAccount,
@@ -27,6 +28,8 @@ const LOGIN_JOB_KEY = 'loginJob.v1';
 const EMAIL_BATCH_KEY = 'emailLoginBatch.v1';
 
 const statusBadge = (acc: StudioAccount) => {
+  // Bị khóa xét TRƯỚC "Đã tắt": tài khoản bị khóa được Gateway tự tắt, vẫn phải thấy rõ lý do
+  if (isAccountBlocked(acc)) return { text: '⛔ Nghi bị khóa — đã tự tắt', cls: 'bg-red-600/30 text-red-300 font-semibold' };
   if (!acc.enabled) return { text: 'Đã tắt', cls: 'bg-slate-700 text-slate-300' };
   if (acc.status === 'invalid') return { text: 'Cần đăng nhập lại', cls: 'bg-red-500/20 text-red-400' };
   if (acc.status === 'cooling') {
@@ -265,12 +268,30 @@ const AccountRow: React.FC<{
         </span>
         {acc.last_used_at > 0 && <span>Dùng lần cuối {timeAgo(acc.last_used_at)}</span>}
         {acc.meta?.logged_in_at && <span>Đăng nhập {timeAgo(acc.meta.logged_in_at)}</span>}
-        {acc.last_error && (
+        {acc.last_error && !isAccountBlocked(acc) && (
           <span className="text-red-400 truncate max-w-full" title={acc.last_error}>
             Lỗi gần nhất: {acc.last_error}
           </span>
         )}
       </div>
+
+      {isAccountBlocked(acc) && (
+        <div className="rounded-lg border border-red-800 bg-red-950/40 px-3 py-2 text-[11px] text-red-200 space-y-0.5">
+          <div className="font-semibold text-red-300">
+            ⛔ Nghi tài khoản đã bị muse.ai khóa
+            {acc.meta?.blocked_at ? ` (phát hiện ${timeAgo(acc.meta.blocked_at)})` : ''}
+          </div>
+          <div>
+            Trang muse.ai của tài khoản này báo <i>"Muse is disconnected — We disconnected Muse to protect your information"</i>:
+            vẫn đăng nhập được nhưng không còn ô chat, nên không tạo được ảnh / video. App đã <b>tự tắt</b> tài khoản này (không xoá)
+            và ngừng giao việc.
+          </div>
+          <div className="text-red-300/80">
+            Cách xử lý: đăng nhập muse.ai bằng trình duyệt để xem lại; nếu đúng bị khóa thì bấm "Submit a ticket" trên trang đó
+            để xin mở lại, mở xong bấm "Đăng nhập" ở đây (đăng nhập được thì tài khoản tự bật lại); không dùng nữa thì bấm "Xoá".
+          </div>
+        </div>
+      )}
 
       {cookieOpen && (
         <div className="space-y-2">
@@ -474,6 +495,23 @@ export const AccountsPage: React.FC<{ state: MuseAccountsState }> = ({ state }) 
         </div>
       </div>
 
+      {accounts.some(isAccountBlocked) && (
+        <div className="rounded-xl border border-red-800 bg-red-950/40 p-3 text-xs text-red-200">
+          <div className="font-semibold text-red-300">
+            ⛔ {accounts.filter(isAccountBlocked).length} tài khoản nghi bị muse.ai khóa — đã tự tắt, không xoá:
+          </div>
+          <div className="mt-0.5 font-mono text-[11px] text-red-200/90">
+            {accounts
+              .filter(isAccountBlocked)
+              .map((a) => a.label || a.id)
+              .join(' · ')}
+          </div>
+          <div className="mt-1 text-[11px] text-red-300/80">
+            muse.ai báo "Muse is disconnected" cho các tài khoản này. Xem hướng dẫn ở từng tài khoản bên dưới.
+          </div>
+        </div>
+      )}
+
       {/* Tổng quan */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
@@ -533,14 +571,15 @@ export const AccountsPage: React.FC<{ state: MuseAccountsState }> = ({ state }) 
           <p className="text-[11px] text-slate-400">
             Mỗi tài khoản 1 dòng: <code>email | link hộp thư</code>. App mở Chrome lần lượt từng tài khoản, tự gõ email,
             vào link hộp thư lấy <b>mã OTP trong thư mới nhất</b> (chỉ nhận thư đến sau khi bấm gửi mã) rồi gõ mã. Thiếu
-            link thì dùng <code>https://generator.email/&lt;email&gt;</code>. Email trùng tài khoản đã có → đăng nhập lại
+            link thì dùng <code>https://generator.email/&lt;email&gt;</code>. Link hộp thư chung không chứa email (vd.{' '}
+            <code>http://mail.monteam.net:8025</code>) cũng được: app lấy email ở đầu dòng để tra mã trên trang đó. Email trùng tài khoản đã có → đăng nhập lại
             cho tài khoản đó. Bước nào không tự làm được thì hoàn tất bằng tay trong cửa sổ Chrome.
           </p>
           <textarea
             rows={4}
             value={emailText}
             onChange={(e) => setEmailText(e.target.value)}
-            placeholder={'ten1@dishow.net | https://generator.email/ten1@dishow.net\nten2@dishow.net | https://generator.email/ten2@dishow.net'}
+            placeholder={'ten1@dishow.net | https://generator.email/ten1@dishow.net\nabc123@monteam.net|http://mail.monteam.net:8025'}
             className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-xs font-mono focus:outline-none focus:border-sky-500"
           />
           <button

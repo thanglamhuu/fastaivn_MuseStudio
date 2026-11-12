@@ -22,6 +22,10 @@ APPROVAL_CARD = '[data-testid="hatch-inline-approval-card"]'
 FILE_INPUT = 'input[type="file"]'
 
 LOGIN_HINTS = ("log in", "sign in", "create an account", "use another account")
+# [MuseStudio patch] muse.ai tự ngắt kết nối tài khoản (bảo vệ): "Muse is disconnected — We disconnected Muse to protect
+# your information. Submit a feedback ticket to reconnect." — trang không có ô chat / ô gửi file; chỉ mở lại qua ticket.
+DISCONNECTED_HINTS = ("muse is disconnected", "we disconnected muse")
+BODY_HEAD = "(document.body ? document.body.innerText : '').slice(0, 800)"
 QUOTA_HINTS = ("out of credits", "usage limit", "limit reached", "token limit")
 STALL_HINTS = ("Still sending", "Connecting...")
 

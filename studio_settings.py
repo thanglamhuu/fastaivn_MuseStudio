@@ -57,3 +57,35 @@ def cleanup_stale_driver_chrome() -> None:
     if base.is_dir():
         for child in base.glob("cdp_*"):
             shutil.rmtree(child, ignore_errors=True)
+
+
+class QuietConnectionResetMiddleware:
+    """Tắt traceback vô hại trên Windows: trình duyệt / thẻ <video> đóng kết nối giữa chừng (tua video, đổi đoạn
+    206 Partial Content) → asyncio Proactor in "Exception in callback _ProactorBasePipeTransport._call_connection_lost …
+    ConnectionResetError: [WinError 10054]". Không ảnh hưởng gì nhưng làm rối log. Middleware ASGI thuần (không bọc
+    response) chỉ để gắn bộ lọc vào event loop đang chạy ở request đầu tiên; mọi lỗi khác vẫn in như cũ."""
+
+    def __init__(self, app) -> None:
+        self.app = app
+        self._installed = False
+
+    async def __call__(self, scope, receive, send):
+        if not self._installed:
+            self._installed = True
+            import asyncio
+
+            loop = asyncio.get_running_loop()
+            previous = loop.get_exception_handler()
+
+            def handler(lp, context):
+                exc = context.get("exception")
+                where = f"{context.get('handle', '')} {context.get('message', '')}"
+                if isinstance(exc, (ConnectionResetError, ConnectionAbortedError)) and "_call_connection_lost" in where:
+                    return
+                if previous is not None:
+                    previous(lp, context)
+                else:
+                    lp.default_exception_handler(context)
+
+            loop.set_exception_handler(handler)
+        await self.app(scope, receive, send)

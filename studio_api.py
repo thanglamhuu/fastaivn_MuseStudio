@@ -35,8 +35,7 @@ from websockets.asyncio.client import connect as ws_connect
 from muse2api.drivers.browser.chromium import find_chromium
 from muse2api.errors import InvalidRequest, NotFound, UpstreamAuthError, UpstreamError
 from muse2api.upstream.muse import SITE, missing_session_cookies, renew_session
-from studio_emaillogin import (BrowserInbox, EmailLogin, FallbackInbox, HttpInbox, LoginPage, auto_login,
-                              default_inbox_url, parse_lines)
+from studio_emaillogin import EmailLogin, LoginPage, auto_login, default_inbox_url, make_inbox, parse_lines
 
 log = logging.getLogger("musestudio.login")
 
@@ -140,6 +139,7 @@ async def _save_account(app: FastAPI, job: LoginJob, cookies: dict[str, str],
     acc.last_error = None
     acc.enabled = True
     acc.meta["logged_in_at"] = time.time()
+    acc.meta.pop("blocked_at", None)  # đăng nhập lại được → bỏ dấu "nghi bị muse.ai khóa"
     if job.email:
         # Nhớ email + hộp thư để nút "Đăng nhập lại" tự lấy mã lần sau
         acc.meta["email"] = job.email
@@ -178,23 +178,23 @@ async def _run_auto(job: LoginJob, port: int) -> None:
             ws = r.json()["webSocketDebuggerUrl"].replace("localhost", "127.0.0.1")
         return CDPSession(await ws_connect(ws, max_size=None, ping_interval=None, open_timeout=15))
 
-    browser_inbox: BrowserInbox | None = None
+    inbox = None
     try:
         page_cdp = CDPSession(await ws_connect(await _page_ws(port), max_size=None,
                                                ping_interval=None, open_timeout=15))
         async with httpx.AsyncClient(timeout=20, trust_env=False) as client:
-            browser_inbox = BrowserInbox(open_tab, job.inbox_url)
-            inbox = FallbackInbox(browser_inbox, HttpInbox(client, job.inbox_url))
-            await auto_login(LoginPage(page_cdp), EmailLogin(job.email, job.inbox_url), report,
-                             client=client, inbox=inbox)
+            item = EmailLogin(job.email, job.inbox_url)
+            # Link chứa email → tab Chrome + httpx; link không chứa email (hộp thư chung tên miền) → API theo email / điền email vào trang
+            inbox = make_inbox(item, client, open_tab)
+            await auto_login(LoginPage(page_cdp), item, report, client=client, inbox=inbox)
     except asyncio.CancelledError:
         raise
     except Exception as exc:  # noqa: BLE001
         log.warning("auto login %s (%s) dừng: %s", job.id, job.email, exc)
         report(f"{job.email}: tự động chưa xong ({exc}) — hãy hoàn tất bằng tay trong cửa sổ Chrome.")
     finally:
-        if browser_inbox is not None:
-            await browser_inbox.close()
+        if inbox is not None:
+            await inbox.close()
         if page_cdp is not None:
             await page_cdp.close()
 

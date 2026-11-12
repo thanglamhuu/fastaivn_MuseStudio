@@ -146,3 +146,18 @@ def test_settings_default_concurrency_is_two():
     from muse2api.config import Settings
     s = Settings(_env_file=None)
     assert s.account_default_concurrency == 2 and s.account_max_concurrency == 4
+
+
+async def test_blocked_account_is_invalid_and_marked(tmp_path):
+    # [MuseStudio patch] muse.ai khóa tài khoản ("Muse is disconnected") → INVALID + meta["blocked_at"] để UI hiện "Nghi bị khóa"
+    from muse2api.errors import UpstreamAccountBlocked
+
+    pool = await _pool(tmp_path, n=1)
+    with pytest.raises(UpstreamAccountBlocked):
+        async with pool.lease():
+            raise UpstreamAccountBlocked("⛔ Nghi tài khoản đã bị muse.ai khóa")
+    acc = pool.get("a0")
+    assert acc.status == AccountStatus.INVALID and acc.meta.get("blocked_at") and "bị muse.ai khóa" in acc.last_error
+    assert acc.enabled is False and pool.get("a0") is not None  # tự tắt, KHÔNG xoá khỏi danh sách
+    with pytest.raises(NoAccountAvailable):
+        await pool.acquire()

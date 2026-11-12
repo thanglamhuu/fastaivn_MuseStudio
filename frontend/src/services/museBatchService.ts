@@ -236,7 +236,7 @@ export interface StudioAccount extends GatewayAccount {
   blocked?: Record<string, { until: number; reason: string | null }>;
   /** Hạn mức tuần đã dùng hết (theo lần kiểm tra gần nhất) */
   quota_exhausted?: boolean;
-  meta: { quota?: AccountQuota; renewed_at?: number; logged_in_at?: number; [k: string]: unknown };
+  meta: { quota?: AccountQuota; renewed_at?: number; logged_in_at?: number; blocked_at?: number; [k: string]: unknown };
 }
 
 export interface StudioAccountsResponse {
@@ -284,6 +284,13 @@ export const getEmailLogin = async (batchId: string): Promise<LoginBatch> => {
 export const cancelEmailLogin = async (batchId: string): Promise<void> => {
   await gatewayFetch(`/studio/login/batch/${encodeURIComponent(batchId)}/cancel`, { method: 'POST' });
 };
+
+/**
+ * Nghi tài khoản bị muse.ai khóa: Gateway thấy trang "Muse is disconnected — We disconnected Muse to protect your
+ * information" (đăng nhập vẫn được, /api/session vẫn báo phiên hợp lệ, nhưng không còn ô chat).
+ */
+export const isAccountBlocked = (a: GatewayAccount & { meta?: { blocked_at?: number } }) =>
+  !!a.meta?.blocked_at || /muse is disconnected|we disconnected muse|bị muse\.ai khóa/i.test(a.last_error || '');
 
 export const isAccountUsable = (a: GatewayAccount) => a.enabled && a.status !== 'invalid';
 

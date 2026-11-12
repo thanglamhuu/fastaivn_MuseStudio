@@ -20,12 +20,13 @@ from typing import Protocol
 
 from ..errors import (
     NoAccountAvailable,
+    UpstreamAccountBlocked,
     UpstreamAuthError,
     UpstreamKindBlocked,
     UpstreamQuotaError,
     UpstreamTimeout,
 )
-from .model import Account, AccountStatus
+from .model import Account, AccountStatus, mark_account_blocked
 from .store import AccountStore
 
 log = logging.getLogger(__name__)
@@ -394,6 +395,9 @@ class AccountPool:
             until = block_kind(acc, error.kind, error.until, error.reason)
             log.warning("account %s: %s blocked until %s (%s)", acc.id, error.kind,
                         time.strftime("%Y-%m-%d %H:%M", time.localtime(until)), error.reason)
+        elif isinstance(error, UpstreamAccountBlocked):  # [MuseStudio patch]
+            mark_account_blocked(acc, str(error))
+            log.warning("account %s blocked by muse.ai: %s", acc.id, error)
         elif isinstance(error, UpstreamAuthError):
             acc.status = AccountStatus.INVALID
             log.warning("account %s marked invalid: %s", acc.id, error)

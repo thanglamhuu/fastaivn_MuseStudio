@@ -20,7 +20,7 @@ import re
 import time
 from dataclasses import dataclass
 from typing import Any, Callable
-from urllib.parse import quote
+from urllib.parse import quote, unquote, urlsplit
 
 import httpx
 
@@ -169,6 +169,92 @@ class BrowserInbox:
                 await self.cdp.close()
 
 
+def _iso_to_utc(s: str) -> str:
+    """"2026-11-12T03:06:32.314Z" → "2026-11-12 03:06:32" (UTC, cùng dạng so sánh với ``since``)."""
+    m = re.match(r"(\d{4}-\d\d-\d\d)[T ](\d\d:\d\d:\d\d)", s or "")
+    return f"{m.group(1)} {m.group(2)}" if m else ""
+
+
+LOGIN_SUBJECT_RE = re.compile(r"log ?in|sign ?in|đăng nhập|security code|login code|use code", re.I)
+
+
+class ApiInbox:
+    """Hộp thư chung cho cả tên miền, có API JSON theo email (vd. ``http://mail.monteam.net:8025`` —
+    "Meta & Muse Login OTP Viewer"): ``GET <gốc>/api/email/<tên miền>/<tên>/?page=1&limit=20`` →
+    ``{"emails": [{"id","to","from","subject","otp","body","created_at"}]}``. Link không chứa email nên lấy email ở đầu dòng."""
+
+    def __init__(self, client: httpx.AsyncClient, url: str, email: str) -> None:
+        sp = urlsplit(url)
+        self.base = f"{sp.scheme or 'http'}://{sp.netloc}"
+        self.client, self.email = client, email.lower()
+
+    async def fetch(self) -> list[Mail]:
+        user, _, dom = self.email.partition("@")
+        r = await self.client.get(f"{self.base}/api/email/{quote(dom)}/{quote(user)}/",
+                                  params={"page": 1, "limit": 20}, headers={"User-Agent": UA, "Accept": "application/json"})
+        r.raise_for_status()
+        try:
+            data = r.json()
+        except ValueError as exc:
+            raise httpx.HTTPError("hộp thư không có API JSON") from exc
+        if not isinstance(data, dict) or not isinstance(data.get("emails"), list):
+            raise httpx.HTTPError("hộp thư không có API JSON")
+        mails: list[Mail] = []
+        for e in data["emails"]:
+            if not isinstance(e, dict) or (e.get("to") and str(e["to"]).lower() != self.email):
+                continue
+            subject = str(e.get("subject") or "")
+            code = str(e.get("otp") or "").strip()
+            if not re.fullmatch(r"\d{4,8}", code):
+                m = CODE_RE.search(subject) or CODE_RE.search(_text(str(e.get("body") or ""))[:3000])
+                code = m.group(1) if m else ""
+            mails.append(Mail(id=str(e.get("id") or subject + str(e.get("created_at"))), sender=str(e.get("from") or ""),
+                              subject=subject, time=_iso_to_utc(str(e.get("created_at") or "")), code=code))
+        mails.sort(key=lambda m: m.time, reverse=True)
+        # Hộp thư có cả thư Meta khác kèm mã ("Did you just remove your email address?", đổi email…) → thư đăng nhập lên trước
+        return sorted(mails, key=lambda m: 0 if LOGIN_SUBJECT_RE.search(m.subject) else 1)
+
+
+class FormInbox(BrowserInbox):
+    """Trang xem mã kiểu "dán email → bấm Get OTP" mà không có API: mở trang trong tab Chrome, ĐIỀN EMAIL vào ô, bấm nút lấy mã
+    rồi đọc mã trên trang (mỗi lần đọc: điền lại + bấm lại)."""
+
+    def __init__(self, open_tab: Callable[[str], Any], url: str, email: str) -> None:
+        super().__init__(open_tab, url)
+        self.email = email
+
+    async def fetch(self) -> list[Mail]:
+        if self.cdp is None:
+            self.cdp = await self.open_tab(self.url)
+            await asyncio.sleep(2.5)
+        page = LoginPage(self.cdp)
+        filled = await page._type_into(
+            "inputs().find((i) => !['hidden','checkbox','radio','password','submit','button'].includes(i.type))", self.email)
+        if not filled:
+            raise httpx.HTTPError("trang hộp thư không có ô nhập email")
+        if not await page.click(r"get ?otp|get code|check|fetch|search|refresh|xem|lấy|tìm|kiểm tra"):
+            await page._enter()
+        await asyncio.sleep(3.0)
+        html = await self.cdp.evaluate("document.documentElement.outerHTML", timeout=10) or ""
+        return parse_inbox(html)
+
+
+def email_in_url(url: str, email: str) -> bool:
+    return email.lower() in unquote(url or "").lower()
+
+
+def make_inbox(item: EmailLogin, client: httpx.AsyncClient, open_tab: Callable[[str], Any] | None = None):
+    """Chọn cách đọc hộp thư theo link:
+    - link chứa email (generator.email/<email>): tab Chrome (không bị chặn) → httpx dự phòng;
+    - link KHÔNG chứa email (hộp thư chung cả tên miền, vd. http://mail.monteam.net:8025): API JSON theo email → nếu không có
+      API thì mở trang, điền email vào ô, bấm lấy mã (cần tab Chrome) → cuối cùng đọc chữ trên trang bằng httpx."""
+    if email_in_url(item.inbox_url, item.email):
+        return FallbackInbox(BrowserInbox(open_tab, item.inbox_url) if open_tab else None, HttpInbox(client, item.inbox_url))
+    return FallbackInbox(ApiInbox(client, item.inbox_url, item.email),
+                         FormInbox(open_tab, item.inbox_url, item.email) if open_tab else None,
+                         HttpInbox(client, item.inbox_url))  # cuối cùng: đọc chữ trên trang, quét mã
+
+
 class FallbackInbox:
     """Thử lần lượt các cách đọc hộp thư; cách nào lỗi thì dùng cách sau."""
 
@@ -184,6 +270,12 @@ class FallbackInbox:
                 last = exc
                 log.info("đọc hộp thư bằng %s lỗi: %s", type(s).__name__, exc)
         raise httpx.HTTPError(f"không đọc được hộp thư ({last})")
+
+    async def close(self) -> None:
+        for s in self.sources:
+            if hasattr(s, "close"):
+                with contextlib.suppress(Exception):
+                    await s.close()
 
 
 async def wait_new_code(inbox, known: set[str] | None, *,
@@ -343,7 +435,7 @@ async def auto_login(page: LoginPage, item: EmailLogin, report: Callable[[str], 
     ``inbox``: cách đọc hộp thư (studio_api truyền tab Chrome + httpx dự phòng); không truyền thì dùng httpx."""
     own = client is None
     client = client or httpx.AsyncClient(timeout=20, trust_env=False)
-    inbox = inbox or HttpInbox(client, item.inbox_url)
+    inbox = inbox or make_inbox(item, client)
     try:
         # Thư đang có TRƯỚC khi yêu cầu mã → bỏ qua (chỉ nhận mã của thư mới đến). Hộp thư tạm thời không đọc được
         # (generator.email hay trả 503) thì nhận thư có thời gian từ lúc yêu cầu mã trở đi (giờ UTC, lùi 2 phút cho lệch giờ).

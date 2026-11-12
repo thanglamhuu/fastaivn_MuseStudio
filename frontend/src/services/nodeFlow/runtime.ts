@@ -141,10 +141,18 @@ const NO_MEDIA_RE = /earlier (video|image) file|Internal Server Error|Bad Gatewa
 /** Nhắc muse.ai đây là yêu cầu MỚI (nó nhớ việc cũ theo tài khoản và hay gửi lại file đã tạo trước đó) */
 const NEW_REQUEST_NOTE = (kind: 'video' | 'ảnh') =>
   `[YÊU CẦU MỚI: tạo ${kind} MỚI theo đúng mô tả này — KHÔNG gửi lại / dùng lại file ${kind} đã tạo trước đó.]`;
-const retryNoMedia = async <T,>(fn: () => Promise<T>, what: string, deps: { shouldStop: () => boolean; log: (m: string) => void }): Promise<T> => {
+/** Câu thêm vào prompt từ lần thử thứ 2: muse.ai nhớ theo tài khoản, gửi y nguyên prompt thì nó coi là xin lại bản cũ */
+const retryNote = (k: number, kind: 'ảnh' | 'video') =>
+  k === 0
+    ? ''
+    : `
+[LẦN THỬ #${k + 1}: lần trước muse.ai không tạo ra ${kind}. Hãy TẠO ${kind.toUpperCase()} MỚI ngay từ mô tả ở trên — ` +
+      'không tìm / không gửi lại file hay "phiên bản" cũ, không hỏi lại.]';
+
+const retryNoMedia = async <T,>(fn: (attempt: number) => Promise<T>, what: string, deps: { shouldStop: () => boolean; log: (m: string) => void }): Promise<T> => {
   for (let k = 0; ; k++) {
     try {
-      return await fn();
+      return await fn(k);
     } catch (err: any) {
       if (k >= 2 || deps.shouldStop() || !NO_MEDIA_RE.test(String(err?.message || err))) throw err;
       deps.log(`${what}: muse.ai không trả kết quả (trả lời bằng chữ / lỗi render / quá giờ) → làm lại (lần ${k + 2})`);
@@ -609,7 +617,7 @@ export async function runFlow(wf: FlowWorkflow, mode: RunMode, deps: FlowRunDeps
             out.push({ kind: 'image', value: img, roles: rest, name, desc });
           } else if (desc || d.sheetPrompt) {
             deps.log(`${label(n)}: chưa có ảnh ${rest.map((x) => ROLE_VI[x]).join(' + ')} → AI (muse-image) tự tạo ảnh tham chiếu`);
-            const img = await retryNoMedia(() => withBusyRetry(() => generateMuseKeyframe({ ...DEFAULT_MUSE_CONFIG, aspectRatio: '9:16' }, autoImagePrompt(d, rest), []), {
+            const img = await retryNoMedia((k) => withBusyRetry(() => generateMuseKeyframe({ ...DEFAULT_MUSE_CONFIG, aspectRatio: '9:16' }, autoImagePrompt(d, rest) + retryNote(k, 'ảnh'), []), {
               shouldStop: deps.shouldStop,
               log: deps.log,
               what: label(n),
@@ -765,7 +773,7 @@ ${got[i - 1]}` : ''),
           stop();
           out.push({
             kind: 'image',
-            value: await retryNoMedia(() => withBusyRetry(() => generateMuseKeyframe({ ...DEFAULT_MUSE_CONFIG, aspectRatio: ratioOf(d) }, stillPrompt, useRefs), {
+            value: await retryNoMedia((k) => withBusyRetry(() => generateMuseKeyframe({ ...DEFAULT_MUSE_CONFIG, aspectRatio: ratioOf(d) }, stillPrompt + retryNote(k, 'ảnh'), useRefs), {
               shouldStop: deps.shouldStop,
               log: deps.log,
               what: label(n),
@@ -846,7 +854,7 @@ ${got[i - 1]}` : ''),
                 'KHÔNG có mặt người (nếu cần chỉ thấy đôi tay).\n') +
             text;
           deps.log(`${label(n)}: tạo ảnh khung hình mở đầu trước (giữ mặt / trang phục tốt hơn)…`);
-          firstFrame = await retryNoMedia(() => withBusyRetry(() => generateMuseKeyframe({ ...DEFAULT_MUSE_CONFIG, aspectRatio: ratioOf(d) }, still, kfRefs), {
+          firstFrame = await retryNoMedia((k) => withBusyRetry(() => generateMuseKeyframe({ ...DEFAULT_MUSE_CONFIG, aspectRatio: ratioOf(d) }, still + retryNote(k, 'ảnh'), kfRefs), {
             shouldStop: deps.shouldStop,
             log: deps.log,
             what: label(n),
@@ -905,18 +913,21 @@ ${got[i - 1]}` : ''),
         const createVideo = async () => {
           for (let k = 0; ; k++) {
             try {
-              return await createOnce();
+              // Lần thử lại: KHÔNG gửi y nguyên prompt cũ — muse.ai nhớ theo tài khoản, thấy yêu cầu trùng thì coi là xin lại
+              // "phiên bản trước" và trả lời chữ ("I don't have a final video file for this version… the only video I can find
+              // is the earlier version", lỗi thật 12/11 cảnh 3 lỗi 3 lần liền) → ghi rõ lần thử mới, tạo video mới từ mô tả.
+              return await createOnce(prompt + retryNote(k, 'video'));
             } catch (err: any) {
               if (k >= 2 || deps.shouldStop() || !/earlier video file|text only|no video|did not (produce|return) a video|Timeout|quá thời gian chờ|báo lỗi trong lúc render/i.test(String(err?.message || err))) throw err;
               deps.log(`${label(n)}: muse.ai không trả video (trả lời bằng chữ / lỗi render / quá giờ) → tạo lại (lần ${k + 2})`);
             }
           }
         };
-        const createOnce = () => withBusyRetry(
+        const createOnce = (p: string) => withBusyRetry(
           () =>
             createAndPollMuseVideo(
               { ...DEFAULT_MUSE_CONFIG, aspectRatio: ratioOf(d), duration: durationOf(d), voice: String(d.voice || '') },
-              prompt,
+              p,
               ff,
               (taskId) => deps.patchNode(n.id, { taskId }),
               {

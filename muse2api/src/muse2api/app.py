@@ -58,6 +58,9 @@ def create_app(settings: Settings | None = None, driver: MuseDriver | None = Non
         await services.requests.prune(settings.request_log_retention_days)
         await services.requests.backfill_tasks(services.tasks.list(limit=services.tasks.max_kept))
         await services.driver.startup()
+        if hasattr(services.driver, "on_account_blocked"):
+            # [MuseStudio patch] tài khoản bị muse.ai khóa phát hiện lúc làm nóng luồng → lưu trạng thái tắt + cảnh báo
+            services.driver.on_account_blocked = services.pool.upsert
         for acc in services.pool.all():
             if acc.enabled and acc.status != AccountStatus.INVALID:
                 services.driver.prewarm(acc)

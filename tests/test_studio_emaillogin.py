@@ -393,3 +393,51 @@ def test_auto_login_clicks_resend_when_code_mail_is_late(monkeypatch):
 
     asyncio.run(run())
     assert clicks == ["resend"] and "code:246810" in page.actions
+
+
+# ---------------------------------------------------------------- hộp thư chung tên miền có API (vd. mail.monteam.net:8025)
+def test_parse_line_with_inbox_link_without_email():
+    items = el.parse_lines("kfwvkvrmxp570nn@monteam.net|http://mail.monteam.net:8025")
+    assert [(i.email, i.inbox_url) for i in items] == [("kfwvkvrmxp570nn@monteam.net", "http://mail.monteam.net:8025")]
+
+
+def test_make_inbox_picks_source_by_link():
+    async def run():
+        async with httpx.AsyncClient() as c:
+            a = el.make_inbox(el.EmailLogin("u@d.net", "https://generator.email/u@d.net"), c, open_tab=lambda u: None)
+            b = el.make_inbox(el.EmailLogin("u@monteam.net", "http://mail.monteam.net:8025"), c, open_tab=lambda u: None)
+            return [type(s).__name__ for s in a.sources], [type(s).__name__ for s in b.sources]
+    a, b = asyncio.run(run())
+    assert a == ["BrowserInbox", "HttpInbox"] and b == ["ApiInbox", "FormInbox", "HttpInbox"]
+
+
+def test_api_inbox_reads_codes_for_this_email_and_puts_login_mail_first():
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        return httpx.Response(200, json={"emails": [
+            {"id": "3", "to": "u@monteam.net", "subject": "Did you just remove your email address?", "otp": "111111",
+             "created_at": "2026-11-12T05:10:09.000Z"},
+            {"id": "2", "to": "u@monteam.net", "subject": "Use code 222222 to log in", "otp": "",
+             "created_at": "2026-11-12T05:10:05.000Z"},
+            {"id": "1", "to": "other@monteam.net", "subject": "Use code 333333 to log in", "otp": "333333",
+             "created_at": "2026-11-12T05:11:00.000Z"},
+        ]})
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as c:
+            return await el.ApiInbox(c, "http://mail.monteam.net:8025", "U@monteam.net").fetch()
+
+    mails = asyncio.run(run())
+    assert "/api/email/monteam.net/u/" in seen[0]
+    assert [(m.id, m.code, m.time) for m in mails] == [("2", "222222", "2026-11-12 05:10:05"),  # thư đăng nhập lên trước
+                                                       ("3", "111111", "2026-11-12 05:10:09")]  # thư người khác bị bỏ
+
+
+def test_api_inbox_without_json_api_raises_so_form_fallback_runs():
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(200, text="<html>x</html>"))) as c:
+            await el.ApiInbox(c, "http://mail.example:8025", "u@example.com").fetch()
+    with pytest.raises(httpx.HTTPError):
+        asyncio.run(run())

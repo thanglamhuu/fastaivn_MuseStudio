@@ -70,6 +70,13 @@ class UpstreamAuthError(UpstreamError):
     code = "upstream_auth_failed"
 
 
+class UpstreamAccountBlocked(UpstreamAuthError):
+    """[MuseStudio patch] muse.ai blocked the account ("Muse is disconnected — We disconnected Muse to protect your
+    information"): cookies still pass /api/session but there is no chat. Marked invalid with meta["blocked_at"]."""
+
+    code = "account_blocked"
+
+
 class UpstreamQuotaError(UpstreamError):
     """The account ran out of quota; the account should cool down."""
 

@@ -12,7 +12,8 @@ from fastapi.responses import FileResponse
 
 from fastapi.middleware.cors import CORSMiddleware
 
-from studio_settings import HOST, PORT, apply_gateway_env, cleanup_stale_driver_chrome
+from studio_settings import (HOST, PORT, QuietConnectionResetMiddleware, apply_gateway_env,
+                             cleanup_stale_driver_chrome)
 
 def get_resource_path(relative_path: str) -> Path:
     if hasattr(sys, "_MEIPASS"):
@@ -78,6 +79,8 @@ from studio_wfthumb import router as wfthumb_router  # noqa: E402
 muse_fastapi_app.include_router(wfthumb_router)
 
 # Thêm đoạn cấu hình này ngay sau khi khởi tạo muse_fastapi_app
+# Không in traceback ConnectionResetError vô hại khi trình duyệt ngắt tải video giữa chừng (Windows)
+muse_fastapi_app.add_middleware(QuietConnectionResetMiddleware)
 muse_fastapi_app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Cho phép mọi origin gọi vào (hoặc chỉ định cụ thể ["http://localhost:5173"])

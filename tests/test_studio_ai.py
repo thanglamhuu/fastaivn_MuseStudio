@@ -155,3 +155,26 @@ def test_gemini_switches_model_when_one_hangs_or_is_retired(tmp_path):
     assert out["source"] == "gemini" and out["model"] == studio_ai.FALLBACK_GEMINI_MODEL, out
     # Model treo: không thử key thứ 2 của cùng model (mất thêm 60 s vô ích); 404: đổi model ngay
     assert seen == ["gemini-slow", studio_ai.DEFAULT_GEMINI_MODEL, studio_ai.FALLBACK_GEMINI_MODEL]
+
+
+def test_quiet_connection_reset_filter_only_drops_windows_reset_noise():
+    import asyncio
+    from studio_settings import QuietConnectionResetMiddleware
+
+    seen: list[str] = []
+
+    async def app(scope, receive, send):
+        return None
+
+    async def run():
+        loop = asyncio.get_running_loop()
+        loop.set_exception_handler(lambda lp, ctx: seen.append(ctx.get("message", "")))
+        await QuietConnectionResetMiddleware(app)({"type": "http"}, None, None)
+        h = loop.get_exception_handler()
+        h(loop, {"message": "Exception in callback", "exception": ConnectionResetError(10054, "reset"),
+                 "handle": "<Handle _ProactorBasePipeTransport._call_connection_lost(None)>"})
+        h(loop, {"message": "lỗi thật", "exception": ValueError("x")})
+        h(loop, {"message": "reset ở chỗ khác", "exception": ConnectionResetError(10054, "reset")})
+
+    asyncio.run(run())
+    assert seen == ["lỗi thật", "reset ở chỗ khác"]

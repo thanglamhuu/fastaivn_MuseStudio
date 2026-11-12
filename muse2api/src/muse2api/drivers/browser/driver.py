@@ -25,12 +25,13 @@ from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlsplit
 
-from ...accounts.model import Account
+from ...accounts.model import Account, mark_account_blocked
 from ...config import Settings
 from ...core.prompt import followup_text
 from ...core.voices import voice_prompt_hint
 from ...errors import (
     Muse2APIError,
+    UpstreamAccountBlocked,
     UpstreamAuthError,
     UpstreamError,
     UpstreamQuotaError,
@@ -53,6 +54,7 @@ from .cdp import CDPError, CDPSession
 from .chromium import ChromiumProcess, find_chromium
 
 log = logging.getLogger(__name__)
+DISCONNECTED_MSG = ("⛔ Nghi tài khoản đã bị muse.ai khóa: trang muse.ai báo \"Muse is disconnected — We disconnected Muse to protect your information\". App đã ngừng giao việc cho tài khoản này.")  # [MuseStudio patch]
 
 POLL_INTERVAL = 0.15
 STABLE_POLLS_DONE = 4
@@ -119,6 +121,8 @@ class BrowserDriver(MuseDriver):
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
+        # [MuseStudio patch] gọi khi phát hiện tài khoản bị muse.ai khóa lúc làm nóng luồng (app gắn pool.upsert để lưu)
+        self.on_account_blocked: Callable[[Account], Any] | None = None
         self._chromium: ChromiumProcess | None = None
         self._browser: CDPSession | None = None
         # One browser context (cookie jar) per account, holding up to
@@ -465,11 +469,22 @@ class BrowserDriver(MuseDriver):
                 if state.get("ready"):
                     return
         head = (state.get("head") or "").lower()
+        if any(h in head for h in dom.DISCONNECTED_HINTS):  # [MuseStudio patch]
+            raise UpstreamAccountBlocked(DISCONNECTED_MSG)
         if any(h in head for h in dom.LOGIN_HINTS):
             raise UpstreamAuthError("muse.ai redirected to login; cookies are no longer valid")
         raise UpstreamTimeout("muse.ai page did not become ready")
 
     # ------------------------------------------------------------ input
+    async def _raise_if_disconnected(self, tab: _Tab) -> None:
+        """[MuseStudio patch] Không có ô chat / ô gửi file vì muse.ai đã ngắt kết nối tài khoản → lỗi xác thực
+        (pool đánh dấu tài khoản INVALID, thôi giao việc) thay vì lỗi thường bị thử lại mãi trên tài khoản đó."""
+        head = ""
+        with contextlib.suppress(CDPError, TimeoutError):
+            head = str(await tab.session.evaluate(dom.BODY_HEAD, timeout=5.0) or "").lower()
+        if any(h in head for h in dom.DISCONNECTED_HINTS):
+            raise UpstreamAccountBlocked(DISCONNECTED_MSG)
+
     async def _attach(self, tab: _Tab, images: list[InputImage]) -> None:
         for idx, img in enumerate(images):
             ext = img.mime.split("/")[-1].replace("jpeg", "jpg")
@@ -477,6 +492,7 @@ class BrowserDriver(MuseDriver):
                 dom.attach_file(base64.b64encode(img.data).decode(), img.mime, f"input_{idx}.{ext}")
             )
             if not (res or {}).get("ok"):
+                await self._raise_if_disconnected(tab)
                 raise UpstreamError(f"failed to attach image: {(res or {}).get('err')}")
         if images:
             await asyncio.sleep(1.0)
@@ -484,6 +500,7 @@ class BrowserDriver(MuseDriver):
     async def _send(self, tab: _Tab, prompt: str) -> None:
         res = await tab.session.evaluate(dom.fill_input(prompt))
         if not (res or {}).get("ok"):
+            await self._raise_if_disconnected(tab)
             raise UpstreamError(f"cannot fill chat input: {(res or {}).get('err')}")
         deadline = time.monotonic() + 5
         while time.monotonic() < deadline:
@@ -710,6 +727,8 @@ class BrowserDriver(MuseDriver):
         pause, up to ``_WARM_MAX_FAILED_ROUNDS`` in a row."""
         failed = 0
         while True:
+            if account.meta.get("blocked_at"):  # [MuseStudio patch] tài khoản bị muse.ai khóa: thôi làm nóng
+                return
             batch: list[_Tab] = []
             while (tab := await self._checkout_for_warming(account, len(batch))) is not None:
                 batch.append(tab)
@@ -731,6 +750,14 @@ class BrowserDriver(MuseDriver):
             self._forget(tab)
             if isinstance(exc, CDPError):
                 await self._close_tab(tab)
+            if isinstance(exc, UpstreamAccountBlocked):
+                # [MuseStudio patch] phát hiện sớm lúc làm nóng luồng (không đợi việc thật thất bại): thôi giao việc
+                mark_account_blocked(account, str(exc))
+                log.warning("account %s blocked by muse.ai (Muse is disconnected)", account.id)
+                if self.on_account_blocked is not None:  # lưu xuống accounts.json (driver không giữ pool)
+                    with contextlib.suppress(Exception):
+                        await self.on_account_blocked(account)
+                return False
             log.warning("warming a thread for %s failed: %s", account.id, exc)
             return False
         finally:
@@ -804,6 +831,7 @@ class BrowserDriver(MuseDriver):
         started = time.monotonic()
         text_done_at: float | None = None
         denied = asked_to_attach = busy = False
+        first_reply = ""  # [MuseStudio patch] câu trả lời chữ đầu tiên (trước khi hỏi xin file)
         while True:
             elapsed = time.monotonic() - started
             if elapsed >= timeout and not (busy and elapsed < timeout * self._OVERRUN_FACTOR):
@@ -848,6 +876,9 @@ class BrowserDriver(MuseDriver):
                                               "the chat" + (" instead of uploading it." if denied
                                                             else ", as a single attachment."))
                         asked_to_attach, text_done_at = True, None
+                        # [MuseStudio patch] giữ câu trả lời ĐẦU (lý do thật Muse không ra video); câu sau khi hỏi
+                        # lại thường chỉ là "không có file để đính kèm"
+                        first_reply = text
                         base_count = st.get("agentCount", 0)
                         continue
                     # Last resort: media delivered as a link in the text bubble.
@@ -858,7 +889,8 @@ class BrowserDriver(MuseDriver):
                         return {"src": url, "kind": kind}
                     log.info("%s: no media after %.0fs grace; links=%s html=%.300s",
                              kind, grace, probe.get("links", []), probe.get("html", ""))
-                    raise UpstreamRefused(f"upstream replied with text only: {text[:200]}")
+                    first = f" | trả lời đầu: {first_reply[:300]}" if first_reply and first_reply != text else ""
+                    raise UpstreamRefused(f"upstream replied with text only: {text[:200]}{first}")
             else:
                 text_done_at = None
         if busy:

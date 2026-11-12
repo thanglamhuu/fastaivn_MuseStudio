@@ -2,7 +2,8 @@
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 
-from studio_settings import HOST, PORT, apply_gateway_env, cleanup_stale_driver_chrome
+from studio_settings import (HOST, PORT, QuietConnectionResetMiddleware, apply_gateway_env,
+                             cleanup_stale_driver_chrome)
 
 apply_gateway_env()
 
@@ -31,6 +32,9 @@ app.include_router(catalog_router)
 from studio_wfthumb import router as wfthumb_router  # noqa: E402
 
 app.include_router(wfthumb_router)
+
+# Không in traceback ConnectionResetError vô hại khi trình duyệt ngắt tải video giữa chừng (Windows)
+app.add_middleware(QuietConnectionResetMiddleware)
 
 # Bật CORS để Vite dev server (http://localhost:5173) gọi được Gateway
 app.add_middleware(

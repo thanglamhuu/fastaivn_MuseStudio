@@ -60,3 +60,14 @@ def _mask(value: str) -> str:
     if len(value) <= 8:
         return "***"
     return f"{value[:4]}...{value[-4:]}"
+
+
+def mark_account_blocked(acc: Account, reason: str) -> None:
+    """[MuseStudio patch] muse.ai đã khóa tài khoản ("Muse is disconnected"): tự tắt + thôi giao việc (INVALID), ghi lý do dễ hiểu
+    và mốc ``meta["blocked_at"]`` để trang Tài khoản hiện "⛔ Nghi bị khóa". Đăng nhập lại thành công thì xoá mốc này."""
+    import time as _time
+
+    acc.status = AccountStatus.INVALID
+    acc.enabled = False  # tự TẮT (không xoá): giữ trong danh sách kèm cảnh báo, người dùng tự quyết bật lại / xoá
+    acc.last_error = reason[:500]
+    acc.meta["blocked_at"] = _time.time()
