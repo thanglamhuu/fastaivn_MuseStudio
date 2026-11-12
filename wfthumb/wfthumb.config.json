@@ -107,6 +107,16 @@
    "testClip": "../../TestWorkFlow/08 Tiểu phẩm gia đình hài/Tiểu phẩm gia đình hài_v4.mp4"
   },
   {
+   "templateId": "wf-phim-gia-dinh-nho",
+   "name": "Phim Gia Đình Nhỏ",
+   "image": "Phim Gia Đình Nhỏ.jpg",
+   "video": "",
+   "fullVideo": "",
+   "flow": "",
+   "youtube": "",
+   "youtubeThumbnail": ""
+  },
+  {
    "templateId": "wf-review-7-ngay",
    "name": "Review sau 7 ngày dùng",
    "image": "Review sau 7 ngày dùng.jpg",
