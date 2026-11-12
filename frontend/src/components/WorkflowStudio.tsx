@@ -29,6 +29,7 @@ import { StudioCharacter, StudioProduct, newLibraryId } from '../types/library';
 import { aspectClass } from '../utils/image';
 import { NodeFlowProps, NodeFlowStudio } from './NodeFlowStudio';
 import { templateToFlow } from '../services/nodeFlow/fromTemplate';
+import { exportFlowJson } from '../services/nodeFlow/flowIO';
 import { GalleryCols, WorkflowTemplateGallery, templateGroup } from './WorkflowTemplateGallery';
 import { APP_VERSION, CatalogState, catalogTemplates, loadCatalog, versionAtLeast } from '../services/templateCatalog';
 import { WorkflowBundleModal } from './WorkflowBundleModal';
@@ -118,7 +119,15 @@ export const WorkflowStudio: React.FC<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const remote = useMemo(() => catalogTemplates(catalog?.catalog ?? null), [catalog]);
-  const builtinTemplates = useMemo(() => [...remote.templates, ...FASTAIVN_WORKFLOWS, ...BUILTIN_WORKFLOWS, ...HND_WORKFLOWS], [remote]);
+  /** Bản sửa đè mẫu có sẵn (mẫu có sẵn nằm trong code — sửa thì lưu riêng theo id, "↺ Về mẫu gốc" để bỏ) */
+  const [overrides, setOverrides] = usePersistentState<Record<string, WorkflowTemplate>>('workflow.overrides.v1', {}, { server: true });
+  const builtinTemplates = useMemo(
+    () =>
+      [...remote.templates, ...FASTAIVN_WORKFLOWS, ...BUILTIN_WORKFLOWS, ...HND_WORKFLOWS].map((t) =>
+        overrides[t.id] ? { ...t, ...overrides[t.id], id: t.id, builtin: true, customized: true } : t,
+      ),
+    [remote, overrides],
+  );
   const allTemplates = useMemo(() => [...builtinTemplates, ...customs], [builtinTemplates, customs]);
   const selected = allTemplates.find((t) => t.id === selectedId) ?? BUILTIN_WORKFLOWS[0];
   const [draft, setDraft] = useState<WorkflowTemplate>(selected);
@@ -326,7 +335,42 @@ export const WorkflowStudio: React.FC<{
     setCustoms((prev) => [...prev, item]);
     setSelectedId(item.id);
   };
-  const saveChanges = () => setCustoms((prev) => prev.map((t) => (t.id === draft.id ? draft : t)));
+  const saveChanges = () => {
+    if (draft.builtin) {
+      const { customized: _c, ...rest } = draft;
+      setOverrides((prev) => ({ ...prev, [draft.id]: rest }));
+    } else setCustoms((prev) => prev.map((t) => (t.id === draft.id ? draft : t)));
+  };
+  /** Bỏ bản sửa của mẫu có sẵn → về đúng mẫu gốc trong app */
+  const restoreBuiltin = () => {
+    if (!confirm(`Bỏ mọi chỉnh sửa và đưa "${draft.name}" về mẫu gốc của app?`)) return;
+    setOverrides((prev) => {
+      const next = { ...prev };
+      delete next[draft.id];
+      return next;
+    });
+  };
+  /** Sơ đồ khối → 💾 Lưu vào mẫu: ghi sơ đồ (bỏ trạng thái chạy) vào mẫu gốc */
+  const saveFlowToTemplate = (wf: FlowWorkflow) => {
+    const tpl = allTemplates.find((t) => t.id === wf.templateId);
+    if (!tpl) return;
+    const graph = JSON.parse(exportFlowJson(wf));
+    const updated: WorkflowTemplate = { ...tpl, flowGraph: graph };
+    if (tpl.builtin) {
+      const { customized: _c, ...rest } = updated;
+      setOverrides((prev) => ({ ...prev, [tpl.id]: rest }));
+    } else setCustoms((prev) => prev.map((t) => (t.id === tpl.id ? updated : t)));
+  };
+  const templateNames = useMemo(() => Object.fromEntries(allTemplates.map((t) => [t.id, t.name])), [allTemplates]);
+  /** Nút ✏️ trên card: chọn mẫu rồi cuộn tới khung sửa thông tin chung */
+  const editPanelRef = useRef<HTMLElement>(null);
+  const editTemplate = (t: WorkflowTemplate) => {
+    setSelectedId(t.id);
+    window.setTimeout(() => {
+      editPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      editPanelRef.current?.querySelector<HTMLInputElement>('input[data-field="name"]')?.focus();
+    }, 80);
+  };
   const deleteCustom = () => {
     if (!confirm(`Xóa workflow "${draft.name}"?`)) return;
     setCustoms((prev) => prev.filter((t) => t.id !== draft.id));
@@ -380,13 +424,28 @@ Có thể khôi phục bằng nút "↺ Hiện lại mẫu đã xoá".`);
   };
   const [opening, setOpening] = useState(false);
   const openInNodes = async (tpl: WorkflowTemplate) => {
+    // Mẫu này đã mở trong Sơ đồ khối trước đó → quay lại đúng bản đang chỉnh (không tạo bản mới)
+    const existing = [...flowLib].reverse().find((w) => w.templateId === tpl.id);
+    if (
+      existing &&
+      confirm(`Mẫu "${tpl.name}" đã có sơ đồ đang chỉnh trong Sơ đồ khối.\n\nOK = mở lại bản đang chỉnh\nHủy = dựng sơ đồ mới từ mẫu (theo thông tin chung hiện tại)`)
+    ) {
+      setFlowIncoming({
+        key: Date.now(),
+        activateId: existing.id,
+        note: `Đã mở lại sơ đồ "${existing.name}" của mẫu này (bản đang chỉnh). Sửa node xong bấm 💾 Lưu vào mẫu để ghi vào mẫu workflow.`,
+      });
+      setView('nodes');
+      return;
+    }
     setOpening(true);
     try {
       const { workflow, notes } = await templateToFlow(tpl);
+      workflow.templateId = tpl.id;
       setFlowIncoming({
         key: Date.now(),
         workflow,
-        note: `Đã mở mẫu "${tpl.name}" thành sơ đồ khối (${workflow.nodes.length} node). Chọn nhân vật / sản phẩm ở các khối 🖼️ Upload Image, chỉnh prompt rồi bấm ▶ Chạy toàn bộ.${notes.length ? ' ' + notes.join(' ') : ''}`,
+        note: `Đã mở mẫu "${tpl.name}" thành sơ đồ khối (${workflow.nodes.length} node). Chọn nhân vật / sản phẩm ở các khối 🖼️ Upload Image, chỉnh prompt rồi bấm ▶ Chạy toàn bộ; muốn giữ cho lần sau thì bấm 💾 Lưu vào mẫu.${notes.length ? ' ' + notes.join(' ') : ''}`,
       });
       setView('nodes');
     } finally {
@@ -673,6 +732,8 @@ Có thể khôi phục bằng nút "↺ Hiện lại mẫu đã xoá".`);
         active={view === 'nodes' || view === 'graph'}
         onLibraryChange={setFlowLib}
         onSaveProduct={saveLibraryProduct}
+        templateNames={templateNames}
+        onSaveToTemplate={saveFlowToTemplate}
       />
     </div>
   );
@@ -695,6 +756,7 @@ Có thể khôi phục bằng nút "↺ Hiện lại mẫu đã xoá".`);
       <WorkflowTemplateGallery
         templates={galleryTemplates}
         onDelete={deleteTemplate}
+        onEdit={editTemplate}
         hiddenCount={hiddenIds.filter((id) => allTemplates.some((t) => t.id === id)).length}
         onRestoreHidden={() => setHiddenIds([])}
         rows={rows}
@@ -718,10 +780,10 @@ Có thể khôi phục bằng nút "↺ Hiện lại mẫu đã xoá".`);
       {/* ---------------- Cột trái: tùy chỉnh mẫu đang chọn ---------------- */}
       <aside className="space-y-4">
 
-        <section className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <section ref={editPanelRef} className="scroll-mt-4 bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold text-white">
-              2. Tùy chỉnh {dirty && <span className="text-[10px] text-amber-300 font-normal">(chưa lưu)</span>}
+              2. Sửa mẫu{draft.customized && <span className="text-[10px] text-sky-300 font-normal"> (đã sửa)</span>} {dirty && <span className="text-[10px] text-amber-300 font-normal">(chưa lưu)</span>}
             </h2>
             {dirty && (
               <button onClick={() => setDraft(selected)} className="text-[10px] text-slate-400 hover:text-white">
@@ -739,7 +801,20 @@ Có thể khôi phục bằng nút "↺ Hiện lại mẫu đã xoá".`);
           </button>
           <div className="grid grid-cols-[48px_1fr] gap-2">
             <input className={inputCls} value={draft.icon} onChange={(e) => set('icon', e.target.value)} />
-            <input className={inputCls} value={draft.name} onChange={(e) => set('name', e.target.value)} />
+            <input data-field="name" className={inputCls} value={draft.name} onChange={(e) => set('name', e.target.value)} />
+          </div>
+          <div>
+            <label className={labelCls}>Nhóm / loại (mẫu cùng loại xếp gần nhau)</label>
+            <input className={inputCls} list="wf-categories" value={draft.category} onChange={(e) => set('category', e.target.value)} />
+            <datalist id="wf-categories">
+              {categories.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+          </div>
+          <div>
+            <label className={labelCls}>Mô tả (hiện trên card mẫu)</label>
+            <textarea rows={2} className={inputCls} value={draft.description} onChange={(e) => set('description', e.target.value)} />
           </div>
           <div>
             <label className={labelCls}>Kiểu kịch bản</label>
@@ -827,9 +902,13 @@ Có thể khôi phục bằng nút "↺ Hiện lại mẫu đã xoá".`);
             </select>
           </div>
           <div>
+            <label className={labelCls}>Bối cảnh cố định (chèn vào mọi cảnh cho khớp nhau)</label>
+            <textarea rows={2} className={inputCls} value={draft.setting || ''} onChange={(e) => set('setting', e.target.value)} />
+          </div>
+          <div>
             <label className={labelCls}>Hướng dẫn thêm cho AI viết kịch bản</label>
             <textarea
-              rows={3}
+              rows={draft.extraNote.length > 300 ? 8 : 3}
               className={inputCls}
               value={draft.extraNote}
               onChange={(e) => set('extraNote', e.target.value)}
@@ -898,18 +977,24 @@ Có thể khôi phục bằng nút "↺ Hiện lại mẫu đã xoá".`);
             </p>
           </div>
           <div className="flex flex-wrap gap-2 pt-1">
-            <button onClick={saveAsNew} className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[11px] font-semibold">
-              💾 Lưu thành workflow mới
+            <button
+              onClick={saveChanges}
+              disabled={!dirty}
+              className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-semibold disabled:opacity-40"
+              title={draft.builtin ? 'Lưu đè lên mẫu có sẵn (khôi phục được bằng ↺ Về mẫu gốc)' : 'Lưu vào mẫu này'}
+            >
+              💾 Lưu thay đổi
             </button>
+            <button onClick={saveAsNew} className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[11px] font-semibold">
+              ⧉ Lưu thành workflow mới
+            </button>
+            {draft.builtin && draft.customized && (
+              <button onClick={restoreBuiltin} className="px-3 py-1.5 rounded-lg bg-slate-700 text-white text-[11px]">
+                ↺ Về mẫu gốc
+              </button>
+            )}
             {!draft.builtin && (
               <>
-                <button
-                  onClick={saveChanges}
-                  disabled={!dirty}
-                  className="px-3 py-1.5 rounded-lg bg-slate-700 text-white text-[11px] disabled:opacity-40"
-                >
-                  Lưu thay đổi
-                </button>
                 <button onClick={deleteCustom} className="px-3 py-1.5 rounded-lg bg-red-600/80 text-white text-[11px]">
                   Xóa
                 </button>
@@ -919,6 +1004,12 @@ Có thể khôi phục bằng nút "↺ Hiện lại mẫu đã xoá".`);
           {dirty && (
             <p className="text-[10px] text-slate-500">
               Thay đổi chưa lưu vẫn được dùng cho các dòng chạy từ đầu.
+            </p>
+          )}
+          {!!(draft.flowGraph || draft.flowGraphId || draft.hnd || draft.remote?.graphUrl || draft.remote?.bundleUrl) && (
+            <p className="text-[10px] text-amber-300/80">
+              Mẫu này có sơ đồ node riêng: các ô ở đây dùng khi chạy theo danh sách dòng; chi tiết từng node (prompt cảnh, ảnh khóa…)
+              sửa ở 🧩 Sơ đồ khối rồi bấm 💾 Lưu vào mẫu.
             </p>
           )}
         </section>

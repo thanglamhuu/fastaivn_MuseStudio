@@ -94,7 +94,9 @@ const TemplateCard: React.FC<{
   onPlay?: () => void;
   /** Bấm 🗑: xoá mẫu (mẫu tự lưu xoá hẳn, mẫu có sẵn thì ẩn) */
   onDelete?: () => void;
-}> = ({ t, thumb, group, selected, onSelect, onOpenNodes, compact, onPlay, onDelete }) => {
+  /** Bấm ✏️: chọn mẫu và cuộn tới khung sửa thông tin chung */
+  onEdit?: () => void;
+}> = ({ t, thumb, group, selected, onSelect, onOpenNodes, compact, onPlay, onDelete, onEdit }) => {
   const vref = useRef<HTMLVideoElement>(null);
   const [hover, setHover] = useState(false);
   const play = () => {
@@ -162,6 +164,7 @@ const TemplateCard: React.FC<{
           {t.remote?.isPremium && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-yellow-500 text-slate-950">PRO</span>}
           {t.hnd && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-600/90 text-white">MV1</span>}
           {!t.builtin && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/90 text-slate-950">Của tôi</span>}
+          {t.builtin && t.customized && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-sky-500/90 text-slate-950" title="Mẫu có sẵn đã được bạn sửa (khôi phục được)">Đã sửa</span>}
           {thumb.own && <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-600/90 text-white" title="Thumbnail từ clip bạn đã tạo">▶ clip của bạn</span>}
         </span>
         <div className={`absolute inset-x-0 bottom-0 p-1.5 bg-gradient-to-t from-black/85 to-transparent ${compact ? 'hidden' : ''}`}>
@@ -212,6 +215,18 @@ const TemplateCard: React.FC<{
           >
             {compact ? '🧩' : '🧩 Sơ đồ'}
           </button>
+          {onEdit && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              title="Sửa thông tin chung của mẫu (tên, nhóm, mô tả, số cảnh, hướng dẫn AI…)"
+              className="text-[10px] px-1.5 py-1 rounded-lg bg-slate-800 text-sky-300 hover:bg-sky-700 hover:text-white"
+            >
+              ✏️
+            </button>
+          )}
           {onDelete && (
             <button
               onClick={(e) => {
@@ -313,6 +328,8 @@ export const WorkflowTemplateGallery: React.FC<{
   onRefreshCatalog?: () => void;
   /** Xoá mẫu (nút 🗑 trên card) */
   onDelete?: (t: WorkflowTemplate) => void;
+  /** Sửa thông tin chung (nút ✏️ trên card) */
+  onEdit?: (t: WorkflowTemplate) => void;
   /** Số mẫu có sẵn đã bị xoá (ẩn) + khôi phục tất cả */
   hiddenCount?: number;
   onRestoreHidden?: () => void;
@@ -335,6 +352,7 @@ export const WorkflowTemplateGallery: React.FC<{
   catalogBusy,
   onRefreshCatalog,
   onDelete,
+  onEdit,
   hiddenCount = 0,
   onRestoreHidden,
 }) => {
@@ -486,6 +504,7 @@ export const WorkflowTemplateGallery: React.FC<{
               compact={compact}
               onPlay={() => setPlaying({ t, thumb: thumbOf(t, rows, wfThumbs[t.id]) })}
               onDelete={onDelete ? () => onDelete(t) : undefined}
+              onEdit={onEdit ? () => onEdit(t) : undefined}
             />,
           ])}
         </div>

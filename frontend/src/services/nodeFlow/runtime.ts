@@ -19,6 +19,7 @@ import { blurRegions, cutFrame, upscaleMedia } from '../libraryService';
 import { buildReferencePrompt, RefImageInfo } from '../referencePrompt';
 import { composeSideBySide, cropCharacterSheet, upscaleIfSmall, urlToResizedDataUrl } from '../../utils/image';
 import { stripBlockUrl } from './shopeePrompt';
+import { ThumbContentType, ThumbPlacement, buildThumbnailPrompt, thumbTextInstruction } from './thumbnailPrompt';
 import type { AspectRatio, ShotDuration } from '../../types/videoStudio';
 import type { StudioCharacter, StudioProduct } from '../../types/library';
 import {
@@ -867,6 +868,85 @@ ${got[i - 1]}` : ''),
             desc: `@${chName}${chDesc ? ` (${chDesc})` : ''} mặc ${outDesc || 'bộ trang phục đã chọn'}`,
           });
           deps.log(`${label(n)}: ✓ ảnh ${i + 1}/${want} — @${chName} mặc bộ trang phục`);
+        }
+        return out;
+      }
+      case 'thumbnail': {
+        // THUMBNAIL TikTok / Shorts / Reels (brief FastAIVN): ảnh gốc = ảnh nối vào / khung trích từ video,
+        // kèm ảnh nhân vật + sản phẩm của các Upload Image phía trước để giữ đúng mặt + sản phẩm
+        const sources: { value: string; role: ReferenceImage['role']; name: string }[] = [];
+        for (const im of images) {
+          const role: ReferenceImage['role'] = im.roles?.includes('character') ? 'character' : im.roles?.includes('product') ? 'product' : 'character';
+          sources.push({ value: im.value, role, name: String(im.name || 'ảnh gốc') });
+        }
+        for (const v of videos) {
+          const t = Math.max(0, Number(d.frameTime ?? 3) || 0);
+          try {
+            const fr = await cutFrame(await toGatewayMedia(v.value), t);
+            sources.push({ value: abs(fr.url), role: 'character', name: `khung giây ${t}` });
+            deps.log(`${label(n)}: lấy khung hình giây ${t} của video làm ảnh gốc`);
+          } catch (err: any) {
+            deps.log(`${label(n)}: không trích được khung hình (${String(err?.message || err).slice(0, 80)})`);
+          }
+        }
+        if (!sources.length) throw new Error('Chưa có ảnh gốc: nối ảnh vào image-in hoặc video vào video-in.');
+        // Ảnh nhân vật / sản phẩm phía trước (Upload Image) để giữ nhận diện — muse.ai nhận tối đa 4 ảnh
+        const seen = new Set(sources.map((x) => x.value));
+        for (const r of collectRefs(n.id)) {
+          if (sources.length >= 4) break;
+          if (seen.has(r.value) || !(r.roles.includes('character') || r.roles.includes('product'))) continue;
+          seen.add(r.value);
+          sources.push({ value: r.value, role: r.roles.includes('character') ? 'character' : 'product', name: String(r.name || '') });
+        }
+        let title = String(d.title || '').trim();
+        let subtitle = String(d.subtitle || '').trim();
+        const contentType = (d.contentType || 'auto') as ThumbContentType;
+        if (!title && d.autoText !== false && texts.length) {
+          try {
+            const r = await aiText(thumbTextInstruction(texts.join('\n\n'), contentType), []);
+            const j = JSON.parse((r.text.match(/\{[\s\S]*\}/) || ['{}'])[0]);
+            title = String(j.title || '').trim();
+            subtitle = subtitle || String(j.subtitle || '').trim();
+            if (title) {
+              deps.log(`${label(n)}: AI viết tiêu đề "${title}"${subtitle ? ` / "${subtitle}"` : ''} (${r.source})`);
+              deps.patchNode(n.id, { aiTitle: title, aiSubtitle: subtitle });
+            }
+          } catch (err: any) {
+            deps.log(`${label(n)}: AI viết tiêu đề lỗi (${String(err?.message || err).slice(0, 80)}) — làm thumbnail không chữ`);
+          }
+        }
+        const men = resolveMentions(String(d.prompt || '').trim(), deps.characters, deps.products);
+        const brief =
+          `${NEW_REQUEST_NOTE('ảnh')} ` +
+          buildThumbnailPrompt({
+            ratio: String(d.ratio || '9:16'),
+            title,
+            subtitle,
+            contentType,
+            placement: (d.textPlacement || 'auto') as ThumbPlacement,
+            extra: men.text,
+          }) +
+          (d.rerun ? `\n[Lần tạo lại #${d.rerun}: tạo bản MỚI]` : '');
+        const refs: ReferenceImage[] = await Promise.all(
+          sources.slice(0, 4).map(async (x, i) => ({ id: `t${i}`, role: x.role, dataUrl: await toDataUrl(x.value), name: x.name }))
+        );
+        const out: NodeResult[] = [];
+        const want = Math.max(1, Math.min(4, Number(d.count) || 1));
+        for (let i = 0; i < want; i++) {
+          stop();
+          const img = await retryNoMedia((k) => withBusyRetry(() => generateMuseKeyframe({ ...DEFAULT_MUSE_CONFIG, aspectRatio: String(d.ratio || '9:16') as any }, brief + (i ? `\n[Phương án ${i + 1}: bố cục / màu khác các phương án trước]` : '') + retryNote(k, 'ảnh'), refs), {
+            shouldStop: deps.shouldStop,
+            log: deps.log,
+            what: label(n),
+          }), label(n), deps);
+          let path: string | undefined;
+          try {
+            path = (await exportVideo(await toGatewayMedia(img), deps.project, `${stamp()}_THUMBNAIL_${i + 1}`)).path;
+          } catch {
+            /* không xuất được ra thư mục dự án: vẫn giữ ảnh trên Gateway */
+          }
+          out.push({ kind: 'image', value: img, path, name: title || 'thumbnail', desc: title ? `thumbnail "${title}"` : 'thumbnail' });
+          deps.log(`${label(n)}: ✓ thumbnail ${i + 1}/${want}${path ? ` → ${path}` : ''}`);
         }
         return out;
       }

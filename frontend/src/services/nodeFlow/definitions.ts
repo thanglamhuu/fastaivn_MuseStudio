@@ -3,8 +3,9 @@
 // lại được (MV1 → MuseStudio và ngược lại).
 //
 // Cổng: tên cổng bắt đầu bằng loại dữ liệu — text-*, image-*, video-*. Chỉ nối được 2 cổng cùng loại.
-// Mỗi cổng vào chỉ nhận 1 dây, trừ image-in của Generate Image / Generate Video / Gemini Script
+// Mỗi cổng vào chỉ nhận 1 dây, trừ image-in của Generate Image / Generate Video / Gemini Script / Tạo thumbnail
 // (nhận nhiều ảnh tham chiếu) và mọi cổng của Result.
+import { THUMB_CONTENT_TYPES } from './thumbnailPrompt';
 
 export type NodeType =
   | 'prompt'
@@ -12,6 +13,7 @@ export type NodeType =
   | 'gemini-script'
   | 'generate-image'
   | 'outfit-swap'
+  | 'thumbnail'
   | 'generate-video'
   | 'upscale-image'
   | 'upscale-video'
@@ -310,6 +312,46 @@ export const NODE_DEFS: Record<NodeType, NodeDef> = {
     ],
     defaults: { background: 'studio', ratio: '9:16', count: 1, prompt: '', qcKeyframe: true },
   },
+  thumbnail: {
+    label: 'Tạo thumbnail',
+    group: 'Generate',
+    color: '#f59e0b',
+    icon: '🖼',
+    role:
+      'Ảnh bìa (thumbnail) cho TikTok / YouTube Shorts / Facebook Reels theo phong cách FastAIVN: viral, chữ lớn đậm đúng dấu tiếng Việt, ' +
+      'giữ nhân vật + sản phẩm như ảnh gốc. Nguồn: ảnh nối vào image-in (khung hình, ảnh ghép trang phục…) hoặc khung trích từ video ' +
+      'nối vào video-in; tự kèm ảnh nhân vật / sản phẩm của các Upload Image phía trước để giữ đúng mặt + sản phẩm. Để trống tiêu đề + ' +
+      'nối kịch bản vào text-in thì AI tự viết tiêu đề.',
+    fields: [
+      { key: 'title', label: 'Tiêu đề chính (TITLE) — viết đúng từng chữ', type: 'text' },
+      { key: 'subtitle', label: 'Subtitle', type: 'text' },
+      {
+        key: 'ratio',
+        label: 'Tỉ lệ',
+        type: 'select',
+        options: [
+          ['9:16', '9:16 (TikTok / Shorts / Reels)'],
+          ['16:9', '16:9 (YouTube ngang / Facebook)'],
+          ['1:1', '1:1 (vuông)'],
+        ],
+      },
+      { key: 'contentType', label: 'Kiểu nội dung', type: 'select', options: THUMB_CONTENT_TYPES },
+      {
+        key: 'textPlacement',
+        label: 'Vị trí chữ',
+        type: 'select',
+        options: [
+          ['auto', 'Tự chọn theo bố cục'],
+          ['bottom-third', 'Nội dung nằm 1/3 dưới'],
+        ],
+      },
+      { key: 'autoText', label: '✍️ Để trống tiêu đề thì AI tự viết title + subtitle từ kịch bản nối vào text-in', type: 'checkbox' },
+      { key: 'frameTime', label: 'Lấy khung hình ở giây thứ (khi nối video-in)', type: 'number', min: 0, max: 60 },
+      { key: 'count', label: 'Số ảnh', type: 'number', min: 1, max: 4 },
+      { key: 'prompt', label: 'Yêu cầu thêm (màu, hiệu ứng, bố cục…)', type: 'mention' },
+    ],
+    defaults: { title: '', subtitle: '', ratio: '9:16', contentType: 'auto', textPlacement: 'auto', autoText: true, frameTime: 3, count: 1, prompt: '' },
+  },
   'generate-video': {
     label: 'Generate Video (Muse)',
     group: 'Generate',
@@ -459,6 +501,8 @@ export const nodePorts = (node: Pick<FlowNode, 'type' | 'data'>): { inputs: stri
       return { inputs: d.imageMode === 'image-to-image' ? ['text-in', 'image-in'] : ['text-in'], outputs: ['image-out'] };
     case 'outfit-swap':
       return { inputs: ['image-in-character', 'image-in-outfit', 'text-in'], outputs: ['image-out'] };
+    case 'thumbnail':
+      return { inputs: ['image-in', 'video-in', 'text-in'], outputs: ['image-out'] };
     case 'generate-video': {
       const m = d.videoMode || 'text-to-video';
       const inputs =
@@ -481,7 +525,10 @@ export const nodePorts = (node: Pick<FlowNode, 'type' | 'data'>): { inputs: stri
 };
 
 export const acceptsMultiple = (type: NodeType, handle: string) =>
-  type === 'result' || (handle === 'image-in' && ['generate-image', 'generate-video', 'gemini-script'].includes(type));
+  type === 'result' ||
+  (handle === 'image-in' && ['generate-image', 'generate-video', 'gemini-script', 'thumbnail'].includes(type)) ||
+  (handle === 'video-in' && type === 'thumbnail') ||
+  (handle === 'text-in' && type === 'thumbnail');
 
 let seq = 0;
 export const newId = (prefix: string) => `${prefix}-${Date.now().toString(36)}${(seq++).toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -579,7 +626,7 @@ export const validateWorkflow = (wf: Pick<FlowWorkflow, 'nodes' | 'edges'>): Val
   wf.nodes.forEach((n) => {
     const p = nodePorts(n);
     const connectedIn = wf.edges.some((e) => e.target === n.id);
-    if (p.inputs.length && !connectedIn && !['generate-image', 'generate-video', 'gemini-script'].includes(n.type)) {
+    if (p.inputs.length && !connectedIn && !['generate-image', 'generate-video', 'gemini-script', 'thumbnail'].includes(n.type)) {
       warnings.push(`${n.data.batchLabel || NODE_DEFS[n.type].label}: chưa nối đầu vào.`);
     }
     if (n.type === 'merge-video') {

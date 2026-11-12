@@ -122,6 +122,8 @@ const nodeSummary = (n: FlowNode): string => {
       return `Muse Image · ${d.imageMode || 'text-to-image'} · ${d.ratio || '9:16'} · ${d.count || 1} ảnh`;
     case 'generate-video':
       return `Muse Video · ${d.videoMode || 'text-to-video'} · ${d.ratio || '9:16'} · ${d.duration || 10}s`;
+    case 'thumbnail':
+      return `${d.title ? `"${short(String(d.title), 40)}"` : d.autoText !== false ? 'AI tự viết tiêu đề' : 'không chữ'} · ${d.ratio || '9:16'} · ${d.count || 1} ảnh`;
     case 'outfit-swap':
       return `Nhân vật mặc trang phục · ${{ studio: 'nền studio', keep: 'giữ bối cảnh', prompt: 'bối cảnh theo mô tả' }[String(d.background || 'studio')] || ''} · ${d.ratio || '9:16'} · ${d.count || 1} ảnh`;
     case 'merge-video':
@@ -601,7 +603,7 @@ const FieldInput: React.FC<{ f: FieldDef; d: FlowNodeData; set: (p: Partial<Flow
           {/* Khóa ưu tiên ảnh / khóa bối cảnh: runtime coi "chưa đặt" là BẬT → ô tích hiện khớp với node cũ */}
           <input
             type="checkbox"
-            checked={v === undefined && (f.key === 'imagePriority' || f.key === 'lockSetting' || f.key === 'qcKeyframe') ? true : !!v}
+            checked={v === undefined && (f.key === 'imagePriority' || f.key === 'lockSetting' || f.key === 'qcKeyframe' || f.key === 'autoText') ? true : !!v}
             onChange={(e) => set({ [f.key]: e.target.checked })}
           />
           {f.label}
@@ -912,16 +914,20 @@ export interface NodeFlowProps {
   characters: StudioCharacter[];
   products: StudioProduct[];
   /** Mở 1 workflow từ nơi khác (vd. "Mẫu & danh sách dòng" → Mở trong sơ đồ khối); đổi key để mở lại */
-  incoming?: { key: number; workflow?: FlowWorkflow; workflows?: FlowWorkflow[]; note?: string };
+  incoming?: { key: number; workflow?: FlowWorkflow; workflows?: FlowWorkflow[]; note?: string; activateId?: string };
   /** Màn đang hiển thị? Ẩn thì không vẽ canvas (vẫn giữ lượt chạy), hiện lại thì vẽ + đo node lại */
   active?: boolean;
   /** Báo danh sách sơ đồ đã lưu ra ngoài (Xuất bộ workflow) */
   onLibraryChange?: (workflows: FlowWorkflow[]) => void;
   /** Lưu / cập nhật sản phẩm vào thư viện Cài đặt (node Prompt lấy thông tin từ link Shopee) */
   onSaveProduct?: (p: StudioProduct) => void;
+  /** Tên mẫu workflow theo id — sơ đồ mở từ mẫu (wf.templateId) hiện nút 💾 Lưu vào mẫu */
+  templateNames?: Record<string, string>;
+  /** Lưu sơ đồ đang chỉnh ngược vào mẫu workflow gốc */
+  onSaveToTemplate?: (wf: FlowWorkflow) => void;
 }
 
-const Editor: React.FC<NodeFlowProps> = ({ threads, characters, products, incoming, active, onLibraryChange, onSaveProduct }) => {
+const Editor: React.FC<NodeFlowProps> = ({ threads, characters, products, incoming, active, onLibraryChange, onSaveProduct, templateNames, onSaveToTemplate }) => {
   const libItems = useMemo(() => ({ characters, products, saveProduct: onSaveProduct }), [characters, products, onSaveProduct]);
   const [lib, setLib] = usePersistentState<FlowLibrary>('nodeflow.library.v1', { workflows: [], activeId: '' }, { server: true });
   useEffect(() => {
@@ -983,6 +989,19 @@ const Editor: React.FC<NodeFlowProps> = ({ threads, characters, products, incomi
       const add = incoming.workflows;
       setLib((L) => ({ ...L, workflows: [...L.workflows, ...add], activeId: L.activeId || add[0].id }));
       setReport({ errors: [], warnings: [], ok: incoming.note || `Đã nhập ${add.length} sơ đồ vào Sơ đồ khối.` });
+      return;
+    }
+    // Mẫu đã mở trước đó: quay lại đúng sơ đồ đang chỉnh (không tạo bản mới mỗi lần bấm)
+    if (incoming.activateId && lib.workflows.some((w) => w.id === incoming.activateId)) {
+      lastIncoming.current = incoming.key;
+      if (!busy) {
+        const cur = lib.workflows.find((w) => w.id === incoming.activateId)!;
+        setLib((L) => ({ ...L, activeId: cur.id }));
+        setWf(cur);
+        setSelectedId('');
+        window.setTimeout(() => fitView({ padding: 0.15 }), 80);
+      }
+      setReport({ errors: [], warnings: [], ok: incoming.note || `Đã mở lại "${lib.workflows.find((w) => w.id === incoming.activateId)?.name}".` });
       return;
     }
     if (busy || !incoming.workflow) return;
@@ -1233,10 +1252,28 @@ const Editor: React.FC<NodeFlowProps> = ({ threads, characters, products, incomi
           <button
             disabled={busy || !wf}
             className={`${btn} bg-slate-700 text-white`}
-            onClick={() => wf && addWorkflow({ ...JSON.parse(JSON.stringify(wf)), id: newId('wf'), name: `${wf.name} (bản sao)` })}
+            onClick={() => wf && addWorkflow({ ...JSON.parse(JSON.stringify(wf)), id: newId('wf'), name: `${wf.name} (bản sao)`, templateId: undefined })}
           >
             ⧉ Nhân bản
           </button>
+          {wf?.templateId && templateNames?.[wf.templateId] && onSaveToTemplate && (
+            <button
+              disabled={busy}
+              className={`${btn} bg-emerald-600 text-white`}
+              title="Ghi sơ đồ này (các node, prompt, cài đặt) vào mẫu workflow gốc — lần sau bấm 🧩 Sơ đồ ở mẫu sẽ mở đúng bản này"
+              onClick={() => {
+                const name = templateNames[wf.templateId!];
+                if (window.confirm(`Lưu sơ đồ hiện tại vào mẫu "${name}"?
+
+Mẫu sẽ dùng sơ đồ này thay cho sơ đồ cũ (mẫu có sẵn khôi phục được bằng "↺ Về mẫu gốc").`)) {
+                  onSaveToTemplate(wf);
+                  setReport({ errors: [], warnings: [], ok: `💾 Đã lưu sơ đồ vào mẫu "${name}".` });
+                }
+              }}
+            >
+              💾 Lưu vào mẫu “{templateNames[wf.templateId].slice(0, 30)}”
+            </button>
+          )}
           <button disabled={busy} className={`${btn} bg-slate-700 text-white`} onClick={() => importRef.current?.click()}>
             ⬆ Nhập JSON (MV1)
           </button>

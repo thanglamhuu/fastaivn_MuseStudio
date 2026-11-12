@@ -9,8 +9,10 @@ export interface WorkflowTemplate {
   icon: string;
   category: string;
   description: string;
-  /** Mẫu có sẵn (không xóa / sửa đè được, chỉ lưu thành bản mới) */
+  /** Mẫu có sẵn (nằm trong code; sửa thì lưu thành bản sửa đè riêng, khôi phục được) */
   builtin?: boolean;
+  /** Mẫu có sẵn đang dùng bản đã sửa của người dùng (đánh dấu lúc hiển thị, không lưu) */
+  customized?: boolean;
   scriptMode: ScriptMode;
   /** Mẫu kịch bản (khi scriptMode = 'template') */
   scriptTemplateId?: string;

@@ -108,6 +108,37 @@ export const BUILTIN_WORKFLOWS: WorkflowTemplate[] = [
     sceneCount: 5,
   },
   {
+    // Công thức rút từ phân tích 5 reel sitcom gia đình > 500k view (taiLieu/PHAN_TICH_PHIM_GIA_DINH_NHO.md) — học CẤU TRÚC, không chép nội dung
+    ...base,
+    id: 'wf-phim-gia-dinh-nho',
+    name: 'Phim Gia Đình Nhỏ',
+    icon: '👨‍👩‍👧',
+    category: 'Gia đình',
+    description:
+      'Sitcom gia đình 12 giây: bé gái nghịch theo logic trẻ con → bố mẹ phản ứng phóng đại → lật cảm xúc (ồn ào hoá ngọt) → chốt bằng nụ cười / cái hôn. ' +
+      'Kể bằng hình ảnh, ít thoại. Chọn 3 nhân vật Bố, Mẹ, Bé gái trong thư viện; ô ý tưởng để trống thì AI tự chọn chủ đề.',
+    scriptMode: 'short_film',
+    duration: 6,
+    sceneCount: 2,
+    cameraMotion: 'Medium shot, static camera, eye level',
+    setting: 'Căn nhà Việt hiện đại sáng sủa, sạch, gọn (phòng khách sofa xám / bếp - bàn ăn / phòng tắm trắng), ánh sáng ban ngày tự nhiên',
+    extraNote:
+      'CÔNG THỨC PHIM GIA ĐÌNH NHỎ (sitcom 12 giây, 2 cảnh × 6 giây, video dọc 9:16):\n' +
+      '- CẢNH 1 (0-6 s): HOOK 0-2 s = một hành động lạ / một ĐẠO CỤ CHÍNH gây tò mò xuất hiện ngay (nồi + muỗng, khay bát, lát bánh, son môi…); ' +
+      'THIẾT LẬP 2-4 s = khung cảnh gia đình bình thường, cả 3 người có mặt hoặc sắp có mặt; LEO THANG 4-6 s = bé gái làm việc theo LOGIC TRẺ CON, càng lúc càng rõ.\n' +
+      '- CẢNH 2 (6-12 s): PHẢN ỨNG = bố hoặc mẹ phản ứng bằng biểu cảm PHÓNG ĐẠI (sững sờ, giật mình, dỗi, bật cười); LẬT = cảm xúc đổi chiều ' +
+      '(ồn ào → hôn má, dỗi → được ưu ái, nghịch → cười); CHỐT = dừng ở nụ cười, cái hôn hoặc gương mặt sững sờ — KHÔNG giải thích, KHÔNG mắng, KHÔNG bài học đạo đức.\n' +
+      'VAI TRÒ CỐ ĐỊNH: BÉ GÁI = trung tâm, gây chuyện bằng hành động, ít nói nhưng biểu cảm lớn; BỐ = người "chịu trận", hiền, chiều con, phản ứng bằng mặt + hành động; ' +
+      'MẸ = người chứng kiến, giữ nhịp ấm (cười, giả vờ ghen, sững sờ), ít khi gây chuyện chính.\n' +
+      'THOẠI: kể bằng hình ảnh trước, thoại sau; tối đa 1-2 câu RẤT NGẮN mỗi cảnh, xưng hô bố - mẹ - con tự nhiên; câu của bé là câu chốt hoặc gợi ra cú chốt; ' +
+      'bố mẹ chỉ cảm thán ngắn. Mỗi câu ghi rõ AI nói (CHỈ @Tên nói, người khác ngậm miệng), giọng đúng giới tính / tuổi (bé = giọng trẻ em).\n' +
+      'HÌNH ẢNH: máy gần như CỐ ĐỊNH, trung cảnh ngang tầm mắt thấy cả 3 người; nhà sáng sạch hiện đại; trang phục cả nhà tông màu đồng điệu (vd. đồ ngủ sọc giống nhau); ' +
+      'MỖI clip MỘT đạo cụ chính; biểu cảm cuối đủ lớn để hiểu khi tắt tiếng; không chữ lớn che mặt.\n' +
+      'Ý TƯỞNG trống thì tự chọn 1 chủ đề kiểu: bé tô son cho bố đang ngủ; bé trèo ghế lấy kẹo bố giấu rồi chia bố 1 viên; bé "gấp" quần áo vào tủ lạnh "cho mát"; ' +
+      'bé bắt bố chơi bác sĩ, nghe tim bằng muỗng, kê đơn "bố phải ăn kem"; bé lén bỏ đường vào nồi canh của mẹ; bé giấu dép bố, bố đi nhầm dép mẹ ra cửa; ' +
+      'bé gọi video khoe bà "bố đang rửa bát" nhưng bố đang ngủ; bé cắt tóc búp bê rồi định cắt tóc bố.',
+  },
+  {
     ...base,
     id: 'wf-review-7-ngay',
     name: 'Review sau 7 ngày dùng',

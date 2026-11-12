@@ -33,7 +33,7 @@ export const loadHndFlowTemplates = async (): Promise<HndFlowTemplate[]> => {
   return [...fastaivn, ...(hnd.default as unknown as HndFlowTemplate[])];
 };
 
-const RUNTIME_KEYS = ['runStatus', 'error', 'results', 'progress', 'startedAt', 'finishedAt', 'taskId', 'accountId', 'previewUrl', 'prompts', 'rerun', 'qc'];
+const RUNTIME_KEYS = ['runStatus', 'error', 'results', 'progress', 'startedAt', 'finishedAt', 'taskId', 'accountId', 'previewUrl', 'prompts', 'rerun', 'qc', 'aiTitle', 'aiSubtitle'];
 
 const cleanData = (type: NodeType, raw: Record<string, unknown> = {}): FlowNodeData => {
   const data: FlowNodeData = { ...JSON.parse(JSON.stringify(NODE_DEFS[type].defaults)) };
