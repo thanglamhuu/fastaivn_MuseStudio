@@ -468,6 +468,9 @@ class BrowserDriver(MuseDriver):
                 state = await tab.session.evaluate(dom.PAGE_STATE, timeout=5.0) or {}
                 if state.get("ready"):
                     return
+                # [MuseStudio patch] trang "Muse is disconnected" không bao giờ sẵn sàng → báo ngay, khỏi đợi hết giờ
+                if any(h in (state.get("head") or "").lower() for h in dom.DISCONNECTED_HINTS):
+                    raise UpstreamAccountBlocked(DISCONNECTED_MSG)
         head = (state.get("head") or "").lower()
         if any(h in head for h in dom.DISCONNECTED_HINTS):  # [MuseStudio patch]
             raise UpstreamAccountBlocked(DISCONNECTED_MSG)
@@ -999,6 +1002,15 @@ class BrowserDriver(MuseDriver):
                                     req.on_progress, req.cancel)
 
     # ------------------------------------------------------------ session
+    async def check_chat_page(self, account: Account, timeout: float = 90.0) -> None:
+        """[MuseStudio patch] Mở trang chat của tài khoản: bị muse.ai khóa ("Muse is disconnected") → UpstreamAccountBlocked.
+        /api/session vẫn báo phiên hợp lệ với tài khoản bị khóa, nên "Kiểm tra phiên" (bấm tay) gọi thêm hàm này."""
+        tab = await asyncio.wait_for(self._checkout(account), timeout)
+        try:
+            await asyncio.wait_for(self._new_thread(tab), timeout)
+        finally:
+            await self._checkin(tab)
+
     async def renew_session(self, account: Account) -> SessionInfo:
         info = await muse.renew_session(account.cookies)
         # Cookies live in the account's browser context, so writing the rotated ones

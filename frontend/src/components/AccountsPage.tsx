@@ -219,8 +219,11 @@ const AccountRow: React.FC<{
             disabled={!!busy}
             onClick={() =>
               run('renew', async () => {
-                const r = await renewMuseAccount(acc.id);
-                return r.ok ? '✅ Phiên còn hiệu lực' : `❌ ${r.error || 'Phiên không hợp lệ'}`;
+                const r = await renewMuseAccount(acc.id, true);
+                if (r.blocked) return '⛔ Nghi tài khoản đã bị muse.ai khóa — đã tự tắt';
+                if (!r.ok) return `❌ ${r.error || 'Phiên không hợp lệ'}`;
+                if (r.page && r.page !== 'ok') return `✅ Phiên còn hiệu lực · ⚠️ ${r.page}`;
+                return r.page === 'ok' ? '✅ Phiên còn hiệu lực, trang chat bình thường' : '✅ Phiên còn hiệu lực';
               })
             }
             className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 rounded-lg text-xs"
@@ -439,17 +442,24 @@ export const AccountsPage: React.FC<{ state: MuseAccountsState }> = ({ state }) 
 
   const handleCheckAll = async () => {
     setCheckingAll(true);
-    const targets = accounts.filter((a) => a.enabled);
+    // Kiểm tra cả tài khoản đang bị đánh dấu khóa (đã được mở khóa qua ticket thì Gateway tự bật lại)
+    const targets = accounts.filter((a) => a.enabled || isAccountBlocked(a));
     let ok = 0;
+    let blocked = 0;
     for (const acc of targets) {
       try {
-        if ((await renewMuseAccount(acc.id)).ok) ok++;
+        const r = await renewMuseAccount(acc.id, true);
+        if (r.ok) ok++;
+        if (r.blocked) blocked++;
       } catch {
         // tài khoản lỗi được đánh dấu bên Gateway
       }
     }
     setCheckingAll(false);
-    setBulkNote(`Kiểm tra phiên: ${ok}/${targets.length} tài khoản còn đăng nhập`);
+    setBulkNote(
+      `Kiểm tra phiên + trang chat: ${ok}/${targets.length} tài khoản dùng được` +
+        (blocked ? ` · ⛔ ${blocked} tài khoản nghi bị muse.ai khóa (đã tự tắt)` : '')
+    );
     refresh();
   };
 

@@ -145,6 +145,11 @@ def driver(tmp_path, monkeypatch) -> BrowserDriver:
         return _Tab(account.id, "ctx", f"t{next(ids)}", page)
 
     monkeypatch.setattr(drv, "_open_tab", fake_open)
+
+    async def browser_ready() -> None:  # [MuseStudio patch] _ensure_browser báo lỗi khi chưa khởi động Chromium
+        return None
+
+    monkeypatch.setattr(drv, "_ensure_browser", browser_ready)
     monkeypatch.setattr(BrowserDriver, "_QUOTA_CLICK_TIMEOUT", 0.05)
     monkeypatch.setattr(BrowserDriver, "_QUOTA_READ_TIMEOUT", 0.05)
     monkeypatch.setattr(BrowserDriver, "_ESCAPE_PAUSE", 0)

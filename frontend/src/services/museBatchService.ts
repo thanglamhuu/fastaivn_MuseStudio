@@ -341,9 +341,18 @@ export const cancelBrowserLogin = async (jobId: string): Promise<void> => {
   await gatewayFetch(`/studio/login/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' });
 };
 
-/** Kiểm tra phiên: gọi /api/session của muse.ai để làm mới cookie. */
-export const renewMuseAccount = async (accountId: string): Promise<{ ok: boolean; error?: string }> => {
-  const res = await gatewayFetch(`/admin/accounts/${encodeURIComponent(accountId)}/renew`, { method: 'POST' });
+/**
+ * Kiểm tra phiên: gọi /api/session của muse.ai để làm mới cookie. `checkPage` (nút bấm tay): mở thêm trang chat để phát hiện
+ * tài khoản bị muse.ai khóa ("Muse is disconnected" — /api/session vẫn báo hợp lệ) → `blocked: true`, Gateway tự tắt tài khoản.
+ */
+export const renewMuseAccount = async (
+  accountId: string,
+  checkPage = false
+): Promise<{ ok: boolean; error?: string; blocked?: boolean; page?: string }> => {
+  const res = await gatewayFetch(
+    `/admin/accounts/${encodeURIComponent(accountId)}/renew${checkPage ? '?check_page=true' : ''}`,
+    { method: 'POST' }
+  );
   if (!res.ok) throw new Error(await readError(res));
   return res.json();
 };

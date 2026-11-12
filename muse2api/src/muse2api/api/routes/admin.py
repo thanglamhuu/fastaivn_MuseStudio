@@ -161,9 +161,10 @@ async def reset_account(account_id: str, svc: Services = Depends(get_services)) 
 
 
 @router.post("/accounts/{account_id}/renew")
-async def renew(account_id: str, svc: Services = Depends(get_services)) -> dict:
+async def renew(account_id: str, check_page: bool = False, svc: Services = Depends(get_services)) -> dict:
     _get(svc, account_id)
-    return await renew_account(svc.pool, svc.driver, account_id)
+    # [MuseStudio patch] check_page=true (nút "Kiểm tra phiên"): mở thêm trang chat để phát hiện tài khoản bị muse.ai khóa
+    return await renew_account(svc.pool, svc.driver, account_id, check_page=check_page)
 
 
 @router.get("/accounts/{account_id}/quota")

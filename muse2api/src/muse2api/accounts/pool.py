@@ -198,6 +198,7 @@ class AccountPool:
         self.store = store
         self.strategy: Strategy = STRATEGIES[strategy]()
         self.max_concurrency = max(1, max_concurrency)
+        self._last_stamp = 0.0  # [MuseStudio patch] mốc last_used_at gần nhất (giữ thứ tự LRU khi đồng hồ chưa nhích)
         # [MuseStudio patch] luồng của tài khoản chưa đặt riêng (None = bằng trần, như bản gốc)
         self.default_concurrency = max(1, min(default_concurrency or self.max_concurrency, self.max_concurrency))
         self.cooldown = cooldown
@@ -356,7 +357,13 @@ class AccountPool:
                     self._inflight[acc.id] += 1
                     if voice:
                         self._voice[acc.id] = voice
-                    acc.last_used_at = time.time()
+                    # [MuseStudio patch] mốc tăng ngặt: đồng hồ Windows nhích ~15 ms, các lượt kết thúc liền nhau có cùng
+                    # time.time() → LRU hòa nhau và luôn chọn tài khoản đầu danh sách (dồn việc vào 1 tài khoản)
+                    stamp = time.time()
+                    if stamp <= self._last_stamp:
+                        stamp = self._last_stamp + 1e-6
+                    self._last_stamp = stamp
+                    acc.last_used_at = stamp
                     return acc
                 remaining = deadline - time.monotonic()
                 back_in = None if back_at is None else back_at - time.time()
