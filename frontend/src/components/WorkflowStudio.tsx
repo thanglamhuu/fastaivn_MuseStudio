@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePersistentState } from '../hooks/usePersistentState';
 import { MuseAccountsState } from '../hooks/useMuseAccounts';
 import { StudioLibraryState } from '../hooks/useStudioLibrary';
@@ -84,6 +84,12 @@ export const WorkflowStudio: React.FC<{
   threadsRef.current = accountsState.totalThreads;
 
   const [customs, setCustoms] = usePersistentState<WorkflowTemplate[]>('workflow.custom.v1', [], { server: true });
+  /** Node Prompt lấy sản phẩm từ link Shopee → lưu / cập nhật vào thư viện sản phẩm (Cài đặt) */
+  const setLibraryProducts = library.setProducts;
+  const saveLibraryProduct = useCallback(
+    (p: StudioProduct) => setLibraryProducts((prev) => (prev.some((x) => x.id === p.id) ? prev.map((x) => (x.id === p.id ? p : x)) : [...prev, p])),
+    [setLibraryProducts]
+  );
   const [selectedId, setSelectedId] = usePersistentState('workflow.selected.v1', BUILTIN_WORKFLOWS[0].id);
   const [reviewScript, setReviewScript] = usePersistentState('workflow.review.v1', false);
   const [rows, setRows] = usePersistentState<WorkflowRow[]>('workflow.rows.v1', [], {
@@ -647,6 +653,7 @@ export const WorkflowStudio: React.FC<{
         incoming={flowIncoming}
         active={view === 'nodes' || view === 'graph'}
         onLibraryChange={setFlowLib}
+        onSaveProduct={saveLibraryProduct}
       />
     </div>
   );

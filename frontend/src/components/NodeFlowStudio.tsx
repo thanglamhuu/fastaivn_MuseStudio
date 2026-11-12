@@ -48,11 +48,14 @@ import {
   portKind,
   validateWorkflow,
 } from '../services/nodeFlow/definitions';
-import { RunMode, runFlow } from '../services/nodeFlow/runtime';
+import { RunMode, aiText, runFlow } from '../services/nodeFlow/runtime';
 import { HndFlowTemplate, buildTemplatePackage, exportFlowJson, loadHndFlowTemplates, parseFlowJson } from '../services/nodeFlow/flowIO';
 import { APP_VERSION } from '../services/templateCatalog';
 import { cutFrame } from '../services/libraryService';
 import { urlToResizedDataUrl } from '../utils/image';
+import { extractJson, getScrapeStatus, getShopLoginState, openShopLogin, scrapeProductLink } from '../services/productService';
+import { mergeProductIntoPrompt, productIdeaInstruction, shortProductName } from '../services/nodeFlow/shopeePrompt';
+import { newLibraryId } from '../types/library';
 import { GATEWAY_URL } from '../config/appConfig';
 
 interface FlowLibrary {
@@ -227,7 +230,147 @@ const inputCls = 'w-full bg-slate-950 border border-white/10 text-[11px] text-sl
 interface Lib {
   characters: StudioCharacter[];
   products: StudioProduct[];
+  /** Lưu / cập nhật sản phẩm vào thư viện Cài đặt (node Prompt lấy từ link Shopee) */
+  saveProduct?: (p: StudioProduct) => void;
 }
+
+/**
+ * Node Prompt: dán link Shopee / TikTok Shop → đọc trang (bộ đọc link có sẵn, tự mở Chrome khi gặp captcha / cần đăng nhập)
+ * → AI rút tên ngắn, điểm nổi bật, ý tưởng, ngoại hình → lưu sản phẩm vào thư viện (để @@ gửi kèm ảnh khi render)
+ * → PHỐI vào prompt có sẵn (điền chỗ trống @@, thêm khối "SẢN PHẨM TỪ LINK"), không thay thế prompt mẫu.
+ */
+const ProductLinkField: React.FC<{ d: FlowNodeData; set: (p: Partial<FlowNodeData>) => void; lib: Lib; label: string }> = ({ d, set, lib, label }) => {
+  const [url, setUrl] = useState(String(d.shopeeUrl || ''));
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState('');
+  const [needsLogin, setNeedsLogin] = useState<'' | 'shopee' | 'tiktok'>('');
+  useEffect(() => setUrl(String(d.shopeeUrl || '')), [d.shopeeUrl]);
+
+  const fetchInfo = async () => {
+    const link = url.trim();
+    if (!/^https?:\/\//i.test(link)) return setNote('Dán link sản phẩm Shopee / TikTok Shop (bắt đầu bằng https://).');
+    setBusy(true);
+    setNeedsLogin('');
+    setNote('Đang mở trang sản phẩm (15-40 giây)…');
+    const timer = window.setInterval(async () => {
+      try {
+        const st = await getScrapeStatus();
+        if (st.busy && st.message) setNote(st.message);
+      } catch {
+        /* Gateway cũ chưa có /status */
+      }
+    }, 1500);
+    try {
+      const r = await scrapeProductLink(link);
+      if (r.needs_login && r.site) setNeedsLogin(r.site);
+      if (!r.title && !r.images.length) {
+        setNote(`⚠️ ${r.warning || 'Không đọc được trang sản phẩm.'}`);
+        return;
+      }
+      setNote('Đã đọc trang — AI đang rút điểm nổi bật & ý tưởng…');
+      const prompt = String(d.prompt || '');
+      let ai: any = {};
+      try {
+        const img = r.images[0] ? [await urlToResizedDataUrl(r.images[0].url, 1024)] : [];
+        const res = await aiText(productIdeaInstruction(r.title, r.price, r.brand, r.description, r.text, prompt), img);
+        ai = extractJson(res.text) || {};
+      } catch {
+        /* AI lỗi: vẫn dùng thông tin đọc được từ trang */
+      }
+      const name = String(ai.short_name || '').trim().slice(0, 60) || shortProductName(r.title) || 'Sản phẩm';
+      const highlights: string[] = Array.isArray(ai.highlights) ? ai.highlights.map(String).slice(0, 5) : [];
+      // Lưu vào thư viện (cập nhật nếu đã có cùng link / cùng tên) → @@<tên> gửi kèm ảnh + mô tả khi render
+      const images: string[] = [];
+      for (const im of r.images.slice(0, 3)) {
+        try {
+          images.push(await urlToResizedDataUrl(im.url, 1280));
+        } catch {
+          /* bỏ ảnh lỗi */
+        }
+      }
+      const old = lib.products.find((p) => (p.url && p.url === r.url) || p.name === name);
+      lib.saveProduct?.({
+        id: old?.id || newLibraryId('prod'),
+        name,
+        price: r.price || old?.price || '',
+        url: r.url || link,
+        description: (highlights.length ? `${highlights.join('; ')}. ` : '') + (r.description || '').slice(0, 800),
+        visual: String(ai.visual || old?.visual || ''),
+        images: images.length ? images : old?.images || [],
+        createdAt: old?.createdAt || Date.now(),
+      });
+      const merged = mergeProductIntoPrompt(
+        prompt,
+        { name, url: r.url || link, price: r.price, brand: r.brand, highlights, idea: String(ai.idea || '') },
+        lib.products.map((p) => p.name),
+        String(d.shopeeProductName || '')
+      );
+      set({ prompt: merged, shopeeUrl: link, shopeeProductName: name });
+      setNote(
+        `✅ ${name}${r.price ? ` — ${r.price}` : ''}: đã thêm vào prompt` +
+          (lib.saveProduct ? ` và lưu vào thư viện sản phẩm (${images.length} ảnh)` : '') +
+          (r.warning ? ` · ⚠️ ${r.warning}` : '')
+      );
+    } catch (err: any) {
+      setNote(`❌ ${err.message}`);
+    } finally {
+      window.clearInterval(timer);
+      setBusy(false);
+    }
+  };
+
+  const login = async () => {
+    if (!needsLogin) return;
+    try {
+      await openShopLogin(needsLogin);
+      setNote(`Đăng nhập ${needsLogin === 'shopee' ? 'Shopee' : 'TikTok'} trong cửa sổ Chrome vừa mở, xong thì ĐÓNG cửa sổ đó rồi bấm "Lấy thông tin" lại.`);
+      const t = window.setInterval(async () => {
+        try {
+          if (!(await getShopLoginState()).open) {
+            window.clearInterval(t);
+            setNeedsLogin('');
+          }
+        } catch {
+          window.clearInterval(t);
+        }
+      }, 2000);
+    } catch (err: any) {
+      setNote(`❌ ${err.message}`);
+    }
+  };
+
+  return (
+    <div>
+      <span className="block text-[10px] uppercase tracking-wide text-slate-500 mb-0.5">{label}</span>
+      <div className="flex gap-1">
+        <input
+          className={inputCls}
+          value={url}
+          placeholder="https://s.shopee.vn/… hoặc vt.tiktok.com/…"
+          onChange={(e) => setUrl(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && !busy && fetchInfo()}
+        />
+        <button
+          type="button"
+          onClick={fetchInfo}
+          disabled={busy || !url.trim()}
+          className="shrink-0 px-2 py-1 rounded-lg text-[11px] font-semibold bg-orange-600 hover:bg-orange-500 disabled:bg-slate-700 text-white"
+        >
+          {busy ? '…' : 'Lấy thông tin'}
+        </button>
+      </div>
+      {needsLogin && (
+        <button type="button" onClick={login} className="mt-1 px-2 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-[10px] text-white">
+          🔑 Đăng nhập {needsLogin === 'shopee' ? 'Shopee' : 'TikTok'} để đọc đủ thông tin
+        </button>
+      )}
+      <span className="block text-[9px] text-slate-500 mt-0.5">
+        {note ||
+          'Thông tin sản phẩm được PHỐI vào prompt bên dưới (điền chỗ @@ trống + thêm khối "Sản phẩm từ link"), không thay prompt có sẵn.'}
+      </span>
+    </div>
+  );
+};
 
 /** Ô nhập prompt: gõ @ → chọn nhân vật, @@ → chọn sản phẩm (trong Cài đặt). */
 export const MentionTextarea: React.FC<{ value: string; onChange: (v: string) => void; lib: Lib; rows?: number }> = ({ value, onChange, lib, rows = 7 }) => {
@@ -400,6 +543,8 @@ const FieldInput: React.FC<{ f: FieldDef; d: FlowNodeData; set: (p: Partial<Flow
   switch (f.type) {
     case 'locks':
       return <LocksField d={d} set={set} lib={lib} />;
+    case 'productLink':
+      return <ProductLinkField d={d} set={set} lib={lib} label={f.label} />;
     case 'mention':
       return (
         <div>
@@ -769,10 +914,12 @@ export interface NodeFlowProps {
   active?: boolean;
   /** Báo danh sách sơ đồ đã lưu ra ngoài (Xuất bộ workflow) */
   onLibraryChange?: (workflows: FlowWorkflow[]) => void;
+  /** Lưu / cập nhật sản phẩm vào thư viện Cài đặt (node Prompt lấy thông tin từ link Shopee) */
+  onSaveProduct?: (p: StudioProduct) => void;
 }
 
-const Editor: React.FC<NodeFlowProps> = ({ threads, characters, products, incoming, active, onLibraryChange }) => {
-  const libItems = useMemo(() => ({ characters, products }), [characters, products]);
+const Editor: React.FC<NodeFlowProps> = ({ threads, characters, products, incoming, active, onLibraryChange, onSaveProduct }) => {
+  const libItems = useMemo(() => ({ characters, products, saveProduct: onSaveProduct }), [characters, products, onSaveProduct]);
   const [lib, setLib] = usePersistentState<FlowLibrary>('nodeflow.library.v1', { workflows: [], activeId: '' }, { server: true });
   useEffect(() => {
     onLibraryChange?.(lib.workflows);

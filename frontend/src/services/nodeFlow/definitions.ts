@@ -66,6 +66,9 @@ export interface FlowNodeData {
   productImageIndex?: number;
   /** Số lần tạo lại node ảnh / video (đổi prompt để Gateway không trả lại kết quả cũ trong bộ đệm) */
   rerun?: number;
+  /** Node Prompt: link Shopee / TikTok Shop đã lấy thông tin + tên sản phẩm đã điền vào prompt (lưu ở thư viện) */
+  shopeeUrl?: string;
+  shopeeProductName?: string;
   /** Ảnh cận mặt riêng (khóa nhân vật): ghép cạnh ảnh toàn thân thành 1 ảnh tham chiếu */
   faceImage?: string;
   /** Ảnh tải lên là character sheet 2×2 → tự cắt ô toàn thân + ô cận mặt */
@@ -154,7 +157,7 @@ export interface FieldDef {
   key: keyof FlowNodeData & string;
   label: string;
   /** mention = textarea có gợi ý @nhân vật / @@sản phẩm; locks = tích nhiều khóa tham chiếu */
-  type: 'text' | 'textarea' | 'mention' | 'number' | 'select' | 'checkbox' | 'spots' | 'locks';
+  type: 'text' | 'textarea' | 'mention' | 'number' | 'select' | 'checkbox' | 'spots' | 'locks' | 'productLink';
   options?: [string, string][];
   min?: number;
   max?: number;
@@ -207,7 +210,10 @@ export const NODE_DEFS: Record<NodeType, NodeDef> = {
     color: '#0284c7',
     icon: '✏️',
     role: 'Đoạn văn bản cố định (prompt cảnh, yêu cầu cho AI). Xuất ra cổng text-out.',
-    fields: [{ key: 'prompt', label: 'Prompt', type: 'mention', hint: 'Gõ @ chọn nhân vật, @@ chọn sản phẩm trong Cài đặt — ảnh + mô tả của chúng tự gửi kèm khi render' }],
+    fields: [
+      { key: 'shopeeUrl', label: '🛒 Link Shopee / TikTok Shop (tự lấy thông tin sản phẩm)', type: 'productLink' },
+      { key: 'prompt', label: 'Prompt', type: 'mention', hint: 'Gõ @ chọn nhân vật, @@ chọn sản phẩm trong Cài đặt — ảnh + mô tả của chúng tự gửi kèm khi render' },
+    ],
     defaults: { prompt: '' },
   },
   'upload-image': {

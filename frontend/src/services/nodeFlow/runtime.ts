@@ -18,6 +18,7 @@ import {
 import { blurRegions, cutFrame, upscaleMedia } from '../libraryService';
 import { buildReferencePrompt, RefImageInfo } from '../referencePrompt';
 import { composeSideBySide, cropCharacterSheet, upscaleIfSmall, urlToResizedDataUrl } from '../../utils/image';
+import { stripBlockUrl } from './shopeePrompt';
 import type { AspectRatio, ShotDuration } from '../../types/videoStudio';
 import type { StudioCharacter, StudioProduct } from '../../types/library';
 import {
@@ -557,7 +558,7 @@ export async function runFlow(wf: FlowWorkflow, mode: RunMode, deps: FlowRunDeps
     stop();
     switch (n.type) {
       case 'prompt': {
-        const t = String(d.prompt || '').trim();
+        const t = stripBlockUrl(String(d.prompt || '').trim());
         if (!t) throw new Error('Prompt trống.');
         return [{ kind: 'text', value: t }];
       }
