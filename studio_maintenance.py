@@ -125,7 +125,7 @@ def run_backup(data_dir: Path, force: bool = False, now: float | None = None) ->
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(f, dst)
             size += f.stat().st_size
-        cfg.update(last_backup_fp=fp, last_backup_at=time.time(), last_backup_dir=str(dest_root))
+        cfg.update(last_backup_fp=fp, last_backup_at=now or time.time(), last_backup_dir=str(dest_root))
         pruned = _prune_backups(data_dir, int(cfg.get("backup_keep_days") or 0), now)
         save_cfg(data_dir, cfg)
         log.info("sao lưu %d file (%.1f MB) → %s", len(files), size / 1e6, dest_root)

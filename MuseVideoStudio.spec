@@ -5,7 +5,8 @@
 # (frontend/dist → frontend_dist: gồm luôn mẫu workflow có sẵn + ảnh mẫu public/workflow-thumbs), thư viện chạy server.
 # KHÔNG GÓI: data/ (log, media, requests.db, accounts.json chứa cookie, profile Chrome, state, ai_config chứa Gemini key),
 # TestWorkFlow, tools, tests, changeLog, taiLieu, node_modules, tmpacc.k (danh sách email tài khoản)…
-# wfthumb/ + ffmpeg.exe đặt CẠNH exe trong thư mục bàn giao (tools/package_release.py), không nhét vào exe.
+# wfthumb/ + ffmpeg.exe + models/face (mô hình chấm mặt, 38 MB) đặt CẠNH exe trong thư mục bàn giao
+# (tools/package_release.py), không nhét vào exe. OpenCV (cv2) + numpy gói trong exe cho tự chấm điểm (studio_qc.py).
 from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_all
@@ -34,7 +35,7 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     # Thư viện có trên máy build nhưng app không dùng → không gói (exe nhẹ, khởi động nhanh)
-    excludes=["tkinter", "matplotlib", "pytest", "IPython", "notebook", "cv2", "torch", "faster_whisper",
+    excludes=["tkinter", "matplotlib", "pytest", "IPython", "notebook", "torch", "faster_whisper",
               "ctranslate2", "scipy", "pandas", "PyQt5", "PyQt6", "PySide2", "PySide6"],
     noarchive=False,
     optimize=0,

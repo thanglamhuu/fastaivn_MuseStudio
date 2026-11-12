@@ -83,3 +83,5 @@ Desktop.ini
 /release/
 # Sao lưu tự động dữ liệu (studio_maintenance.py)
 /backup/
+# Mô hình so mặt SFace (38 MB): tự tải lần đầu (studio_qc.py), bản exe kèm cạnh exe
+/models/face/sface.onnx

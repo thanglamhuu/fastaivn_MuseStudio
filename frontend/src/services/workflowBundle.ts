@@ -28,7 +28,7 @@ export interface WorkflowBundle {
 }
 
 /** Khóa dữ liệu lượt chạy — không mang sang máy khác */
-const RUN_KEYS = ['runStatus', 'error', 'results', 'progress', 'startedAt', 'finishedAt', 'taskId', 'accountId', 'previewUrl', 'prompts', 'keyframe', 'rerun'];
+const RUN_KEYS = ['runStatus', 'error', 'results', 'progress', 'startedAt', 'finishedAt', 'taskId', 'accountId', 'previewUrl', 'prompts', 'keyframe', 'rerun', 'qc'];
 
 const isData = (v: string) => v.startsWith('data:');
 /** Ảnh nằm trên Gateway / máy này (không mở được ở máy khác) → phải nhúng. */

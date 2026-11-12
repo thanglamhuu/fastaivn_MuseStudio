@@ -6,7 +6,8 @@ release/MuseVideoStudio_<ngày>/
   wfthumb/                 thumbnail + video xem trước 8 s + sơ đồ .flow.json + wfthumb.config.json của các mẫu workflow
                            (config sửa được: dán link YouTube…). Đã bỏ đường dẫn máy dev (testClip) khỏi config.
   wfthumb/full/            (chỉ khi --full-clips) clip đầy đủ có tiếng cho nút ▶ — lấy từ TestWorkFlow/thumFull (~160 MB)
-  ffmpeg.exe               (nếu máy build có ffmpeg; bỏ bằng --no-ffmpeg) — cần cho ghép cảnh / hậu kỳ
+  ffmpeg.exe               (nếu máy build có ffmpeg; bỏ bằng --no-ffmpeg) — cần cho ghép cảnh / hậu kỳ / đo giọng
+  models/face/             mô hình chấm mặt YuNet + SFace (~39 MB) cho tự chấm điểm ảnh khung hình
   HUONG_DAN_CHAY.txt       cách chạy, yêu cầu máy, dữ liệu lưu ở đâu
 → nén thành release/MuseVideoStudio_<ngày>.zip
 
@@ -89,6 +90,15 @@ def main() -> int:
                 print(f"[CẢNH BÁO] Không thấy {full_src} — bỏ clip đầy đủ (nút ▶ phát video xem trước 8 s).")
         (dst_thumb / "wfthumb.config.json").write_text(json.dumps(cfg, ensure_ascii=False, indent=1), encoding="utf-8")
         n += 1
+
+    # Mô hình chấm mặt (studio_qc.py): YuNet + SFace — exe tìm ở models/face cạnh exe (thiếu thì tự tải lần đầu)
+    models = ROOT / "models" / "face"
+    if (models / "sface.onnx").is_file() and (models / "yunet.onnx").is_file():
+        (out / "models" / "face").mkdir(parents=True)
+        for f in ("yunet.onnx", "sface.onnx"):
+            shutil.copy2(models / f, out / "models" / "face" / f)
+    else:
+        print("[CẢNH BÁO] Thiếu models/face/sface.onnx — bản bàn giao sẽ tự tải mô hình chấm mặt (38 MB) lần đầu dùng.")
 
     ff_note = ""
     if not args.no_ffmpeg:

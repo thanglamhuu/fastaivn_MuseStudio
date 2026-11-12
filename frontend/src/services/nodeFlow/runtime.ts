@@ -141,6 +141,11 @@ const NO_MEDIA_RE = /earlier (video|image) file|Internal Server Error|Bad Gatewa
 /** Nhắc muse.ai đây là yêu cầu MỚI (nó nhớ việc cũ theo tài khoản và hay gửi lại file đã tạo trước đó) */
 const NEW_REQUEST_NOTE = (kind: 'video' | 'ảnh') =>
   `[YÊU CẦU MỚI: tạo ${kind} MỚI theo đúng mô tả này — KHÔNG gửi lại / dùng lại file ${kind} đã tạo trước đó.]`;
+/** Tự chấm ảnh khung hình: cosine SFace tối thiểu mỗi nhân vật (chuẩn cùng người 0.363; ảnh đặt chặt hơn vì video còn trôi thêm —
+ * lượt chạy thử: ảnh Mẹ 0.40-0.52 → video Mẹ chỉ 33-36%) và số lần tạo lại ảnh tối đa. */
+const KF_QC_MIN = 0.45;
+const KF_QC_RETRIES = 2;
+
 /** Câu thêm vào prompt từ lần thử thứ 2: muse.ai nhớ theo tài khoản, gửi y nguyên prompt thì nó coi là xin lại bản cũ */
 const retryNote = (k: number, kind: 'ảnh' | 'video') =>
   k === 0
@@ -539,6 +544,15 @@ export async function runFlow(wf: FlowWorkflow, mode: RunMode, deps: FlowRunDeps
             })
           );
       }
+      if (n.type === 'outfit-swap') {
+        // Ảnh "nhân vật mặc trang phục" khóa CẢ nhân vật lẫn trang phục → dùng thay cho 2 ảnh gốc phía trước (không đi tiếp lên)
+        (results.get(cur) || [])
+          .filter((r) => r.kind === 'image')
+          .forEach((r, k) =>
+            refs.push({ value: r.value, roles: r.roles?.length ? r.roles : ['character', 'outfit'], name: r.name, desc: r.desc || '', ai: r.ai, order: k })
+          );
+        continue;
+      }
       stack.push(...parents(cur));
     }
     const all = [...refs, ...mentionRefs];
@@ -553,6 +567,44 @@ export async function runFlow(wf: FlowWorkflow, mode: RunMode, deps: FlowRunDeps
   };
 
   const label = (n: FlowNode) => String(n.data.batchLabel || n.data.label || NODE_DEFS[n.type].label);
+
+  /** Chấm mặt 1 ảnh khung hình qua Gateway (/studio/qc/face). null = không chấm được (Gateway cũ / thiếu OpenCV) → bỏ qua. */
+  let qcWarned = false;
+  const refWarned = new Set<string>();
+  const qcKeyframe = async (
+    image: string,
+    refs: { name: string; image: string }[],
+    what: string,
+    noun = 'ảnh khung hình'
+  ): Promise<{ ok: boolean; score: number; weak: string[]; people: { name: string; best: number | null }[] } | null> => {
+    try {
+      const r = await gw<{ people: { name: string; best: number | null }[]; ref_issues: { name: string; issue: string }[] }>(
+        '/studio/qc/face',
+        { media: image, refs, max_frames: 1 }
+      );
+      r.ref_issues
+        .filter((x) => !refWarned.has(x.name))
+        .forEach((x) => {
+          refWarned.add(x.name);
+          deps.log(`⚠️ @${x.name}: ${x.issue}`);
+        });
+      const seen = r.people.filter((p) => p.best !== null) as { name: string; best: number }[];
+      const weak = seen.filter((p) => p.best < KF_QC_MIN).map((p) => p.name);
+      const score = seen.length ? Math.min(...seen.map((p) => p.best)) : 0;
+      deps.log(
+        `${what}: chấm mặt ${noun} — ` +
+          (r.people.map((p) => `@${p.name} ${p.best === null ? 'không thấy' : p.best.toFixed(2)}`).join(', ') || 'không thấy mặt') +
+          (seen.length ? (weak.length ? ` → chưa đạt (cần ≥ ${KF_QC_MIN})` : ' → đạt') : ' → không kết luận')
+      );
+      return { ok: weak.length === 0, score, weak, people: r.people };
+    } catch (err: any) {
+      if (!qcWarned) {
+        qcWarned = true;
+        deps.log(`(bỏ qua tự chấm mặt: ${String(err?.message || err).slice(0, 120)})`);
+      }
+      return null;
+    }
+  };
 
   const execute = async (n: FlowNode): Promise<NodeResult[]> => {
     const d = n.data;
@@ -750,6 +802,74 @@ ${got[i - 1]}` : ''),
         }
         return splitScript(raw, count, idea, first).map((t) => ({ kind: 'text' as const, value: t }));
       }
+      case 'outfit-swap': {
+        // GHÉP TRANG PHỤC: nhân vật (cổng 👤) mặc bộ quần áo (cổng 👕) → 1 ảnh tĩnh muse-image, chấm mặt so với ảnh nhân vật
+        const ch = images.find((i) => i.handle === 'image-in-character');
+        const outfit = images.find((i) => i.handle === 'image-in-outfit');
+        if (!ch) throw new Error('Chưa nối ảnh NHÂN VẬT vào cổng 👤 nhân vật.');
+        if (!outfit) throw new Error('Chưa nối ảnh BỘ TRANG PHỤC vào cổng 👕 trang phục.');
+        const chName = String(ch.name || 'nhân vật').replace(/^@/, '');
+        const chDesc = String(ch.ai || ch.desc || '').trim();
+        const outDesc = String(outfit.ai || outfit.desc || '').trim();
+        const men = resolveMentions(texts.join('\n').trim() || String(d.prompt || '').trim(), deps.characters, deps.products);
+        const bg =
+          d.background === 'keep'
+            ? 'Giữ nguyên bối cảnh, ánh sáng của Ảnh #1.'
+            : d.background === 'prompt'
+              ? 'Bối cảnh theo mô tả bên dưới.'
+              : 'Nền studio trơn màu sáng, ánh sáng mềm đều, thấy rõ toàn thân và trọn bộ trang phục (ảnh tham chiếu sạch).';
+        const refs: ReferenceImage[] = [
+          { id: 'ch', role: 'character', dataUrl: await toDataUrl(ch.value), name: chName },
+          { id: 'outfit', role: 'outfit', dataUrl: await toDataUrl(outfit.value), name: 'bộ trang phục' },
+        ];
+        const still =
+          `${NEW_REQUEST_NOTE('ảnh')} ONE SINGLE STILL PHOTO (ảnh tĩnh, KHÔNG tạo video), tỉ lệ ${ratioOf(d)}, photorealistic, ảnh TOÀN THÂN.\n` +
+          `[Ảnh #1 = NHÂN VẬT @${chName}${chDesc ? `: ${chDesc}` : ''} — giữ Y HỆT khuôn mặt, kiểu tóc, màu tóc, màu da, vóc dáng, kính / phụ kiện trên người.]\n` +
+          `[Ảnh #2 = BỘ TRANG PHỤC${outDesc ? `: ${outDesc}` : ''} — giữ y hệt kiểu dáng, màu sắc, chất liệu, họa tiết, chữ / logo, phụ kiện đi kèm.]\n` +
+          `Cho nhân vật Ảnh #1 MẶC ĐÚNG bộ trang phục Ảnh #2, thay hẳn quần áo đang mặc ở Ảnh #1. Nếu Ảnh #2 có người mẫu mặc thì CHỈ lấy ` +
+          'quần áo, KHÔNG lấy khuôn mặt / tóc / dáng người của người mẫu đó. Trang phục vừa vặn, nếp vải tự nhiên, đứng / tạo dáng tự nhiên, ' +
+          `mặt nhìn rõ, chính diện. ${bg}` +
+          (men.text ? `\nYêu cầu thêm: ${men.text}` : '') +
+          (d.rerun ? `\n[Lần tạo lại #${d.rerun}: tạo bản MỚI]` : '');
+        const make = (extra: string) =>
+          retryNoMedia((k) => withBusyRetry(() => generateMuseKeyframe({ ...DEFAULT_MUSE_CONFIG, aspectRatio: ratioOf(d) }, still + extra + retryNote(k, 'ảnh'), refs), {
+            shouldStop: deps.shouldStop,
+            log: deps.log,
+            what: label(n),
+          }), label(n), deps);
+        const out: NodeResult[] = [];
+        const want = Math.max(1, Math.min(4, Number(d.count) || 1));
+        for (let i = 0; i < want; i++) {
+          stop();
+          let img = await make('');
+          if (d.qcKeyframe !== false) {
+            let best = { img, score: -1 };
+            for (let attempt = 0; attempt <= KF_QC_RETRIES; attempt++) {
+              const q = await qcKeyframe(img, [{ name: chName, image: ch.value }], label(n), 'ảnh ghép trang phục');
+              if (!q) break;
+              if (q.score > best.score) best = { img, score: q.score };
+              deps.patchNode(n.id, { qc: { keyframe: q.people, keyframeScore: q.score, keyframeTries: attempt + 1 } });
+              if (q.ok || attempt === KF_QC_RETRIES) break;
+              stop();
+              deps.log(`${label(n)}: 😐 mặt @${chName} chưa giống ảnh nhân vật → tạo lại (lần ${attempt + 2})`);
+              img = await make(
+                `\n[LẦN TẠO LẠI: ảnh trước khuôn mặt @${chName} KHÔNG giống Ảnh #1. Giữ Y HỆT khuôn mặt (mắt, mũi, miệng, khuôn hàm, tóc) ` +
+                  'của người trong Ảnh #1, mặt nhìn rõ, chính diện; chỉ thay quần áo.]'
+              );
+            }
+            if (best.score >= 0) img = best.img;
+          }
+          out.push({
+            kind: 'image',
+            value: img,
+            roles: ['character', 'outfit'],
+            name: chName,
+            desc: `@${chName}${chDesc ? ` (${chDesc})` : ''} mặc ${outDesc || 'bộ trang phục đã chọn'}`,
+          });
+          deps.log(`${label(n)}: ✓ ảnh ${i + 1}/${want} — @${chName} mặc bộ trang phục`);
+        }
+        return out;
+      }
       case 'generate-image': {
         const men = resolveMentions(texts.join('\n').trim() || String(d.prompt || '').trim(), deps.characters, deps.products);
         let prompt = men.text;
@@ -854,11 +974,38 @@ ${got[i - 1]}` : ''),
                 'KHÔNG có mặt người (nếu cần chỉ thấy đôi tay).\n') +
             text;
           deps.log(`${label(n)}: tạo ảnh khung hình mở đầu trước (giữ mặt / trang phục tốt hơn)…`);
-          firstFrame = await retryNoMedia((k) => withBusyRetry(() => generateMuseKeyframe({ ...DEFAULT_MUSE_CONFIG, aspectRatio: ratioOf(d) }, still + retryNote(k, 'ảnh'), kfRefs), {
-            shouldStop: deps.shouldStop,
-            log: deps.log,
-            what: label(n),
-          }), label(n), deps);
+          const makeKeyframe = (extra: string) =>
+            retryNoMedia((k) => withBusyRetry(() => generateMuseKeyframe({ ...DEFAULT_MUSE_CONFIG, aspectRatio: ratioOf(d) }, still + extra + retryNote(k, 'ảnh'), kfRefs), {
+              shouldStop: deps.shouldStop,
+              log: deps.log,
+              what: label(n),
+            }), label(n), deps);
+          firstFrame = await makeKeyframe('');
+          // TỰ CHẤM ẢNH KHUNG HÌNH (QC): mặt lệch thì tạo lại ẢNH (≈1 phút, rẻ) trước khi tạo video (2-5 phút, tốn quota video).
+          // Đo trên lượt chạy thử: mặt lệch phần lớn bắt nguồn từ ảnh khung hình; video còn trôi thêm nên ngưỡng ảnh chặt hơn chuẩn.
+          const chars = kf.filter((r) => r.info.role === 'character');
+          if (d.qcKeyframe !== false && chars.length) {
+            const qcRefs = chars.map((r) => ({ name: String(r.info.name || 'nhân vật'), image: r.value }));
+            let best = { img: firstFrame, score: -1 };
+            for (let attempt = 0; attempt <= KF_QC_RETRIES; attempt++) {
+              stop();
+              const q = await qcKeyframe(firstFrame, qcRefs, label(n));
+              if (!q) break; // Gateway chưa có QC / lỗi: bỏ qua, không chặn
+              if (q.score > best.score) best = { img: firstFrame, score: q.score };
+              deps.patchNode(n.id, { qc: { keyframe: q.people, keyframeScore: q.score, keyframeTries: attempt + 1 } });
+              if (q.ok || attempt === KF_QC_RETRIES) break;
+              deps.log(`${label(n)}: 😐 mặt ${q.weak.join(', ')} trong ảnh khung hình chưa giống ảnh tham chiếu → tạo lại ảnh (lần ${attempt + 2})`);
+              firstFrame = await makeKeyframe(
+                `
+[LẦN TẠO LẠI ẢNH: ảnh trước khuôn mặt ${q.weak.map((x) => '@' + x).join(', ')} KHÔNG giống ảnh tham chiếu. ` +
+                  'Giữ Y HỆT khuôn mặt (mắt, mũi, miệng, khuôn hàm, tóc) của đúng người trong ảnh tham chiếu, mặt nhìn rõ, chính diện.]'
+              );
+            }
+            if (best.score >= 0 && best.img !== firstFrame) {
+              deps.log(`${label(n)}: giữ ảnh khung hình có điểm mặt cao nhất (${best.score.toFixed(2)})`);
+              firstFrame = best.img;
+            }
+          }
           deps.patchNode(n.id, { keyframe: firstFrame });
         }
         // muse.ai nhận tối đa 4 ảnh / tin nhắn: có khung mở đầu thì còn 3 chỗ cho tham chiếu

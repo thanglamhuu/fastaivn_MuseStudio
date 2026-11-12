@@ -35,6 +35,9 @@ app.include_router(wfthumb_router)
 from studio_maintenance import router as maintenance_router, start_scheduler  # noqa: E402
 
 app.include_router(maintenance_router)
+from studio_qc import router as qc_router  # noqa: E402
+
+app.include_router(qc_router)  # tự chấm điểm mặt / giọng (QC)
 # Sao lưu tự động data/ (mỗi giờ khi có thay đổi) + dọn data/media cũ (mỗi ngày) — luồng nền
 start_scheduler(app.state.services.settings.data_dir)
 

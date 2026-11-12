@@ -6,3 +6,6 @@ httpx>=0.27.0
 pydantic>=2.6.0
 cryptography>=42
 websockets>=13.0
+# Tự chấm điểm mặt / giọng (studio_qc.py)
+opencv-python-headless>=4.9
+numpy>=1.26

@@ -11,6 +11,7 @@ export type NodeType =
   | 'upload-image'
   | 'gemini-script'
   | 'generate-image'
+  | 'outfit-swap'
   | 'generate-video'
   | 'upscale-image'
   | 'upscale-video'
@@ -82,6 +83,10 @@ export interface FlowNodeData {
   imagePriority?: boolean;
   /** Giữ cùng bối cảnh giữa các cảnh video (mặc định bật; false = cho phép đổi địa điểm) */
   lockSetting?: boolean;
+  /** Tự chấm mặt ảnh khung hình mở đầu (QC), lệch thì tạo lại ảnh — mặc định bật */
+  qcKeyframe?: boolean;
+  /** Kết quả chấm điểm lượt chạy gần nhất (không xuất ra file sơ đồ) */
+  qc?: { keyframe?: { name: string; best: number | null }[]; keyframeScore?: number; keyframeTries?: number };
   /** Generate Video: tạo ảnh khung hình trước (muse-image + tham chiếu) làm khung mở đầu (mặc định bật) */
   keyframeFirst?: boolean;
   /** Ảnh khung hình mở đầu đã tạo (để xem) */
@@ -278,6 +283,33 @@ export const NODE_DEFS: Record<NodeType, NodeDef> = {
     ],
     defaults: { imageMode: 'text-to-image', ratio: '9:16', count: 1, prompt: '' },
   },
+  'outfit-swap': {
+    label: 'Ghép trang phục',
+    group: 'Generate',
+    color: '#d946ef',
+    icon: '👗',
+    role:
+      'Cho NHÂN VẬT mặc BỘ TRANG PHỤC: nối Upload Image nhân vật vào cổng 👤 nhân vật, Upload Image bộ quần áo vào cổng 👕 trang phục ' +
+      '(ảnh có người mẫu mặc cũng được — chỉ lấy quần áo). Ra 1 ảnh nhân vật mặc đồ; nối ảnh này vào Generate Video thì nó khóa cả ' +
+      'nhân vật lẫn trang phục. Tự chấm mặt so với ảnh nhân vật, lệch thì tạo lại.',
+    fields: [
+      {
+        key: 'background',
+        label: 'Bối cảnh',
+        type: 'select',
+        options: [
+          ['studio', 'Nền studio trơn (ảnh tham chiếu sạch)'],
+          ['keep', 'Giữ bối cảnh ảnh nhân vật'],
+          ['prompt', 'Theo mô tả bên dưới'],
+        ],
+      },
+      { key: 'ratio', label: 'Tỉ lệ', type: 'select', options: RATIOS },
+      { key: 'count', label: 'Số ảnh', type: 'number', min: 1, max: 4 },
+      { key: 'prompt', label: 'Mô tả thêm (tư thế, bối cảnh…) — khi không nối text-in', type: 'mention' },
+      { key: 'qcKeyframe', label: '😀 Tự chấm mặt so với ảnh nhân vật, lệch thì tạo lại (tối đa 2 lần)', type: 'checkbox' },
+    ],
+    defaults: { background: 'studio', ratio: '9:16', count: 1, prompt: '', qcKeyframe: true },
+  },
   'generate-video': {
     label: 'Generate Video (Muse)',
     group: 'Generate',
@@ -314,13 +346,19 @@ export const NODE_DEFS: Record<NodeType, NodeDef> = {
       { key: 'imagePriority', label: '🔒 Khóa "ưu tiên ảnh tham chiếu" cuối prompt (chữ khác ảnh thì theo ảnh)', type: 'checkbox' },
       { key: 'lockSetting', label: '🏠 Giữ cùng bối cảnh với các cảnh khác (không tự nhảy địa điểm)', type: 'checkbox' },
       {
+        key: 'qcKeyframe',
+        label: '😀 Tự chấm mặt ảnh khung hình, lệch thì tạo lại ảnh (tối đa 2 lần) trước khi tạo video',
+        type: 'checkbox',
+        when: (d) => d.keyframeFirst !== false && (d.videoMode || 'text-to-video') !== 'text-to-video',
+      },
+      {
         key: 'keyframeFirst',
         label: '🖼 Tạo ảnh khung hình trước rồi mới tạo video (mặt giống hơn nhiều, thêm ~1 phút / cảnh)',
         type: 'checkbox',
         when: (d) => (d.videoMode || 'text-to-video') !== 'text-to-video',
       },
     ],
-    defaults: { videoMode: 'reference-to-video', ratio: '9:16', duration: 10, prompt: '', imagePriority: true, keyframeFirst: true, lockSetting: true },
+    defaults: { videoMode: 'reference-to-video', ratio: '9:16', duration: 10, prompt: '', imagePriority: true, keyframeFirst: true, lockSetting: true, qcKeyframe: true },
   },
   'upscale-image': {
     label: 'Upscale Image (2K/4K)',
@@ -396,6 +434,14 @@ export const portKind = (handle?: string | null): PortKind | '' => {
 
 export const PORT_COLOR: Record<PortKind, string> = { text: '#38bdf8', image: '#fb923c', video: '#34d399' };
 
+/** Nhãn dễ đọc cho cổng có tên riêng (còn lại hiện tên cổng) */
+export const PORT_LABEL: Record<string, string> = {
+  'image-in-character': '👤 nhân vật',
+  'image-in-outfit': '👕 trang phục',
+  'image-in-start': 'ảnh đầu',
+  'image-in-end': 'ảnh cuối',
+};
+
 /** Cổng vào / ra của node (phụ thuộc cấu hình: chế độ, số cổng...). */
 export const nodePorts = (node: Pick<FlowNode, 'type' | 'data'>): { inputs: string[]; outputs: string[] } => {
   const d = node.data || {};
@@ -411,6 +457,8 @@ export const nodePorts = (node: Pick<FlowNode, 'type' | 'data'>): { inputs: stri
       };
     case 'generate-image':
       return { inputs: d.imageMode === 'image-to-image' ? ['text-in', 'image-in'] : ['text-in'], outputs: ['image-out'] };
+    case 'outfit-swap':
+      return { inputs: ['image-in-character', 'image-in-outfit', 'text-in'], outputs: ['image-out'] };
     case 'generate-video': {
       const m = d.videoMode || 'text-to-video';
       const inputs =

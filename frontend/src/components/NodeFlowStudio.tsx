@@ -36,6 +36,7 @@ import {
   NodeResult,
   NodeType,
   PORT_COLOR,
+  PORT_LABEL,
   REF_LOCKS,
   RefLock,
   RunStatus,
@@ -121,6 +122,8 @@ const nodeSummary = (n: FlowNode): string => {
       return `Muse Image · ${d.imageMode || 'text-to-image'} · ${d.ratio || '9:16'} · ${d.count || 1} ảnh`;
     case 'generate-video':
       return `Muse Video · ${d.videoMode || 'text-to-video'} · ${d.ratio || '9:16'} · ${d.duration || 10}s`;
+    case 'outfit-swap':
+      return `Nhân vật mặc trang phục · ${{ studio: 'nền studio', keep: 'giữ bối cảnh', prompt: 'bối cảnh theo mô tả' }[String(d.background || 'studio')] || ''} · ${d.ratio || '9:16'} · ${d.count || 1} ảnh`;
     case 'merge-video':
       return `${d.portCount || 2} cổng video`;
     case 'upscale-image':
@@ -150,7 +153,7 @@ const FlowNodeView: React.FC<NodeProps<RFNode>> = ({ data, selected }) => {
   const { wf, patchNode, busy } = useContext(NodeCtx);
   /** Merge: cổng video-in-i đang nối từ node nào (để thấy thứ tự ghép ngay trên node) */
   const srcLabel = (h: string) => {
-    if (n.type !== 'merge-video' || !wf) return h;
+    if (n.type !== 'merge-video' || !wf) return PORT_LABEL[h] || h;
     const e = wf.edges.find((x) => x.target === n.id && x.targetHandle === h);
     const s = e && wf.nodes.find((x) => x.id === e.source);
     const idx = Number(h.split('-').pop()) + 1;
@@ -598,7 +601,7 @@ const FieldInput: React.FC<{ f: FieldDef; d: FlowNodeData; set: (p: Partial<Flow
           {/* Khóa ưu tiên ảnh / khóa bối cảnh: runtime coi "chưa đặt" là BẬT → ô tích hiện khớp với node cũ */}
           <input
             type="checkbox"
-            checked={v === undefined && (f.key === 'imagePriority' || f.key === 'lockSetting') ? true : !!v}
+            checked={v === undefined && (f.key === 'imagePriority' || f.key === 'lockSetting' || f.key === 'qcKeyframe') ? true : !!v}
             onChange={(e) => set({ [f.key]: e.target.checked })}
           />
           {f.label}
@@ -749,7 +752,7 @@ const Inspector: React.FC<{
         </p>
         <p className="text-[10px] text-slate-400 leading-snug mt-0.5">{def.role}</p>
         <p className="text-[10px] text-slate-500 mt-1">
-          Cổng vào: {ports.inputs.join(', ') || '—'} · Cổng ra: {ports.outputs.join(', ') || '—'}
+          Cổng vào: {ports.inputs.map((h) => PORT_LABEL[h] || h).join(', ') || '—'} · Cổng ra: {ports.outputs.join(', ') || '—'}
         </p>
       </div>
       <label className="block">
