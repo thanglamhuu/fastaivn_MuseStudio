@@ -42,6 +42,8 @@ ENV/
 build/
 dist/
 *.spec
+# Spec đóng gói exe của dự án (build_exe.bat dùng) — phải có trong repo
+!/MuseVideoStudio.spec
 
 # ========================================================
 # 4. FRONTEND (ReactJS + TypeScript + Vite + Electron)
@@ -77,3 +79,7 @@ temp/
 .DS_Store
 Thumbs.db
 Desktop.ini
+# Thư mục bàn giao (build_exe.bat → tools/package_release.py)
+/release/
+# Sao lưu tự động dữ liệu (studio_maintenance.py)
+/backup/

@@ -135,14 +135,14 @@ export interface GatewayAccount {
 // Hạ tầng gọi Gateway
 // ---------------------------------------------------------------------------
 
-const gatewayFetch = (path: string, init: RequestInit = {}): Promise<Response> => {
+export const gatewayFetch = (path: string, init: RequestInit = {}): Promise<Response> => {
   const headers = new Headers(init.headers);
   headers.set('Authorization', `Bearer ${MUSE_API_KEY}`);
   if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
   return fetch(`${GATEWAY_URL}${path}`, { ...init, headers });
 };
 
-const readError = async (res: Response): Promise<string> => {
+export const readError = async (res: Response): Promise<string> => {
   const text = await res.text().catch(() => '');
   try {
     const data = JSON.parse(text);

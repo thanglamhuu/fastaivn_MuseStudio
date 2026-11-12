@@ -10,6 +10,15 @@ import { fileToResizedDataUrl, urlToResizedDataUrl } from '../utils/image';
 import { generatePortrait } from '../services/libraryService';
 import { getStudioSettings, openProjectFolder } from '../services/museBatchService';
 import { GATEWAY_URL } from '../config/appConfig';
+import {
+  MaintenanceConfig,
+  MaintenanceState,
+  backupNow,
+  cleanMedia,
+  fmtBytes,
+  getMaintenance,
+  updateMaintenance,
+} from '../services/maintenanceService';
 
 type Section = 'accounts' | 'characters' | 'products' | 'voices' | 'ai' | 'general';
 
@@ -491,6 +500,138 @@ const VoicesSection: React.FC<{ lib: StudioLibraryState }> = ({ lib }) => {
 };
 
 // ---------------------------------------------------------------------------
+// Sao lưu tự động + dọn data/media
+// ---------------------------------------------------------------------------
+const MaintenancePanel: React.FC = () => {
+  const [st, setSt] = useState<MaintenanceState | null>(null);
+  const [error, setError] = useState('');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState('');
+  const load = () => getMaintenance().then(setSt).catch((e) => setError(e.message));
+  useEffect(() => {
+    load();
+  }, []);
+  const run = async (key: string, fn: () => Promise<string>) => {
+    setBusy(key);
+    setNote('');
+    try {
+      setNote(await fn());
+    } catch (e: any) {
+      setNote(`❌ ${e.message}`);
+    } finally {
+      setBusy('');
+      load();
+    }
+  };
+  const set = (patch: Partial<MaintenanceConfig>) => run('cfg', async () => (setSt(await updateMaintenance(patch)), '✅ Đã lưu cài đặt'));
+  const when = (t?: number) => (t ? new Date(t * 1000).toLocaleString('vi-VN') : 'chưa có');
+  if (error) return <p className="text-xs text-red-400">{error}</p>;
+  if (!st) return <p className="text-xs text-slate-500">Đang đọc cài đặt sao lưu…</p>;
+  const c = st.config;
+  const days = c.media_keep_days || 14;
+  return (
+    <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3 text-xs">
+      <p className="font-semibold text-slate-100">💾 Sao lưu & dọn dữ liệu</p>
+
+      <div className="space-y-1.5">
+        <label className="flex items-center gap-2 text-slate-200">
+          <input type="checkbox" checked={c.backup_enabled} onChange={(e) => set({ backup_enabled: e.target.checked })} />
+          Tự sao lưu mỗi giờ (chỉ khi có thay đổi): nhân vật / sản phẩm / sơ đồ (<code>data/studio/state</code>), tài khoản
+          (<code>accounts.json</code>), cài đặt AI (<code>ai_config.json</code>)
+        </label>
+        <div className="flex flex-wrap items-center gap-2 text-slate-400">
+          <span>Giữ</span>
+          <input
+            type="number"
+            min={0}
+            className="w-16 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-slate-200"
+            value={c.backup_keep_days}
+            onChange={(e) => set({ backup_keep_days: Math.max(0, Number(e.target.value) || 0) })}
+          />
+          <span>ngày (0 = giữ hết) · Lần gần nhất: {when(st.last_backup_at)}</span>
+          <button
+            disabled={!!busy}
+            onClick={() =>
+              run('backup', async () => {
+                const r = await backupNow();
+                return r.ok ? `✅ Đã sao lưu ${r.files} file (${fmtBytes(r.bytes || 0)}) → ${r.dir}` : `⚠️ ${r.skipped}`;
+              })
+            }
+            className="ml-auto px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-lg text-white"
+          >
+            {busy === 'backup' ? 'Đang sao lưu…' : 'Sao lưu ngay'}
+          </button>
+        </div>
+        <p className="text-[11px] text-slate-500 break-all">
+          Thư mục: <code>{st.backup_dir}</code>\yyyyMMdd\HH\data\… (giữ nguyên đường dẫn trong data). Khôi phục: chép các file trong
+          một mốc sao lưu đè vào thư mục data rồi khởi động lại app.
+        </p>
+        {st.backups.length > 0 && (
+          <p className="text-[11px] text-slate-500">
+            Gần đây: {st.backups.slice(0, 5).map((b) => `${b.name} (${b.files} file, ${fmtBytes(b.bytes)})`).join(' · ')}
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-1.5 border-t border-slate-800 pt-3">
+        <p className="text-slate-200">
+          Thư mục media (<code>data/media</code>): <b>{st.media.files}</b> file, <b>{fmtBytes(st.media.bytes)}</b>
+          {st.media.oldest ? ` · cũ nhất ${new Date(st.media.oldest * 1000).toLocaleDateString('vi-VN')}` : ''}
+        </p>
+        <div className="flex flex-wrap items-center gap-2 text-slate-400">
+          <label className="flex items-center gap-1.5 text-slate-200">
+            <input type="checkbox" checked={c.media_auto} onChange={(e) => set({ media_auto: e.target.checked })} />
+            Tự xoá mỗi ngày file cũ hơn
+          </label>
+          <input
+            type="number"
+            min={0}
+            className="w-16 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-slate-200"
+            value={c.media_keep_days}
+            onChange={(e) => set({ media_keep_days: Math.max(0, Number(e.target.value) || 0) })}
+          />
+          <span>ngày</span>
+          <button
+            disabled={!!busy}
+            onClick={() =>
+              run('preview', async () => {
+                const r = await cleanMedia(days, true);
+                return `Xem trước: sẽ xoá ${r.files} file (${fmtBytes(r.bytes)}) cũ hơn ${r.days} ngày · giữ ${r.kept_in_use} file cũ vì đang dùng`;
+              })
+            }
+            className="ml-auto px-2.5 py-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 rounded-lg"
+          >
+            Xem trước
+          </button>
+          <button
+            disabled={!!busy || st.media_clean_preview.files === 0}
+            onClick={() =>
+              window.confirm(
+                `Xoá ${st.media_clean_preview.files} file (${fmtBytes(st.media_clean_preview.bytes)}) trong data/media cũ hơn ${days} ngày?\n` +
+                  'File đang dùng trong sơ đồ / dự án được giữ lại. Bản đã xuất ra thư mục video không bị ảnh hưởng.'
+              ) &&
+              run('clean', async () => {
+                const r = await cleanMedia(days, false);
+                return `✅ Đã xoá ${r.files} file (${fmtBytes(r.bytes)}) · giữ ${r.kept_in_use} file đang dùng`;
+              })
+            }
+            className="px-2.5 py-1 bg-red-700 hover:bg-red-600 disabled:opacity-50 rounded-lg text-white"
+          >
+            {busy === 'clean' ? 'Đang dọn…' : `Dọn ngay (${st.media_clean_preview.files} file · ${fmtBytes(st.media_clean_preview.bytes)})`}
+          </button>
+        </div>
+        <p className="text-[11px] text-slate-500">
+          Không xoá file đang được dùng trong sơ đồ khối / cảnh / sản phẩm. Video đã xuất ra thư mục lưu video không bị ảnh hưởng (đây
+          là bản trung gian trên Gateway). Lần dọn gần nhất: {when(st.last_media_clean_at)}
+          {st.last_media_clean ? ` (${st.last_media_clean.files} file, ${fmtBytes(st.last_media_clean.bytes)})` : ''}.
+        </p>
+      </div>
+      {note && <p className="text-[11px] text-slate-300">{note}</p>}
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
 // Chung
 // ---------------------------------------------------------------------------
 const GeneralSection: React.FC = () => {
@@ -523,6 +664,7 @@ const GeneralSection: React.FC = () => {
           {info ? info.ffmpeg || 'Chưa tìm thấy — cài FFmpeg (winget install Gyan.FFmpeg) hoặc đặt MUSE2API_FFMPEG_PATH' : '...'}
         </p>
       </div>
+      <MaintenancePanel />
       <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-1 text-xs">
         <p className="font-semibold text-slate-100">Gateway</p>
         <p className="text-slate-300">{GATEWAY_URL}</p>

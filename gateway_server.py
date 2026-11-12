@@ -32,6 +32,11 @@ app.include_router(catalog_router)
 from studio_wfthumb import router as wfthumb_router  # noqa: E402
 
 app.include_router(wfthumb_router)
+from studio_maintenance import router as maintenance_router, start_scheduler  # noqa: E402
+
+app.include_router(maintenance_router)
+# Sao lưu tự động data/ (mỗi giờ khi có thay đổi) + dọn data/media cũ (mỗi ngày) — luồng nền
+start_scheduler(app.state.services.settings.data_dir)
 
 # Không in traceback ConnectionResetError vô hại khi trình duyệt ngắt tải video giữa chừng (Windows)
 app.add_middleware(QuietConnectionResetMiddleware)

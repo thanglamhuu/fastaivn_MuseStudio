@@ -26,6 +26,14 @@ export const templateGroup = (category?: string): string => {
   return GROUPS.find(([, list]) => list.includes(k))?.[0] || c;
 };
 
+/** Thứ tự nhóm trên lưới: 3 nhóm lớn trước, loại khác (mẫu tự lưu, catalog) sau theo ABC */
+const groupRank = (g: string) => {
+  const i = GROUPS.findIndex(([name]) => name === g);
+  return i < 0 ? GROUPS.length : i;
+};
+/** Loại nhỏ trong nhóm (bỏ tiền tố "MV1 · ") — mẫu cùng loại đứng cạnh nhau */
+const subCategory = (category?: string) => (category || 'Khác').replace(/^(MV1|HND)\s*·\s*/, '').trim().toLowerCase();
+
 const BASE = import.meta.env.BASE_URL || './';
 
 interface Thumb {
@@ -84,7 +92,9 @@ const TemplateCard: React.FC<{
   compact?: boolean;
   /** Bấm ▶: phóng to phát clip có tiếng */
   onPlay?: () => void;
-}> = ({ t, thumb, group, selected, onSelect, onOpenNodes, compact, onPlay }) => {
+  /** Bấm 🗑: xoá mẫu (mẫu tự lưu xoá hẳn, mẫu có sẵn thì ẩn) */
+  onDelete?: () => void;
+}> = ({ t, thumb, group, selected, onSelect, onOpenNodes, compact, onPlay, onDelete }) => {
   const vref = useRef<HTMLVideoElement>(null);
   const [hover, setHover] = useState(false);
   const play = () => {
@@ -202,6 +212,18 @@ const TemplateCard: React.FC<{
           >
             {compact ? '🧩' : '🧩 Sơ đồ'}
           </button>
+          {onDelete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              title={t.builtin ? 'Xoá mẫu có sẵn khỏi danh sách (khôi phục được)' : 'Xoá hẳn mẫu tự lưu'}
+              className="text-[10px] px-1.5 py-1 rounded-lg bg-slate-800 text-red-300 hover:bg-red-700 hover:text-white"
+            >
+              🗑
+            </button>
+          )}
           {thumb.youtube && (
             <button
               onClick={(e) => {
@@ -289,6 +311,11 @@ export const WorkflowTemplateGallery: React.FC<{
   catalogNeedUpdate?: number;
   catalogBusy?: boolean;
   onRefreshCatalog?: () => void;
+  /** Xoá mẫu (nút 🗑 trên card) */
+  onDelete?: (t: WorkflowTemplate) => void;
+  /** Số mẫu có sẵn đã bị xoá (ẩn) + khôi phục tất cả */
+  hiddenCount?: number;
+  onRestoreHidden?: () => void;
 }> = ({
   templates,
   rows,
@@ -307,8 +334,26 @@ export const WorkflowTemplateGallery: React.FC<{
   catalogNeedUpdate = 0,
   catalogBusy,
   onRefreshCatalog,
+  onDelete,
+  hiddenCount = 0,
+  onRestoreHidden,
 }) => {
-  const groups = useMemo(() => [...new Set(templates.map(groupOf))], [templates, groupOf]);
+  // Mẫu cùng loại đứng gần nhau: xếp theo nhóm lớn (Review sản phẩm → Thời trang & Mỹ phẩm → Làm phim → loại khác),
+  // trong nhóm theo loại nhỏ (Bán hàng, Gia dụng…), cùng loại giữ thứ tự gốc
+  const sorted = useMemo(() => {
+    const idx = new Map(templates.map((t, i) => [t.id, i]));
+    return [...templates].sort((a, b) => {
+      const ga = groupOf(a);
+      const gb = groupOf(b);
+      return (
+        groupRank(ga) - groupRank(gb) ||
+        ga.localeCompare(gb, 'vi') ||
+        subCategory(a.category).localeCompare(subCategory(b.category), 'vi') ||
+        (idx.get(a.id) ?? 0) - (idx.get(b.id) ?? 0)
+      );
+    });
+  }, [templates, groupOf]);
+  const groups = useMemo(() => [...new Set(sorted.map(groupOf))], [sorted, groupOf]);
   // wfthumb/wfthumb.config.json — đọc lại mỗi lần mở màn (sửa file config là thấy ngay)
   const [wfThumbs, setWfThumbs] = useState<Record<string, WfThumb>>({});
   useEffect(() => {
@@ -316,7 +361,7 @@ export const WorkflowTemplateGallery: React.FC<{
       .then(setWfThumbs)
       .catch(() => undefined); // Gateway cũ chưa có API / chưa có config: dùng nguồn thumbnail cũ
   }, []);
-  const shown = templates.filter(
+  const shown = sorted.filter(
     (t) =>
       (filter === 'all' || groupOf(t) === filter) &&
       (!search.trim() || `${t.name} ${t.description}`.toLowerCase().includes(search.trim().toLowerCase()))
@@ -408,11 +453,28 @@ export const WorkflowTemplateGallery: React.FC<{
             {g === 'all' ? `Tất cả (${templates.length})` : `${g} (${templates.filter((t) => groupOf(t) === g).length})`}
           </button>
         ))}
+        {hiddenCount > 0 && onRestoreHidden && (
+          <button
+            onClick={onRestoreHidden}
+            title="Hiện lại các mẫu có sẵn đã xoá khỏi danh sách"
+            className="ml-auto text-[10px] px-2 py-1 rounded-lg border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500"
+          >
+            ↺ Hiện lại mẫu đã xoá ({hiddenCount})
+          </button>
+        )}
       </div>
       {playing && <PlayerModal t={playing.t} thumb={playing.thumb} onClose={() => setPlaying(null)} />}
       {shown.length ? (
         <div className={`grid ${grid} ${compact ? 'gap-2' : 'gap-3'}`}>
-          {shown.map((t) => (
+          {shown.map((t, i) => [
+            // Xem "Tất cả": dòng tiêu đề mỗi nhóm (mẫu cùng nhóm đứng liền nhau)
+            filter === 'all' && (i === 0 || groupOf(shown[i - 1]) !== groupOf(t)) ? (
+              <div key={`g:${groupOf(t)}`} className={`col-span-full flex items-center gap-2 ${i ? 'pt-2' : ''}`}>
+                <span className="text-[11px] font-bold text-emerald-300">{groupOf(t)}</span>
+                <span className="text-[10px] text-slate-500">{shown.filter((x) => groupOf(x) === groupOf(t)).length} mẫu</span>
+                <span className="flex-1 h-px bg-slate-800" />
+              </div>
+            ) : null,
             <TemplateCard
               key={t.id}
               t={t}
@@ -423,8 +485,9 @@ export const WorkflowTemplateGallery: React.FC<{
               onOpenNodes={() => onOpenNodes(t)}
               compact={compact}
               onPlay={() => setPlaying({ t, thumb: thumbOf(t, rows, wfThumbs[t.id]) })}
-            />
-          ))}
+              onDelete={onDelete ? () => onDelete(t) : undefined}
+            />,
+          ])}
         </div>
       ) : (
         <p className="text-xs text-slate-500 py-6 text-center">Không có mẫu nào khớp bộ lọc.</p>

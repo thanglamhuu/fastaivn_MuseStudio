@@ -332,6 +332,25 @@ export const WorkflowStudio: React.FC<{
     setCustoms((prev) => prev.filter((t) => t.id !== draft.id));
     setSelectedId(BUILTIN_WORKFLOWS[0].id);
   };
+  /** Mẫu có sẵn của app bị người dùng xoá (ẩn khỏi lưới; khôi phục được) — mẫu có sẵn nằm trong code nên không xoá hẳn */
+  const [hiddenIds, setHiddenIds] = usePersistentState<string[]>('workflow.hidden.v1', [], { server: true });
+  const galleryTemplates = useMemo(() => allTemplates.filter((t) => !hiddenIds.includes(t.id)), [allTemplates, hiddenIds]);
+  /** Nút 🗑 trên card: mẫu tự lưu → xoá hẳn; mẫu có sẵn → ẩn (nút "Hiện lại mẫu đã xoá" để khôi phục) */
+  const deleteTemplate = (t: WorkflowTemplate) => {
+    const own = customs.some((c) => c.id === t.id);
+    const ok = own
+      ? confirm(`Xoá hẳn workflow "${t.name}"? (mẫu tự lưu — không khôi phục được)`)
+      : confirm(`Xoá mẫu có sẵn "${t.name}" khỏi danh sách?
+
+Có thể khôi phục bằng nút "↺ Hiện lại mẫu đã xoá".`);
+    if (!ok) return;
+    if (own) setCustoms((prev) => prev.filter((c) => c.id !== t.id));
+    else setHiddenIds((prev) => (prev.includes(t.id) ? prev : [...prev, t.id]));
+    if (t.id === selected.id) {
+      const next = allTemplates.find((x) => x.id !== t.id && !hiddenIds.includes(x.id));
+      if (next) setSelectedId(next.id);
+    }
+  };
 
   const categories = useMemo(() => [...new Set(allTemplates.map((t) => t.category || 'Khác'))], [allTemplates]);
   /** Nhóm lọc: gộp "MV1 · Thời trang" với "Thời trang"... như các tab lọc của MV1 */
@@ -674,7 +693,10 @@ export const WorkflowStudio: React.FC<{
     <div className="p-4 lg:p-6 space-y-5">
       {/* ---------------- 1. Lưới card mẫu workflow (thumbnail 9:16 từ video đã tạo) ---------------- */}
       <WorkflowTemplateGallery
-        templates={allTemplates}
+        templates={galleryTemplates}
+        onDelete={deleteTemplate}
+        hiddenCount={hiddenIds.filter((id) => allTemplates.some((t) => t.id === id)).length}
+        onRestoreHidden={() => setHiddenIds([])}
         rows={rows}
         groupOf={catGroup}
         filter={catFilter === 'all' || catGroups.includes(catFilter) ? catFilter : 'all'}

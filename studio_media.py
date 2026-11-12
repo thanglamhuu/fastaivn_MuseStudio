@@ -65,7 +65,10 @@ def output_dir() -> Path:
 def find_ffmpeg() -> str | None:
     configured = os.environ.get("MUSE2API_FFMPEG_PATH", "").strip()
     base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
-    for cand in (configured, str(base / "ffmpeg.exe"), str(base / "bin" / "ffmpeg.exe")):
+    # Bản .exe bàn giao: ffmpeg.exe đặt CẠNH MuseVideoStudio.exe (không nhét vào exe cho nhẹ, khởi động nhanh)
+    exe_dir = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else base
+    for cand in (configured, str(base / "ffmpeg.exe"), str(base / "bin" / "ffmpeg.exe"),
+                 str(exe_dir / "ffmpeg.exe"), str(exe_dir / "bin" / "ffmpeg.exe")):
         if cand and Path(cand).is_file():
             return cand
     return shutil.which("ffmpeg")
