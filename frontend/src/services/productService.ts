@@ -1,6 +1,7 @@
 // Sản phẩm (đọc từ link Shopee/TikTok hoặc tự nhập) và AI viết kịch bản theo sản phẩm.
 import { GATEWAY_URL, MUSE_API_KEY } from '../config/appConfig';
 import { ScriptTemplate } from '../data/scriptTemplates';
+import { PRODUCT_PHYSICS_RULE } from '../data/productPhysics';
 
 export interface ProductInfo {
   url: string;
@@ -251,6 +252,7 @@ YÊU CẦU:
 - "voiceover": ${req.withDialogue ? `lời thoại tiếng Việt tự nhiên, đời thường, tối đa ${wordsPerScene} chữ mỗi cảnh` : 'để trống "" (video không lời thoại, chỉ nhạc nền/ASMR)'}.
 - "prompt": mô tả hình ảnh cho AI tạo video của cảnh đó (tiếng Việt): bối cảnh, hành động của nhân vật với sản phẩm, góc máy, ánh sáng. Luôn gọi đúng tên/loại sản phẩm và mô tả đúng ngoại hình như trong ảnh.
 - "product.visual": 1 câu mô tả ngoại hình sản phẩm thật trong ảnh (loại, màu, chất liệu, chi tiết nổi bật).
+- ${PRODUCT_PHYSICS_RULE}
 
 CHỈ trả về JSON hợp lệ, không giải thích, đúng dạng:
 {"product":{"name":"...","category":"...","key_points":["..."],"visual":"..."},"scenes":[{"title":"...","voiceover":"...","prompt":"..."}]}`;

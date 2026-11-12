@@ -116,6 +116,23 @@ const templateToFlowLocal = async (tpl: WorkflowTemplate): Promise<{ workflow: F
     y += 260;
   }
 
+  // Ảnh bối cảnh vẽ trước (mẫu Xưởng & Kho): sản phẩm → 🏭 Tạo bối cảnh → khóa bối cảnh cho mọi cảnh
+  if (tpl.backdrop) {
+    const prod = refs.find((r) => (r.data.refRoles as string[] | undefined)?.includes('product')) || perScene[0];
+    const bd = add('backdrop', 0, y, {
+      batchLabel: '🏭 Bối cảnh (vẽ 1 lần, khóa mọi cảnh)',
+      backdropId: tpl.backdrop.id,
+      density: tpl.backdrop.density || 'full',
+      extras: !!tpl.backdrop.extras,
+      variety: 'angles',
+      count: 1,
+      ratio: tpl.aspectRatio,
+    });
+    if (prod) link(prod, 'image-out', bd, 'image-in');
+    refs.push(bd);
+    y += 260;
+  }
+
   // Cột 2: nguồn cảnh
   const n = Math.max(1, tpl.manualScenes?.length || tpl.sceneCount || 4);
   const sceneText: { node: FlowNode; handle: string }[] = [];

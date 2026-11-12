@@ -36,6 +36,8 @@ import {
   portKind,
   validateWorkflow,
 } from './definitions';
+import { BACKDROP_PRESETS, backdropById } from '../../data/backdropPresets';
+import { PRODUCT_PHYSICS_RULE } from '../../data/productPhysics';
 
 export const STOPPED_MSG = '⏹ Đã dừng theo yêu cầu';
 
@@ -254,6 +256,7 @@ const scriptInstruction = (idea: string, count: number, firstIsChar: boolean, se
     `Yêu cầu gốc:\n${idea}\n\n` +
     `KHUNG KỊCH TÍNH BẮT BUỘC (liền mạch giữa các cảnh, đầu cảnh sau nối tiếp tư thế cuối cảnh trước):\n${spine}\n` +
     '- Khóa cố định 1 bối cảnh xuyên suốt, giữ đồng nhất ngoại hình nhân vật (khuôn mặt, tóc, trang phục) ở MỌI cảnh.\n' +
+    `- ${PRODUCT_PHYSICS_RULE}\n` +
     `- Mỗi cảnh đúng ${seconds} giây, chia 3 nhịp 0-${a}s / ${a}-${b}s / ${b}-${seconds}s; lời thoại tiếng Việt tự nhiên ${syllables} âm tiết / cảnh, đặt trong ngoặc kép.\n\n` +
     (firstIsChar && count >= 2
       ? `Viết đúng ${count} đoạn, ngăn cách bằng dòng ---\n- Đoạn 1: prompt ẢNH NHÂN VẬT GỐC (1 người, 1 khung, nền studio sáng) khóa khuôn mặt, tuổi, tóc, trang phục.\n- Đoạn 2..${count}: prompt VIDEO từng cảnh 1..${scenes}.\n`
@@ -545,6 +548,12 @@ export async function runFlow(wf: FlowWorkflow, mode: RunMode, deps: FlowRunDeps
             })
           );
       }
+      if (n.type === 'backdrop') {
+        // Ảnh bối cảnh khóa BỐI CẢNH; vẫn đi tiếp lên trên để lấy ảnh sản phẩm đã nối vào node này
+        (results.get(cur) || [])
+          .filter((r) => r.kind === 'image')
+          .forEach((r, k) => refs.push({ value: r.value, roles: r.roles?.length ? r.roles : ['scene'], name: r.name, desc: r.desc || '', ai: r.ai, order: k }));
+      }
       if (n.type === 'outfit-swap') {
         // Ảnh "nhân vật mặc trang phục" khóa CẢ nhân vật lẫn trang phục → dùng thay cho 2 ảnh gốc phía trước (không đi tiếp lên)
         (results.get(cur) || [])
@@ -619,7 +628,9 @@ export async function runFlow(wf: FlowWorkflow, mode: RunMode, deps: FlowRunDeps
     stop();
     switch (n.type) {
       case 'prompt': {
-        const t = stripBlockUrl(String(d.prompt || '').trim());
+        const bd = backdropById(String(d.backdropId || ''));
+        const base = stripBlockUrl(String(d.prompt || '').trim());
+        const t = bd ? `${base}${base ? '\n' : ''}BỐI CẢNH: ${bd.vi}.` : base;
         if (!t) throw new Error('Prompt trống.');
         return [{ kind: 'text', value: t }];
       }
@@ -868,6 +879,81 @@ ${got[i - 1]}` : ''),
             desc: `@${chName}${chDesc ? ` (${chDesc})` : ''} mặc ${outDesc || 'bộ trang phục đã chọn'}`,
           });
           deps.log(`${label(n)}: ✓ ảnh ${i + 1}/${want} — @${chName} mặc bộ trang phục`);
+        }
+        return out;
+      }
+      case 'backdrop': {
+        // TẠO BỐI CẢNH: ảnh không người (kho / xưởng / cửa hàng…) có thể bày CHÍNH sản phẩm nối vào → ảnh khóa bối cảnh
+        const custom = String(d.backdropCustom || '').trim();
+        const first = d.backdropId === 'custom' ? undefined : backdropById(String(d.backdropId || '')) || BACKDROP_PRESETS[0];
+        if (d.backdropId === 'custom' && !custom) throw new Error('Chưa nhập mô tả bối cảnh.');
+        const density = String(d.density || 'full');
+        const prods = images.slice(0, 3);
+        const prodName = String(prods[0]?.name || '').replace(/^@+/, '') || 'sản phẩm';
+        const prodDesc = String(prods[0]?.ai || prods[0]?.desc || '').trim();
+        const men = resolveMentions(texts.join('\n').trim() || String(d.prompt || '').trim(), deps.characters, deps.products);
+        const refs: ReferenceImage[] = [];
+        for (let k = 0; k < prods.length; k++)
+          refs.push({ id: `p${k}`, role: 'product', dataUrl: await toDataUrl(prods[k].value), name: String(prods[k].name || prodName) });
+        const want = Math.max(1, Math.min(6, Number(d.count) || 1));
+        // "mix": mỗi ảnh 1 bối cảnh khác trong cùng nhóm (bắt đầu từ bối cảnh đã chọn)
+        const pool = first ? [first, ...BACKDROP_PRESETS.filter((b) => b.group === first.group && b.id !== first.id)] : [];
+        const ANGLES = [
+          'wide establishing view from the entrance',
+          'medium view of one aisle / work area',
+          'view from a different side, looking deeper into the space',
+          'closer view of a display / workbench area with empty space in the foreground',
+          'high-angle view over the whole space',
+          'eye-level view with shallow depth of field',
+        ];
+        const out: NodeResult[] = [];
+        for (let i = 0; i < want; i++) {
+          stop();
+          const bd = d.variety === 'mix' && pool.length ? pool[i % pool.length] : first;
+          const placeVi = bd ? bd.vi : custom;
+          const placeEn = bd ? bd.en : custom;
+          const stockLine =
+            !refs.length || density === 'none'
+              ? 'Không bày sản phẩm cụ thể nào nổi bật (bối cảnh trống để ghép người + sản phẩm sau).'
+              : `SẢN PHẨM: đúng sản phẩm trong ${refs.map((_, k) => `Ảnh #${k + 1}`).join(' / ')}${prodDesc ? ` (${prodDesc})` : ''} — giữ Y HỆT hình dáng, màu, ` +
+                `chữ / logo, bao bì; ${
+                  density === 'few'
+                    ? 'chỉ vài món bày tự nhiên quanh khu vực chính'
+                    : density === 'massive'
+                      ? 'SỐ LƯỢNG RẤT LỚN, hàng trăm món / thùng giống hệt, chất đầy mọi kệ, pallet, lối đi như kho tổng của nhà sản xuất'
+                      : 'xếp đầy kệ / quầy / khu trưng bày, nhiều món giống hệt nhau thẳng hàng'
+                }. ${bd ? `(${bd.stock})` : ''}`;
+          const still =
+            `${NEW_REQUEST_NOTE('ảnh')} ONE SINGLE STILL PHOTO (ảnh tĩnh, KHÔNG tạo video), tỉ lệ ${ratioOf(d)}, photorealistic, ảnh chụp bối cảnh THẬT.\n` +
+            `BỐI CẢNH: ${placeVi}. Scene: ${placeEn}.\n` +
+            (d.variety === 'mix' || want === 1 ? '' : `GÓC MÁY ảnh này: ${ANGLES[i % ANGLES.length]} (cùng MỘT địa điểm với các ảnh khác của bộ).\n`) +
+            `${stockLine}\n` +
+            (d.extras
+              ? 'Chỉ có vài người (công nhân / nhân viên / khách) NHỎ, MỜ ở rất xa phía sau, không ai ở tiền cảnh, không ai nhìn camera.\n'
+              : 'KHÔNG CÓ NGƯỜI trong ảnh.\n') +
+            'Chừa khoảng trống ở tiền cảnh / giữa khung hình cho người dẫn đứng vào sau. Ánh sáng tự nhiên đúng nơi chốn, chi tiết sắc nét, ' +
+            'không chữ lớn, không logo lạ, không watermark.' +
+            (men.text ? `\nYêu cầu thêm: ${men.text}` : '') +
+            (d.rerun ? `\n[Lần tạo lại #${d.rerun}: tạo bản MỚI]` : '');
+          const img = await retryNoMedia(
+            (k) =>
+              withBusyRetry(() => generateMuseKeyframe({ ...DEFAULT_MUSE_CONFIG, aspectRatio: ratioOf(d) }, still + retryNote(k, 'ảnh'), refs), {
+                shouldStop: deps.shouldStop,
+                log: deps.log,
+                what: label(n),
+              }),
+            label(n),
+            deps
+          );
+          const name = bd ? bd.name : 'bối cảnh tự mô tả';
+          out.push({
+            kind: 'image',
+            value: img,
+            roles: ['scene'],
+            name,
+            desc: `${placeVi}${refs.length && density !== 'none' ? ` — ${prodName} bày ${density === 'few' ? 'vài món' : density === 'massive' ? 'đầy kho' : 'đầy kệ'}` : ''}`,
+          });
+          deps.log(`${label(n)}: ✓ ảnh ${i + 1}/${want} — ${name}`);
         }
         return out;
       }

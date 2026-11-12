@@ -6,6 +6,7 @@
 // Mỗi cổng vào chỉ nhận 1 dây, trừ image-in của Generate Image / Generate Video / Gemini Script / Tạo thumbnail
 // (nhận nhiều ảnh tham chiếu) và mọi cổng của Result.
 import { THUMB_CONTENT_TYPES } from './thumbnailPrompt';
+import { BACKDROP_DENSITY, BACKDROP_OPTIONS } from '../../data/backdropPresets';
 
 export type NodeType =
   | 'prompt'
@@ -13,6 +14,7 @@ export type NodeType =
   | 'gemini-script'
   | 'generate-image'
   | 'outfit-swap'
+  | 'backdrop'
   | 'thumbnail'
   | 'generate-video'
   | 'upscale-image'
@@ -72,6 +74,16 @@ export interface FlowNodeData {
   /** Node Prompt: link Shopee / TikTok Shop đã lấy thông tin + tên sản phẩm đã điền vào prompt (lưu ở thư viện) */
   shopeeUrl?: string;
   shopeeProductName?: string;
+  /** Bối cảnh chọn từ thư viện (data/backdropPresets) — node Prompt chèn vào cuối, node Tạo bối cảnh vẽ ra */
+  backdropId?: string;
+  /** Node Tạo bối cảnh: mô tả tự nhập (khi backdropId = 'custom') */
+  backdropCustom?: string;
+  /** Node Tạo bối cảnh: mật độ sản phẩm bày trong bối cảnh */
+  density?: string;
+  /** Node Tạo bối cảnh: nhiều ảnh = nhiều góc của 1 nơi (angles) hay mỗi ảnh 1 bối cảnh khác cùng nhóm (mix) */
+  variety?: string;
+  /** Node Tạo bối cảnh: có người (công nhân / khách) mờ phía xa cho sống động */
+  extras?: boolean;
   /** Ảnh cận mặt riêng (khóa nhân vật): ghép cạnh ảnh toàn thân thành 1 ảnh tham chiếu */
   faceImage?: string;
   /** Ảnh tải lên là character sheet 2×2 → tự cắt ô toàn thân + ô cận mặt */
@@ -197,6 +209,7 @@ export const LOGO_SPOTS: { id: string; label: string; region: { x: number; y: nu
   { id: 'br', label: 'Dưới phải', region: { x: 0.64, y: 0.9, w: 0.34, h: 0.08 } },
 ];
 
+/** Vai trong gia đình (trường memberRole của sơ đồ MV1) — đã ẩn khỏi giao diện vì không bước chạy nào dùng; giữ để đọc / xuất sơ đồ cũ */
 export const MEMBER_ROLES: [string, string][] = [
   ['custom', '✍️ Tự nhập'],
   ['father', '👨 Bố'],
@@ -220,6 +233,12 @@ export const NODE_DEFS: Record<NodeType, NodeDef> = {
     fields: [
       { key: 'shopeeUrl', label: '🛒 Link Shopee / TikTok Shop (tự lấy thông tin sản phẩm)', type: 'productLink' },
       { key: 'prompt', label: 'Prompt', type: 'mention', hint: 'Gõ @ chọn nhân vật, @@ chọn sản phẩm trong Cài đặt — ảnh + mô tả của chúng tự gửi kèm khi render' },
+      {
+        key: 'backdropId',
+        label: '🏭 Bối cảnh từ thư viện (chèn vào cuối prompt)',
+        type: 'select',
+        options: [['', '— Không chọn —'], ...BACKDROP_OPTIONS],
+      },
     ],
     defaults: { prompt: '' },
   },
@@ -234,7 +253,6 @@ export const NODE_DEFS: Record<NodeType, NodeDef> = {
       '(Reference-to-Video). Không có ảnh = AI tự tạo ảnh từ "Mô tả khóa tham chiếu" lúc chạy.',
     fields: [
       { key: 'refRoles', label: 'Khóa tham chiếu (tích nhiều)', type: 'locks' },
-      { key: 'memberRole', label: 'Chọn nhanh vai', type: 'select', options: MEMBER_ROLES, when: (d) => locksOf(d).includes('character') },
       { key: 'characterName', label: 'Tên nhân vật (@tag)', type: 'text', when: (d) => locksOf(d).includes('character') && !d.characterId },
       { key: 'prompt', label: 'Mô tả khóa tham chiếu', type: 'mention', hint: 'Dùng cho bảng ánh xạ ảnh + để AI tự tạo ảnh khi để trống' },
       {
@@ -245,7 +263,7 @@ export const NODE_DEFS: Record<NodeType, NodeDef> = {
       },
       { key: 'autoDescribe', label: '🔍 AI nhìn ảnh mô tả lại cho khớp ảnh (tăng độ giống)', type: 'checkbox' },
     ],
-    defaults: { refRoles: ['character'], memberRole: 'custom', characterName: '', prompt: '', autoDescribe: true },
+    defaults: { refRoles: ['character'], characterName: '', prompt: '', autoDescribe: true },
   },
   'gemini-script': {
     label: 'Gemini Script',
@@ -311,6 +329,35 @@ export const NODE_DEFS: Record<NodeType, NodeDef> = {
       { key: 'qcKeyframe', label: '😀 Tự chấm mặt so với ảnh nhân vật, lệch thì tạo lại (tối đa 2 lần)', type: 'checkbox' },
     ],
     defaults: { background: 'studio', ratio: '9:16', count: 1, prompt: '', qcKeyframe: true },
+  },
+  backdrop: {
+    label: 'Tạo bối cảnh',
+    group: 'Generate',
+    color: '#0d9488',
+    icon: '🏭',
+    role:
+      'Vẽ ẢNH BỐI CẢNH KHÔNG NGƯỜI (kho, xưởng, cửa hàng lớn, sạp chợ…) từ thư viện bối cảnh, có thể bày CHÍNH sản phẩm nối vào ' +
+      'image-in xếp đầy kệ / quầy / nguyên kho. Ảnh ra khóa BỐI CẢNH: nối vào Generate Image / Generate Video thì mọi cảnh render ' +
+      'song song vẫn đúng một nơi. Nhiều ảnh: nhiều góc của cùng 1 nơi, hoặc mỗi ảnh 1 bối cảnh khác cùng nhóm (cho nhiều video).',
+    fields: [
+      { key: 'backdropId', label: 'Bối cảnh', type: 'select', options: [...BACKDROP_OPTIONS, ['custom', '✍️ Tự mô tả bối cảnh']] },
+      { key: 'backdropCustom', label: 'Mô tả bối cảnh', type: 'textarea', when: (d) => d.backdropId === 'custom' },
+      { key: 'density', label: 'Sản phẩm trong bối cảnh', type: 'select', options: BACKDROP_DENSITY },
+      {
+        key: 'variety',
+        label: 'Nhiều ảnh thì',
+        type: 'select',
+        options: [
+          ['angles', 'Cùng 1 nơi, mỗi ảnh 1 góc / 1 khu (các cảnh của 1 video)'],
+          ['mix', 'Mỗi ảnh 1 bối cảnh khác trong cùng nhóm (nhiều video)'],
+        ],
+      },
+      { key: 'extras', label: '👷 Có người mờ phía xa (công nhân / khách) cho sống động', type: 'checkbox' },
+      { key: 'ratio', label: 'Tỉ lệ', type: 'select', options: RATIOS },
+      { key: 'count', label: 'Số ảnh', type: 'number', min: 1, max: 6 },
+      { key: 'prompt', label: 'Mô tả thêm (khi không nối text-in)', type: 'mention' },
+    ],
+    defaults: { backdropId: 'kho-tong', density: 'full', variety: 'angles', extras: false, ratio: '9:16', count: 1, prompt: '' },
   },
   thumbnail: {
     label: 'Tạo thumbnail',
@@ -503,6 +550,8 @@ export const nodePorts = (node: Pick<FlowNode, 'type' | 'data'>): { inputs: stri
       return { inputs: ['image-in-character', 'image-in-outfit', 'text-in'], outputs: ['image-out'] };
     case 'thumbnail':
       return { inputs: ['image-in', 'video-in', 'text-in'], outputs: ['image-out'] };
+    case 'backdrop':
+      return { inputs: ['image-in', 'text-in'], outputs: ['image-out'] };
     case 'generate-video': {
       const m = d.videoMode || 'text-to-video';
       const inputs =
@@ -526,7 +575,7 @@ export const nodePorts = (node: Pick<FlowNode, 'type' | 'data'>): { inputs: stri
 
 export const acceptsMultiple = (type: NodeType, handle: string) =>
   type === 'result' ||
-  (handle === 'image-in' && ['generate-image', 'generate-video', 'gemini-script', 'thumbnail'].includes(type)) ||
+  (handle === 'image-in' && ['generate-image', 'generate-video', 'gemini-script', 'thumbnail', 'backdrop'].includes(type)) ||
   (handle === 'video-in' && type === 'thumbnail') ||
   (handle === 'text-in' && type === 'thumbnail');
 

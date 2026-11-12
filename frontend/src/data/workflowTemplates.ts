@@ -139,6 +139,75 @@ export const BUILTIN_WORKFLOWS: WorkflowTemplate[] = [
       'bé gọi video khoe bà "bố đang rửa bát" nhưng bố đang ngủ; bé cắt tóc búp bê rồi định cắt tóc bố.',
   },
   {
+    // Mẫu Xưởng & Kho (rút từ app review tại xưởng 1.12): bối cảnh vẽ trước 1 lần + luật cứng / mềm khi AI viết kịch bản
+    ...base,
+    id: 'wf-xuong-review-4',
+    name: 'Review tại xưởng 4 cảnh',
+    icon: '🏭',
+    category: 'Xưởng & Kho',
+    description:
+      'Chủ xưởng cầm hàng review ngay tại kho: Hook → chi tiết chất liệu → test công năng → kêu gọi giỏ hàng. Phía sau là kho tổng chất đầy CHÍNH sản phẩm đó (AI vẽ bối cảnh 1 lần, mọi cảnh dùng chung).',
+    scriptMode: 'short_film',
+    sceneCount: 4,
+    cameraMotion: 'Medium Shot, Gentle Handheld Movement',
+    setting: 'Kho hàng tổng rộng lớn, giá kệ kim loại nhiều tầng cao tới trần, lối đi sơn vạch vàng, đèn trần công nghiệp',
+    backdrop: { id: 'kho-tong', density: 'massive' },
+    extraNote: 'CÔNG THỨC REVIEW TẠI XƯỞNG / KHO (4 cảnh × 8 giây): CẢNH 1 HOOK = cầm sản phẩm đưa sát camera, câu mở theo kiểu chủ xưởng nói thật (vd. \"Không hiểu xưởng làm kiểu gì mà…\", \"Bằng vài cốc trà đá…\"), phía sau thấy rõ hàng chất đầy; CẢNH 2 CHI TIẾT & CHẤT LIỆU = cận tay gõ / xoay / miết bề mặt, khoe độ dày, đường hoàn thiện; CẢNH 3 CÔNG NĂNG = test trực tiếp tại chỗ (ấn, thả, đổ nước, chạy thử…) không cắt cảnh; CẢNH 4 CTA = chỉ xuống góc trái màn hình (giỏ hàng), nhắc giá xuất xưởng, được kiểm hàng trước khi thanh toán. Lời thoại 20-25 từ mỗi cảnh, giọng dân dã gần gũi, xưng \"em - các bác\" hoặc \"bên em - anh chị\". Người dẫn mặc đồng phục xưởng / áo polo tối màu, nhìn thẳng camera, tự tin như chủ xưởng.',
+  },
+  {
+    ...base,
+    id: 'wf-xuong-vong-kho',
+    name: 'Đi một vòng kho / xưởng',
+    icon: '🚶',
+    category: 'Xưởng & Kho',
+    description:
+      'Dẫn người xem đi một vòng: cửa kho → dây chuyền → khu kiểm định → bàn đóng gói, mỗi cảnh một khu, kết ở sản phẩm chính và giá xuất xưởng.',
+    scriptMode: 'short_film',
+    sceneCount: 4,
+    chainEndFrame: true,
+    cameraMotion: 'Tracking shot, walking forward, Gentle Handheld Movement',
+    extraNote:
+      'Video đi một vòng xưởng / kho, máy đi theo người dẫn: CẢNH 1 ở cửa kho tổng hàng chất cao ("vào xưởng em xem tận gốc"); CẢNH 2 dây chuyền / khu sản xuất đang chạy; ' +
+      'CẢNH 3 khu kiểm định cầm sản phẩm kiểm tra chi tiết; CẢNH 4 bàn đóng gói đơn, giơ sản phẩm chốt giá xuất xưởng + giỏ hàng góc trái. ' +
+      'Mỗi cảnh nối tiếp bước chân cảnh trước, lời thoại 20-25 từ, giọng chủ xưởng dân dã.',
+  },
+  {
+    ...base,
+    id: 'wf-xuong-cua-hang-lon',
+    name: 'Đập hộp tại cửa hàng lớn',
+    icon: '🏬',
+    category: 'Xưởng & Kho',
+    description:
+      'Mở hộp ngay giữa siêu thị điện máy / showroom, phía sau là cả bức tường trưng bày chính sản phẩm đó. Hợp đồ gia dụng, điện máy.',
+    scriptMode: 'template',
+    scriptTemplateId: 'dap-hop-cua-hang',
+    sceneCount: 4,
+    cameraMotion: 'Medium Shot, Slow Dolly In',
+    setting: 'Siêu thị điện máy lớn, dãy kệ trưng bày sáng đèn, biển giá khuyến mãi, sàn bóng',
+    backdrop: { id: 'sieu-thi-dien-may', density: 'full', extras: true },
+    extraNote:
+      'Bối cảnh cửa hàng lớn sáng đèn, phía sau là kệ trưng bày đầy chính sản phẩm này. Cảnh 1 bê hộp ra quầy, cảnh 2 bóc hộp lấy sản phẩm, ' +
+      'cảnh 3 bật / dùng thử ngay tại quầy, cảnh 4 so giá cửa hàng với giá online rồi chỉ giỏ hàng góc trái. Lời thoại 20-25 từ mỗi cảnh.',
+  },
+  {
+    ...base,
+    id: 'wf-xuong-don-hang',
+    name: 'Đơn hàng hôm nay tại bàn đóng gói',
+    icon: '📦',
+    category: 'Xưởng & Kho',
+    description:
+      'Không khí kho đang chạy đơn: chất cả núi hàng, đóng gói, dán tem, xếp lên xe. Tạo cảm giác hàng bán chạy, khách đặt nhanh.',
+    scriptMode: 'template',
+    scriptTemplateId: 'don-hang-hom-nay',
+    sceneCount: 4,
+    cameraMotion: 'Medium Shot, Gentle Handheld Movement',
+    setting: 'Khu bàn đóng gói đơn hàng xuất kho, cuộn băng keo, máy in tem, hộp ship xếp sẵn',
+    backdrop: { id: 'ban-dong-goi', density: 'massive' },
+    extraNote:
+      'Cảnh 1 đứng trước núi đơn hàng ("hôm nay bên em ra mấy nghìn đơn"), cảnh 2 cầm 1 sản phẩm khoe trước khi cho vào hộp, ' +
+      'cảnh 3 đóng hộp dán tem, cảnh 4 xếp lên xe giao + nhắc đặt nhanh ở giỏ hàng góc trái. Lời thoại 20-25 từ mỗi cảnh, nhịp nhanh.',
+  },
+  {
     ...base,
     id: 'wf-review-7-ngay',
     name: 'Review sau 7 ngày dùng',

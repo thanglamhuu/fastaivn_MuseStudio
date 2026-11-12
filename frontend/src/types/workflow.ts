@@ -52,6 +52,11 @@ export interface WorkflowTemplate {
   refMode?: 'reference' | 'firstframe';
   /** Bối cảnh cố định chèn vào mọi cảnh để các cảnh render song song vẫn khớp nhau */
   setting?: string;
+  /**
+   * Ảnh bối cảnh vẽ trước (node 🏭 Tạo bối cảnh khi mở trong Sơ đồ khối): id trong thư viện bối cảnh (data/backdropPresets),
+   * mật độ sản phẩm bày trong bối cảnh — ảnh này khóa bối cảnh cho mọi cảnh.
+   */
+  backdrop?: { id: string; density?: 'none' | 'few' | 'full' | 'massive'; extras?: boolean };
   /** Khóa chân thật chống "màu nhựa AI" (mặc định bật) */
   realismLock?: boolean;
   /** Prompt cảnh nhập tay: có thì bỏ qua AI viết kịch bản */

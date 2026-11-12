@@ -17,6 +17,7 @@ export type GalleryCols = 6 | 8 | 10 | 12;
  */
 const GROUPS: [string, string[]][] = [
   ['Review sản phẩm', ['bán hàng', 'review pov (fastaivn)', 'review pov', 'không lộ mặt', 'ăn uống', 'gia dụng', 'gia dụng bếp', 'đồ chơi', 'sức khỏe', 'sức khoẻ']],
+  ['Xưởng & Kho', ['xưởng & kho', 'kho xưởng', 'cửa hàng lớn']],
   ['Thời trang & Mỹ phẩm', ['thời trang', 'mỹ phẩm', 'thời trang nam', 'thiết kế']],
   ['Làm phim', ['câu chuyện', 'gia đình']],
 ];

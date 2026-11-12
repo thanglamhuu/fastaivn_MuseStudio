@@ -30,6 +30,7 @@ import { aspectClass } from '../utils/image';
 import { NodeFlowProps, NodeFlowStudio } from './NodeFlowStudio';
 import { templateToFlow } from '../services/nodeFlow/fromTemplate';
 import { exportFlowJson } from '../services/nodeFlow/flowIO';
+import { BACKDROP_GROUPS, BACKDROP_PRESETS } from '../data/backdropPresets';
 import { GalleryCols, WorkflowTemplateGallery, templateGroup } from './WorkflowTemplateGallery';
 import { APP_VERSION, CatalogState, catalogTemplates, loadCatalog, versionAtLeast } from '../services/templateCatalog';
 import { WorkflowBundleModal } from './WorkflowBundleModal';
@@ -903,6 +904,25 @@ Có thể khôi phục bằng nút "↺ Hiện lại mẫu đã xoá".`);
           </div>
           <div>
             <label className={labelCls}>Bối cảnh cố định (chèn vào mọi cảnh cho khớp nhau)</label>
+            <select
+              className={`${inputCls} mb-1`}
+              value={BACKDROP_PRESETS.find((b) => b.vi === draft.setting)?.id || ''}
+              onChange={(e) => {
+                const b = BACKDROP_PRESETS.find((x) => x.id === e.target.value);
+                if (b) set('setting', b.vi);
+              }}
+            >
+              <option value="">🏭 Chọn từ thư viện bối cảnh… (hoặc tự gõ bên dưới)</option>
+              {BACKDROP_GROUPS.map((g) => (
+                <optgroup key={g} label={g}>
+                  {BACKDROP_PRESETS.filter((b) => b.group === g).map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
             <textarea rows={2} className={inputCls} value={draft.setting || ''} onChange={(e) => set('setting', e.target.value)} />
           </div>
           <div>

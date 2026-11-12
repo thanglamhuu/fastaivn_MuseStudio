@@ -58,6 +58,7 @@ import { extractJson, getScrapeStatus, getShopLoginState, openShopLogin, scrapeP
 import { mergeProductIntoPrompt, productIdeaInstruction, shortProductName } from '../services/nodeFlow/shopeePrompt';
 import { newLibraryId } from '../types/library';
 import { GATEWAY_URL } from '../config/appConfig';
+import { backdropById } from '../data/backdropPresets';
 
 interface FlowLibrary {
   workflows: FlowWorkflow[];
@@ -108,8 +109,6 @@ const ResultThumbs: React.FC<{ results?: NodeResult[]; big?: boolean }> = ({ res
 const nodeSummary = (n: FlowNode): string => {
   const d = n.data;
   switch (n.type) {
-    case 'prompt':
-      return short(String(d.prompt || '(trống)'), 110);
     case 'upload-image': {
       const locks = locksOf(d);
       const icons = locks.map((l) => REF_LOCKS.find((x) => x.id === l)!.icon).join('');
@@ -124,6 +123,13 @@ const nodeSummary = (n: FlowNode): string => {
       return `Muse Video · ${d.videoMode || 'text-to-video'} · ${d.ratio || '9:16'} · ${d.duration || 10}s`;
     case 'thumbnail':
       return `${d.title ? `"${short(String(d.title), 40)}"` : d.autoText !== false ? 'AI tự viết tiêu đề' : 'không chữ'} · ${d.ratio || '9:16'} · ${d.count || 1} ảnh`;
+    case 'backdrop': {
+      const bd = backdropById(String(d.backdropId || ''));
+      const dens = { none: 'trống', few: 'vài món', full: 'đầy kệ', massive: 'đầy kho' }[String(d.density || 'full')] || '';
+      return `${bd ? bd.name : d.backdropId === 'custom' ? 'Tự mô tả' : '?'} · sản phẩm ${dens}${d.variety === 'mix' ? ' · mỗi ảnh 1 bối cảnh' : ''} · ${d.count || 1} ảnh`;
+    }
+    case 'prompt':
+      return short(String(d.prompt || '(trống)'), 110) + (backdropById(String(d.backdropId || '')) ? ` · 🏭 ${backdropById(String(d.backdropId))!.name}` : '');
     case 'outfit-swap':
       return `Nhân vật mặc trang phục · ${{ studio: 'nền studio', keep: 'giữ bối cảnh', prompt: 'bối cảnh theo mô tả' }[String(d.background || 'studio')] || ''} · ${d.ratio || '9:16'} · ${d.count || 1} ảnh`;
     case 'merge-video':
