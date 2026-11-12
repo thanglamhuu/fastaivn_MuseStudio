@@ -85,6 +85,10 @@ class Settings(BaseSettings):
     pool_strategy: PoolStrategyName = "affinity"
     pool_acquire_timeout: float = 60.0
     account_max_concurrency: int = 4
+    # [MuseStudio patch] Số luồng mặc định của tài khoản CHƯA đặt riêng (tài khoản mới đăng nhập). Trần vẫn là
+    # account_max_concurrency (chọn tay được tới mức đó). Đo 11/2026 trên 252 video + 289 ảnh: 1 luồng ~35 video/giờ/TK,
+    # 2 luồng ~52 (đạt 92-97%), 3 luồng mỗi video chậm gần gấp đôi (trung vị 101 s → 180 s), ảnh đạt còn 73%, P90 523 s.
+    account_default_concurrency: int = 2
     account_cooldown: float = 120.0
     max_failover: int = 2
 

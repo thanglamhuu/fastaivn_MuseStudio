@@ -269,7 +269,11 @@ class BrowserDriver(MuseDriver):
         except (TypeError, ValueError):
             own = 0
         if own <= 0:
-            return base
+            # Tài khoản chưa đặt riêng: theo số luồng mặc định (account_default_concurrency), không mở đủ trần;
+            # mặc định ≥ trần thì như bản cũ (= trần)
+            own = max(1, self.settings.account_default_concurrency or base)
+            if own >= base:
+                return base
         return max(1, min(base, own) + (1 if self.settings.warm_threads > 0 else 0))
 
     async def _checkin(self, tab: _Tab) -> None:

@@ -130,3 +130,19 @@ async def test_other_upstream_errors_still_cool_down(tmp_path):
         async with pool.lease():
             raise UpstreamError("browser error")
     assert pool.get("a0").status == AccountStatus.COOLING
+
+
+def test_default_concurrency_for_accounts_without_own_limit(tmp_path):
+    # [MuseStudio patch] tài khoản chưa đặt số luồng riêng: theo mặc định (2), không phải trần (4); đặt riêng vẫn tới trần
+    pool = AccountPool(JsonAccountStore(tmp_path / "acc.json"), max_concurrency=4, default_concurrency=2)
+    assert pool.limit_of(Account(label="mới")) == 2
+    assert pool.limit_of(Account(label="3 luồng", meta={"max_concurrency": 3})) == 3
+    assert pool.limit_of(Account(label="quá trần", meta={"max_concurrency": 9})) == 4
+    # Không truyền mặc định: như bản gốc (bằng trần)
+    assert AccountPool(JsonAccountStore(tmp_path / "b.json"), max_concurrency=4).limit_of(Account(label="x")) == 4
+
+
+def test_settings_default_concurrency_is_two():
+    from muse2api.config import Settings
+    s = Settings(_env_file=None)
+    assert s.account_default_concurrency == 2 and s.account_max_concurrency == 4

@@ -35,6 +35,8 @@ from websockets.asyncio.client import connect as ws_connect
 from muse2api.drivers.browser.chromium import find_chromium
 from muse2api.errors import InvalidRequest, NotFound, UpstreamAuthError, UpstreamError
 from muse2api.upstream.muse import SITE, missing_session_cookies, renew_session
+from studio_emaillogin import (BrowserInbox, EmailLogin, FallbackInbox, HttpInbox, LoginPage, auto_login,
+                              default_inbox_url, parse_lines)
 
 log = logging.getLogger("musestudio.login")
 
@@ -57,6 +59,9 @@ class LoginJob:
     created_at: float = field(default_factory=time.time)
     task: asyncio.Task | None = None
     proc: asyncio.subprocess.Process | None = None
+    # Đăng nhập tự động bằng email + mã OTP đọc từ hộp thư (studio_emaillogin); rỗng = người dùng tự đăng nhập
+    email: str = ""
+    inbox_url: str = ""
 
     @property
     def finished(self) -> bool:
@@ -64,8 +69,26 @@ class LoginJob:
 
     def view(self) -> dict[str, Any]:
         return {"id": self.id, "account_id": self.account_id, "label": self.label,
-                "status": self.status, "message": self.message,
+                "status": self.status, "message": self.message, "email": self.email,
                 "result_account_id": self.result_account_id, "created_at": self.created_at}
+
+
+@dataclass
+class LoginBatch:
+    """Nhiều tài khoản email | hộp thư: đăng nhập LẦN LƯỢT (mỗi lúc một cửa sổ Chrome)."""
+    id: str
+    job_ids: list[str]
+    task: asyncio.Task | None = None
+
+    def view(self) -> dict[str, Any]:
+        jobs = [_jobs[j].view() for j in self.job_ids if j in _jobs]
+        done = all(j["status"] in ("succeeded", "failed", "cancelled") for j in jobs)
+        return {"id": self.id, "finished": done, "jobs": jobs,
+                "succeeded": sum(j["status"] == "succeeded" for j in jobs),
+                "failed": sum(j["status"] in ("failed", "cancelled") for j in jobs)}
+
+
+_batches: dict[str, LoginBatch] = {}
 
 
 _jobs: dict[str, LoginJob] = {}
@@ -117,8 +140,63 @@ async def _save_account(app: FastAPI, job: LoginJob, cookies: dict[str, str],
     acc.last_error = None
     acc.enabled = True
     acc.meta["logged_in_at"] = time.time()
+    if job.email:
+        # Nhớ email + hộp thư để nút "Đăng nhập lại" tự lấy mã lần sau
+        acc.meta["email"] = job.email
+        acc.meta["inbox_url"] = job.inbox_url
     await svc.pool.upsert(acc)
     return acc
+
+
+async def _page_ws(port: int) -> str:
+    """websocket DevTools của tab trang (muse.ai) trong cửa sổ đăng nhập."""
+    async with httpx.AsyncClient(timeout=3, trust_env=False) as client:
+        for _ in range(40):
+            with contextlib.suppress(httpx.HTTPError, ValueError):
+                pages = [t for t in (await client.get(f"http://127.0.0.1:{port}/json/list")).json()
+                         if t.get("type") == "page" and t.get("webSocketDebuggerUrl")]
+                if pages:
+                    return pages[0]["webSocketDebuggerUrl"].replace("localhost", "127.0.0.1")
+            await asyncio.sleep(0.5)
+    raise RuntimeError("không thấy tab trang đăng nhập")
+
+
+async def _run_auto(job: LoginJob, port: int) -> None:
+    """Gõ email / mã OTP lấy từ hộp thư. Lỗi thì để người dùng hoàn tất bằng tay trong cửa sổ đang mở."""
+    page_cdp: CDPSession | None = None
+
+    def report(msg: str) -> None:
+        if job.status in ("starting", "waiting"):
+            job.message = msg
+
+    async def open_tab(url: str) -> CDPSession:
+        # Tab phụ trong CHÍNH cửa sổ đăng nhập để đọc hộp thư: trình duyệt thật không bị generator.email chặn
+        # như httpx (đo 12/11: httpx nhận HTTP 503 liên tục, Chrome mở bình thường)
+        async with httpx.AsyncClient(timeout=10, trust_env=False) as c:
+            r = await c.put(f"http://127.0.0.1:{port}/json/new?{url}")
+            r.raise_for_status()
+            ws = r.json()["webSocketDebuggerUrl"].replace("localhost", "127.0.0.1")
+        return CDPSession(await ws_connect(ws, max_size=None, ping_interval=None, open_timeout=15))
+
+    browser_inbox: BrowserInbox | None = None
+    try:
+        page_cdp = CDPSession(await ws_connect(await _page_ws(port), max_size=None,
+                                               ping_interval=None, open_timeout=15))
+        async with httpx.AsyncClient(timeout=20, trust_env=False) as client:
+            browser_inbox = BrowserInbox(open_tab, job.inbox_url)
+            inbox = FallbackInbox(browser_inbox, HttpInbox(client, job.inbox_url))
+            await auto_login(LoginPage(page_cdp), EmailLogin(job.email, job.inbox_url), report,
+                             client=client, inbox=inbox)
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        log.warning("auto login %s (%s) dừng: %s", job.id, job.email, exc)
+        report(f"{job.email}: tự động chưa xong ({exc}) — hãy hoàn tất bằng tay trong cửa sổ Chrome.")
+    finally:
+        if browser_inbox is not None:
+            await browser_inbox.close()
+        if page_cdp is not None:
+            await page_cdp.close()
 
 
 async def _run_login(app: FastAPI, job: LoginJob) -> None:
@@ -129,6 +207,7 @@ async def _run_login(app: FastAPI, job: LoginJob) -> None:
     # đang mở của người dùng rồi thoát ngay -> không còn cửa sổ nào để đọc cookie.
     profile = (Path(settings.data_dir) / "login-profiles" / job.id).resolve()
     cdp: CDPSession | None = None
+    auto_task: asyncio.Task | None = None
     try:
         exe = find_chromium(settings.chromium_path or os.environ.get("MUSE2API_CHROMIUM_PATH", ""))
         port = _free_port()
@@ -156,6 +235,8 @@ async def _run_login(app: FastAPI, job: LoginJob) -> None:
                               ping_interval=None, open_timeout=15)
         cdp = CDPSession(ws)
         job.status, job.message = "waiting", "Hãy đăng nhập muse.ai trong cửa sổ Chrome vừa mở..."
+        if job.email:
+            auto_task = asyncio.create_task(_run_auto(job, port))
 
         deadline = time.monotonic() + LOGIN_TIMEOUT_S
         last_verified_sess, last_verify_at = None, 0.0
@@ -199,6 +280,10 @@ async def _run_login(app: FastAPI, job: LoginJob) -> None:
         log.exception("login job %s failed", job.id)
         job.status, job.message = "failed", f"Lỗi: {exc}"
     finally:
+        if auto_task is not None and not auto_task.done():
+            auto_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await auto_task
         if cdp is not None:
             with contextlib.suppress(Exception):
                 await cdp.send("Browser.close", timeout=5)
@@ -218,21 +303,101 @@ async def _run_login(app: FastAPI, job: LoginJob) -> None:
 class LoginStart(BaseModel):
     account_id: str | None = Field(default=None, description="Đăng nhập lại cho tài khoản có sẵn")
     label: str = ""
+    # Tài khoản đã lưu email + hộp thư (đăng nhập bằng email trước đó) thì tự lấy mã; false = tự đăng nhập bằng tay
+    auto: bool = True
+
+
+def _ensure_no_open_login() -> None:
+    # Mỗi lúc chỉ một cửa sổ đăng nhập để người dùng không bị rối
+    if any(not j.finished for j in _jobs.values()) or any(b.task and not b.task.done() for b in _batches.values()):
+        raise InvalidRequest("Đang có một cửa sổ đăng nhập mở. Hãy hoàn tất hoặc hủy nó trước.")
 
 
 @router.post("/login")
 async def start_login(body: LoginStart, request: Request) -> dict:
     svc = request.app.state.services
-    if body.account_id and svc.pool.get(body.account_id) is None:
+    acc = svc.pool.get(body.account_id) if body.account_id else None
+    if body.account_id and acc is None:
         raise NotFound(f"account '{body.account_id}' not found")
-    # Mỗi lúc chỉ một cửa sổ đăng nhập để người dùng không bị rối
-    for job in _jobs.values():
-        if not job.finished:
-            raise InvalidRequest("Đang có một cửa sổ đăng nhập mở. Hãy hoàn tất hoặc hủy nó trước.")
+    _ensure_no_open_login()
     job = LoginJob(id="login_" + uuid.uuid4().hex[:10], account_id=body.account_id, label=body.label)
+    if acc is not None and body.auto and acc.meta.get("email"):
+        job.email = str(acc.meta["email"])
+        job.inbox_url = str(acc.meta.get("inbox_url") or default_inbox_url(job.email))
     _jobs[job.id] = job
     job.task = asyncio.create_task(_run_login(request.app, job))
     return job.view()
+
+
+class EmailLoginStart(BaseModel):
+    text: str = Field(max_length=200_000, description="Mỗi dòng: email | link hộp thư (thiếu link = generator.email)")
+
+
+def _account_by_email(svc, email: str) -> Account | None:
+    email = email.lower()
+    return next((a for a in svc.pool.all() if str(a.meta.get("email") or "").lower() == email
+                 or (a.label or "").strip().lower() == email), None)
+
+
+async def _run_batch(app: FastAPI, batch: LoginBatch) -> None:
+    for jid in batch.job_ids:
+        job = _jobs[jid]
+        if job.finished:
+            continue
+        job.task = asyncio.current_task()
+        cancelled = False
+        try:
+            await _run_login(app, job)  # tự bắt CancelledError và ghi trạng thái "cancelled"
+        except asyncio.CancelledError:
+            cancelled = True
+        if cancelled or job.status == "cancelled":
+            # Hủy cả loạt: tài khoản đang chạy + các tài khoản chưa tới lượt
+            for rest in batch.job_ids:
+                if not _jobs[rest].finished:
+                    _jobs[rest].status, _jobs[rest].message = "cancelled", "Đã hủy đăng nhập."
+            return
+
+
+@router.post("/login/email")
+async def start_email_login(body: EmailLoginStart, request: Request) -> dict:
+    """Đăng nhập (hoặc đăng nhập lại) nhiều tài khoản bằng email + mã OTP đọc từ hộp thư, lần lượt từng tài khoản."""
+    items = parse_lines(body.text)
+    if not items:
+        raise InvalidRequest("Không thấy email nào. Mỗi dòng dạng: email@domain | https://generator.email/email@domain")
+    svc = request.app.state.services
+    _ensure_no_open_login()
+    ids: list[str] = []
+    for it in items:
+        acc = _account_by_email(svc, it.email)
+        job = LoginJob(id="login_" + uuid.uuid4().hex[:10], account_id=acc.id if acc else None,
+                       label=acc.label if acc else it.email, email=it.email, inbox_url=it.inbox_url,
+                       status="starting", message="Đang chờ tới lượt…")
+        _jobs[job.id] = job
+        ids.append(job.id)
+    batch = LoginBatch(id="batch_" + uuid.uuid4().hex[:10], job_ids=ids)
+    _batches[batch.id] = batch
+    batch.task = asyncio.create_task(_run_batch(request.app, batch))
+    return batch.view()
+
+
+@router.get("/login/batch/{batch_id}")
+async def get_email_login(batch_id: str) -> dict:
+    batch = _batches.get(batch_id)
+    if batch is None:
+        raise NotFound(f"login batch '{batch_id}' not found")
+    return batch.view()
+
+
+@router.post("/login/batch/{batch_id}/cancel")
+async def cancel_email_login(batch_id: str) -> dict:
+    batch = _batches.get(batch_id)
+    if batch is None:
+        raise NotFound(f"login batch '{batch_id}' not found")
+    if batch.task and not batch.task.done():
+        batch.task.cancel()
+        with contextlib.suppress(asyncio.CancelledError, Exception):
+            await batch.task
+    return batch.view()
 
 
 @router.get("/login/{job_id}")
@@ -272,6 +437,7 @@ async def list_accounts(request: Request) -> dict:
     return {
         "data": [_account_view(svc, a) for a in svc.pool.all()],
         "max_concurrency_per_account": svc.pool.max_concurrency,
+        "default_concurrency_per_account": svc.pool.default_concurrency,
     }
 
 

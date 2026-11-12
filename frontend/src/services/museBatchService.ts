@@ -242,6 +242,8 @@ export interface StudioAccount extends GatewayAccount {
 export interface StudioAccountsResponse {
   data: StudioAccount[];
   max_concurrency_per_account: number;
+  /** Số luồng của tài khoản chưa đặt riêng (tài khoản mới) — Gateway cũ không có trường này */
+  default_concurrency_per_account?: number;
 }
 
 export interface LoginJob {
@@ -251,7 +253,37 @@ export interface LoginJob {
   status: 'starting' | 'waiting' | 'verifying' | 'succeeded' | 'failed' | 'cancelled';
   message: string;
   result_account_id: string | null;
+  /** Đăng nhập tự động bằng email + mã OTP từ hộp thư ('' = người dùng tự đăng nhập) */
+  email?: string;
 }
+
+export interface LoginBatch {
+  id: string;
+  finished: boolean;
+  succeeded: number;
+  failed: number;
+  jobs: LoginJob[];
+}
+
+/**
+ * Đăng nhập nhiều tài khoản bằng email: mỗi dòng `email | link hộp thư` (vd. https://generator.email/<email>,
+ * thiếu link thì dùng generator.email). Gateway mở Chrome lần lượt, tự gõ email, lấy mã OTP trong thư mới nhất.
+ */
+export const startEmailLogin = async (text: string): Promise<LoginBatch> => {
+  const res = await gatewayFetch('/studio/login/email', { method: 'POST', body: JSON.stringify({ text }) });
+  if (!res.ok) throw new Error(await readError(res));
+  return res.json();
+};
+
+export const getEmailLogin = async (batchId: string): Promise<LoginBatch> => {
+  const res = await gatewayFetch(`/studio/login/batch/${encodeURIComponent(batchId)}`);
+  if (!res.ok) throw new Error(await readError(res));
+  return res.json();
+};
+
+export const cancelEmailLogin = async (batchId: string): Promise<void> => {
+  await gatewayFetch(`/studio/login/batch/${encodeURIComponent(batchId)}/cancel`, { method: 'POST' });
+};
 
 export const isAccountUsable = (a: GatewayAccount) => a.enabled && a.status !== 'invalid';
 

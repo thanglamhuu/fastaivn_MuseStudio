@@ -506,7 +506,7 @@ async def test_new_named_conversation_takes_the_warm_tab_not_a_new_one(driver):
 
 
 async def test_missing_warm_threads_are_taken_together(tmp_path, monkeypatch):
-    drv = BrowserDriver(Settings(_env_file=None, data_dir=tmp_path, account_max_concurrency=6,
+    drv = BrowserDriver(Settings(_env_file=None, data_dir=tmp_path, account_max_concurrency=6, account_default_concurrency=6,
                                  warm_threads=3))
     ids = itertools.count()
 
@@ -522,7 +522,7 @@ async def test_missing_warm_threads_are_taken_together(tmp_path, monkeypatch):
 
 
 async def test_a_failed_warm_round_is_retried(tmp_path, monkeypatch, fast):
-    drv = BrowserDriver(Settings(_env_file=None, data_dir=tmp_path, account_max_concurrency=4,
+    drv = BrowserDriver(Settings(_env_file=None, data_dir=tmp_path, account_max_concurrency=4, account_default_concurrency=4,
                                  warm_threads=1))
     ids = itertools.count()
 
@@ -557,7 +557,8 @@ async def test_tab_limit_follows_account_concurrency(tmp_path, monkeypatch):
     _no_browser(drv, monkeypatch)
     acc = Account(id="a1", cookies={"hatch_sess": "x"}, meta={"max_concurrency": 1})
     assert drv._tab_limit(acc) == 2
-    assert drv._tab_limit(Account(id="a2", cookies={"hatch_sess": "x"})) == 4  # không đặt riêng → như cũ
+    # không đặt riêng → mặc định 2 luồng + 1 tab làm nóng (trước 11/2026: mở đủ trần 4)
+    assert drv._tab_limit(Account(id="a2", cookies={"hatch_sess": "x"})) == 3
     t1 = await drv._checkout(acc)
     t2 = await drv._checkout(acc)
     third = asyncio.create_task(drv._checkout(acc))
@@ -570,7 +571,7 @@ async def test_tab_limit_follows_account_concurrency(tmp_path, monkeypatch):
 
 
 async def test_excess_idle_tabs_are_closed_after_lowering_the_limit(tmp_path, monkeypatch):
-    drv = BrowserDriver(Settings(_env_file=None, data_dir=tmp_path, account_max_concurrency=4, warm_threads=0))
+    drv = BrowserDriver(Settings(_env_file=None, data_dir=tmp_path, account_max_concurrency=4, account_default_concurrency=4, warm_threads=0))
     ids = itertools.count()
 
     async def fake_open(account: Account) -> _Tab:

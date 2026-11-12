@@ -37,6 +37,7 @@ class Services:
             JsonAccountStore(settings.accounts_file),
             strategy=settings.pool_strategy,
             max_concurrency=settings.account_max_concurrency,
+            default_concurrency=settings.account_default_concurrency,
             cooldown=settings.account_cooldown,
             acquire_timeout=settings.pool_acquire_timeout,
         )

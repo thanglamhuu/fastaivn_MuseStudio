@@ -7,6 +7,7 @@ const REFRESH_MS = 10_000;
 export const useMuseAccounts = () => {
   const [accounts, setAccounts] = useState<StudioAccount[]>([]);
   const [perAccountMax, setPerAccountMax] = useState(4);
+  const [perAccountDefault, setPerAccountDefault] = useState(2);
   const [error, setError] = useState('');
   const [loaded, setLoaded] = useState(false);
 
@@ -15,6 +16,7 @@ export const useMuseAccounts = () => {
       const res = await listStudioAccounts();
       setAccounts(res.data);
       setPerAccountMax(res.max_concurrency_per_account);
+      setPerAccountDefault(res.default_concurrency_per_account ?? res.max_concurrency_per_account);
       setError('');
     } catch (err: any) {
       setError(err.message);
@@ -44,7 +46,7 @@ export const useMuseAccounts = () => {
     };
   }, [accounts]);
 
-  return { accounts, perAccountMax, error, loaded, refresh, ...summary };
+  return { accounts, perAccountMax, perAccountDefault, error, loaded, refresh, ...summary };
 };
 
 export type MuseAccountsState = ReturnType<typeof useMuseAccounts>;

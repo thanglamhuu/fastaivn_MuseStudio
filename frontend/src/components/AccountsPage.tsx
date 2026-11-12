@@ -1,7 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  LoginBatch,
   LoginJob,
   MuseVoice,
+  cancelEmailLogin,
+  getEmailLogin,
+  startEmailLogin,
   StudioAccount,
   listMuseVoices,
   cancelBrowserLogin,
@@ -20,6 +24,7 @@ import { loadPersisted, savePersisted } from '../hooks/usePersistentState';
 import { MATRIX_12_VOICES } from '../data/voicePresets';
 
 const LOGIN_JOB_KEY = 'loginJob.v1';
+const EMAIL_BATCH_KEY = 'emailLoginBatch.v1';
 
 const statusBadge = (acc: StudioAccount) => {
   if (!acc.enabled) return { text: 'Đã tắt', cls: 'bg-slate-700 text-slate-300' };
@@ -303,7 +308,7 @@ const AccountRow: React.FC<{
 // ---------------------------------------------------------------------------
 
 export const AccountsPage: React.FC<{ state: MuseAccountsState }> = ({ state }) => {
-  const { accounts, perAccountMax, error, refresh, usableCount, totalThreads, runningThreads } = state;
+  const { accounts, perAccountMax, perAccountDefault, error, refresh, usableCount, totalThreads, runningThreads } = state;
   const [loginJob, setLoginJob] = useState<LoginJob | null>(null);
   const [loginError, setLoginError] = useState('');
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -316,7 +321,47 @@ export const AccountsPage: React.FC<{ state: MuseAccountsState }> = ({ state }) 
     listMuseVoices().then(setVoices).catch(() => setVoices([]));
   }, []);
 
-  const loginActive = !!loginJob && ['starting', 'waiting', 'verifying'].includes(loginJob.status);
+  // Đăng nhập bằng email + mã OTP đọc từ hộp thư (nhiều tài khoản, lần lượt)
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailText, setEmailText] = useState('');
+  const [batch, setBatch] = useState<LoginBatch | null>(null);
+  const batchActive = !!batch && !batch.finished;
+  useEffect(() => {
+    const saved = loadPersisted<string | null>(EMAIL_BATCH_KEY, null);
+    if (saved) getEmailLogin(saved).then(setBatch).catch(() => savePersisted(EMAIL_BATCH_KEY, null));
+  }, []);
+  useEffect(() => {
+    if (!batchActive || !batch) return;
+    const t = window.setInterval(async () => {
+      try {
+        const b = await getEmailLogin(batch.id);
+        setBatch(b);
+        if (b.succeeded !== batch.succeeded) refresh();
+        if (b.finished) {
+          savePersisted(EMAIL_BATCH_KEY, null);
+          refresh();
+        }
+      } catch {
+        setBatch(null);
+        savePersisted(EMAIL_BATCH_KEY, null);
+      }
+    }, 2000);
+    return () => window.clearInterval(t);
+  }, [batchActive, batch?.id, batch?.succeeded, refresh]);
+  const beginEmailLogin = async () => {
+    setLoginError('');
+    try {
+      const b = await startEmailLogin(emailText);
+      setBatch(b);
+      savePersisted(EMAIL_BATCH_KEY, b.id);
+      setEmailOpen(false);
+    } catch (err: any) {
+      setLoginError(err.message);
+    }
+  };
+
+  const jobActive = !!loginJob && ['starting', 'waiting', 'verifying'].includes(loginJob.status);
+  const loginActive = jobActive || batchActive;
 
   // Theo dõi phiên đăng nhập đang mở (kể cả sau khi tải lại trang)
   useEffect(() => {
@@ -325,7 +370,7 @@ export const AccountsPage: React.FC<{ state: MuseAccountsState }> = ({ state }) 
   }, []);
 
   useEffect(() => {
-    if (!loginActive || !loginJob) return;
+    if (!jobActive || !loginJob) return;
     pollRef.current = window.setInterval(async () => {
       try {
         const job = await getBrowserLogin(loginJob.id);
@@ -343,7 +388,7 @@ export const AccountsPage: React.FC<{ state: MuseAccountsState }> = ({ state }) 
     return () => {
       if (pollRef.current) window.clearInterval(pollRef.current);
     };
-  }, [loginActive, loginJob?.id, refresh]);
+  }, [jobActive, loginJob?.id, refresh]);
 
   const beginLogin = async (acc?: StudioAccount) => {
     setLoginError('');
@@ -412,6 +457,14 @@ export const AccountsPage: React.FC<{ state: MuseAccountsState }> = ({ state }) 
             + Thêm nhiều TK (cookie)
           </button>
           <button
+            onClick={() => setEmailOpen((v) => !v)}
+            disabled={loginActive}
+            className="px-3 py-1.5 bg-sky-700 hover:bg-sky-600 disabled:bg-slate-700 rounded-lg text-xs font-semibold"
+            title="Dán email | link hộp thư — app tự gõ email, tự lấy mã OTP trong thư mới nhất"
+          >
+            ✉ Đăng nhập bằng email (OTP)
+          </button>
+          <button
             onClick={() => beginLogin()}
             disabled={loginActive}
             className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 rounded-lg text-xs font-semibold"
@@ -427,7 +480,7 @@ export const AccountsPage: React.FC<{ state: MuseAccountsState }> = ({ state }) 
           { label: 'Tài khoản dùng được', value: `${usableCount}/${accounts.length}` },
           { label: 'Tổng luồng tạo video', value: totalThreads },
           { label: 'Đang chạy', value: `${runningThreads} luồng` },
-          { label: 'Tối đa mỗi tài khoản', value: `${perAccountMax} luồng` },
+          { label: 'Luồng mỗi tài khoản', value: `${perAccountDefault} (tối đa ${perAccountMax})` },
         ].map((s) => (
           <div key={s.label} className="bg-slate-900 border border-slate-800 rounded-xl p-3">
             <div className="text-[11px] text-slate-400">{s.label}</div>
@@ -474,6 +527,65 @@ export const AccountsPage: React.FC<{ state: MuseAccountsState }> = ({ state }) 
         </div>
       )}
       {loginError && <p className="text-xs text-red-400">❌ {loginError}</p>}
+
+      {emailOpen && !batchActive && (
+        <div className="bg-slate-900 border border-sky-900 rounded-xl p-4 space-y-2">
+          <p className="text-[11px] text-slate-400">
+            Mỗi tài khoản 1 dòng: <code>email | link hộp thư</code>. App mở Chrome lần lượt từng tài khoản, tự gõ email,
+            vào link hộp thư lấy <b>mã OTP trong thư mới nhất</b> (chỉ nhận thư đến sau khi bấm gửi mã) rồi gõ mã. Thiếu
+            link thì dùng <code>https://generator.email/&lt;email&gt;</code>. Email trùng tài khoản đã có → đăng nhập lại
+            cho tài khoản đó. Bước nào không tự làm được thì hoàn tất bằng tay trong cửa sổ Chrome.
+          </p>
+          <textarea
+            rows={4}
+            value={emailText}
+            onChange={(e) => setEmailText(e.target.value)}
+            placeholder={'ten1@dishow.net | https://generator.email/ten1@dishow.net\nten2@dishow.net | https://generator.email/ten2@dishow.net'}
+            className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-xs font-mono focus:outline-none focus:border-sky-500"
+          />
+          <button
+            onClick={beginEmailLogin}
+            disabled={!emailText.trim() || loginActive}
+            className="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 disabled:bg-slate-700 rounded-lg text-xs font-semibold"
+          >
+            Đăng nhập các tài khoản
+          </button>
+        </div>
+      )}
+
+      {batch && (
+        <div className={`rounded-xl border p-3.5 space-y-2 ${batchActive ? 'border-sky-700 bg-sky-950/30' : 'border-slate-700 bg-slate-900'}`}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm font-semibold text-white">
+              {batchActive ? '✉ Đang đăng nhập bằng email' : '✉ Đăng nhập bằng email xong'} — {batch.succeeded}/{batch.jobs.length} thành công
+              {batch.failed ? `, ${batch.failed} lỗi / hủy` : ''}
+            </div>
+            {batchActive ? (
+              <button
+                onClick={() => cancelEmailLogin(batch.id).then(() => getEmailLogin(batch.id).then(setBatch))}
+                className="px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded-lg text-xs font-semibold"
+              >
+                Hủy tất cả
+              </button>
+            ) : (
+              <button onClick={() => setBatch(null)} className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs">
+                Đóng
+              </button>
+            )}
+          </div>
+          <div className="space-y-1">
+            {batch.jobs.map((j) => (
+              <div key={j.id} className="text-xs flex gap-2">
+                <span className="w-4 shrink-0">
+                  {j.status === 'succeeded' ? '✅' : j.status === 'failed' ? '❌' : j.status === 'cancelled' ? '⏹' : '⏳'}
+                </span>
+                <span className="font-mono text-slate-300 shrink-0">{j.email || j.label}</span>
+                <span className="text-slate-400 truncate">{j.message}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {bulkOpen && (
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">

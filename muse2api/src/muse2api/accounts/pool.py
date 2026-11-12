@@ -192,10 +192,13 @@ class AccountPool:
         max_concurrency: int = 1,
         cooldown: float = 120.0,
         acquire_timeout: float = 60.0,
+        default_concurrency: int | None = None,
     ) -> None:
         self.store = store
         self.strategy: Strategy = STRATEGIES[strategy]()
         self.max_concurrency = max(1, max_concurrency)
+        # [MuseStudio patch] luồng của tài khoản chưa đặt riêng (None = bằng trần, như bản gốc)
+        self.default_concurrency = max(1, min(default_concurrency or self.max_concurrency, self.max_concurrency))
         self.cooldown = cooldown
         self.acquire_timeout = acquire_timeout
         self._accounts: dict[str, Account] = {}
@@ -247,9 +250,9 @@ class AccountPool:
     # meta["max_concurrency"]; never above the global limit (= browser tabs per account).
     def limit_of(self, acc: Account) -> int:
         try:
-            own = int(acc.meta.get("max_concurrency") or self.max_concurrency)
+            own = int(acc.meta.get("max_concurrency") or self.default_concurrency)
         except (TypeError, ValueError):
-            own = self.max_concurrency
+            own = self.default_concurrency
         return max(1, min(own, self.max_concurrency))
 
     def inflight_of(self, account_id: str) -> int:
