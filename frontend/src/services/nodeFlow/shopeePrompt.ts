@@ -38,7 +38,6 @@ const removeBlock = (prompt: string): string => {
 
 export const buildBlock = (p: LinkProductInfo): string => {
   const lines = [`${BLOCK_START}: ${p.url}]`, `Tên sản phẩm: ${p.name}`];
-  if (p.price) lines.push(`Giá: ${p.price}`);
   if (p.brand) lines.push(`Thương hiệu: ${p.brand}`);
   const hl = (p.highlights || []).map((x) => x.trim()).filter(Boolean);
   if (hl.length) lines.push(`Điểm nổi bật: ${hl.join('; ')}`);
@@ -104,7 +103,8 @@ export const productIdeaInstruction = (title: string, price: string, brand: stri
   '"highlights": ["3-5 điểm nổi bật / tính năng thật của sản phẩm, mỗi ý ≤ 12 từ"], ' +
   '"idea": "1-2 câu ý tưởng video phù hợp YÊU CẦU CÓ SẴN bên dưới (không thay đổi kiểu kịch bản / số cảnh người dùng đã ghi)", ' +
   '"visual": "mô tả ngoại hình sản phẩm (hình dáng, màu, chất liệu, bao bì) để giữ đúng sản phẩm khi tạo video, ≤ 40 từ"}\n' +
-  'Chỉ dùng thông tin có trên trang, không bịa thông số. Bỏ qua chữ khuyến mãi / mã giảm giá / phí ship.\n\n' +
-  `Tên trên trang: ${title}\nGiá: ${price || '(không rõ)'}\nThương hiệu: ${brand || '(không rõ)'}\n` +
+  'Chỉ dùng thông tin có trên trang, không bịa thông số. Bỏ qua chữ khuyến mãi / mã giảm giá / phí ship. ' +
+  'KHÔNG nhắc GIÁ / số tiền ở bất kỳ trường nào (giá có thể thay đổi sau khi đăng video).\n\n' +
+  `Tên trên trang: ${title}${price ? '' : ''}\nThương hiệu: ${brand || '(không rõ)'}\n` +
   `Mô tả: ${description.slice(0, 1500)}\nChữ trên trang (trích): ${pageText.slice(0, 1500)}\n\n` +
   `YÊU CẦU VIDEO CÓ SẴN CỦA NGƯỜI DÙNG:\n${prompt.slice(0, 1200) || '(trống)'}`;

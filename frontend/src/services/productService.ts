@@ -1,7 +1,7 @@
 // Sản phẩm (đọc từ link Shopee/TikTok hoặc tự nhập) và AI viết kịch bản theo sản phẩm.
 import { GATEWAY_URL, MUSE_API_KEY } from '../config/appConfig';
 import { ScriptTemplate } from '../data/scriptTemplates';
-import { PRODUCT_PHYSICS_RULE } from '../data/productPhysics';
+import { NO_PRICE_RULE, PRODUCT_PHYSICS_RULE } from '../data/productPhysics';
 
 export interface ProductInfo {
   url: string;
@@ -128,8 +128,31 @@ const call = async (path: string, init: RequestInit = {}) => {
   return res.json();
 };
 
-export const scrapeProductLink = (url: string): Promise<ScrapeResult> =>
-  call('/studio/product/scrape', { method: 'POST', body: JSON.stringify({ url }) });
+/**
+ * KHÔNG lấy giá: nhà cung cấp đổi giá sau khi video đã đăng → video nêu giá cũ vi phạm chính sách sàn.
+ * Bỏ dòng / cụm chữ chứa số tiền (₫, đ, VND, k, triệu, "giá …") khỏi tên, mô tả, chữ trang.
+ */
+const PRICE_RE =
+  /(?:(?:giá|chỉ|còn|chỉ còn|giảm còn)(?:\s*(?:chỉ|bán|gốc|sốc|ưu đãi|khuyến mãi|niêm yết|cũ|mới|còn))?\s*[:\-–]?\s*)?(?:₫\s*\d[\d.,]*|\d[\d.,]*\s*(?:₫|đồng|vnđ|vnd|đ|k|nghìn|ngàn|triệu|tr)(?![\p{L}\p{N}]))(?:\s*[-–~]\s*(?:₫\s*\d[\d.,]*|\d[\d.,]*\s*(?:₫|đồng|vnđ|vnd|đ|k|nghìn|ngàn|triệu|tr)(?![\p{L}\p{N}])))?/giu;
+export const stripPrices = (text: string): string =>
+  String(text || '')
+    .split('\n')
+    .filter((line) => !/^\s*(?:giá|price|đơn giá|giá bán|giá gốc|giá khuyến mãi)\s*[:\-–]/i.test(line))
+    .map((line) =>
+      line
+        .replace(PRICE_RE, '')
+        .replace(/\(\s*\)|\[\s*\]/g, '')
+        .replace(/[ \t]{2,}/g, ' ')
+        .replace(/\s+([,.;:])/g, '$1')
+        .replace(/^[\s,;:\-–]+|[\s,;:\-–]+$/g, '')
+    )
+    .join('\n')
+    .trim();
+
+export const scrapeProductLink = async (url: string): Promise<ScrapeResult> => {
+  const r: ScrapeResult = await call('/studio/product/scrape', { method: 'POST', body: JSON.stringify({ url }) });
+  return { ...r, price: '', title: stripPrices(r.title), description: stripPrices(r.description), text: stripPrices(r.text) };
+};
 
 export const openShopLogin = (site: 'shopee' | 'tiktok'): Promise<{ open: boolean }> =>
   call('/studio/product/login', { method: 'POST', body: JSON.stringify({ site }) });
@@ -176,6 +199,25 @@ const balancedObjectAt = (text: string, start: number): string | null => {
  * (do giao diện muse.ai cập nhật chữ dần) trước bản hoàn chỉnh, nên thử mọi điểm bắt đầu
  * và giữ bản HỢP LỆ CUỐI CÙNG có mảng "scenes".
  */
+/** Object JSON hợp lệ CUỐI CÙNG trong câu trả lời AI (bỏ ```json, chữ thừa); null nếu không có. Dùng cho JSON không phải kịch bản. */
+export const extractJsonObject = (text: string): any => {
+  let found: any = null;
+  for (let i = text.indexOf('{'); i >= 0; i = text.indexOf('{', i + 1)) {
+    const candidate = balancedObjectAt(text, i);
+    if (!candidate) continue;
+    try {
+      const obj = JSON.parse(candidate);
+      if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+        found = obj;
+        i += candidate.length - 1;
+      }
+    } catch {
+      /* thử điểm bắt đầu tiếp theo */
+    }
+  }
+  return found;
+};
+
 export const extractJson = (text: string): any => {
   let found: any = null;
   for (let i = text.indexOf('{'); i >= 0; i = text.indexOf('{', i + 1)) {
@@ -216,9 +258,8 @@ export const generateScript = async (req: ScriptRequest): Promise<GeneratedScrip
   const productBlock = [
     p.name && `Tên sản phẩm: ${p.name}`,
     p.brand && `Thương hiệu: ${p.brand}`,
-    p.price && `Giá: ${p.price}`,
-    p.description && `Mô tả từ trang bán: ${p.description.slice(0, 1500)}`,
-    p.pageText && `Thông tin thêm trên trang (có thể lẫn chữ thừa): ${p.pageText.slice(0, 2000)}`,
+    p.description && `Mô tả từ trang bán: ${stripPrices(p.description).slice(0, 1500)}`,
+    p.pageText && `Thông tin thêm trên trang (có thể lẫn chữ thừa): ${stripPrices(p.pageText).slice(0, 2000)}`,
   ]
     .filter(Boolean)
     .join('\n');
@@ -253,6 +294,7 @@ YÊU CẦU:
 - "prompt": mô tả hình ảnh cho AI tạo video của cảnh đó (tiếng Việt): bối cảnh, hành động của nhân vật với sản phẩm, góc máy, ánh sáng. Luôn gọi đúng tên/loại sản phẩm và mô tả đúng ngoại hình như trong ảnh.
 - "product.visual": 1 câu mô tả ngoại hình sản phẩm thật trong ảnh (loại, màu, chất liệu, chi tiết nổi bật).
 - ${PRODUCT_PHYSICS_RULE}
+- ${NO_PRICE_RULE}
 
 CHỈ trả về JSON hợp lệ, không giải thích, đúng dạng:
 {"product":{"name":"...","category":"...","key_points":["..."],"visual":"..."},"scenes":[{"title":"...","voiceover":"...","prompt":"..."}]}`;

@@ -49,16 +49,17 @@ import {
   portKind,
   validateWorkflow,
 } from '../services/nodeFlow/definitions';
-import { RunMode, aiText, runFlow } from '../services/nodeFlow/runtime';
+import { RunMode, runFlow } from '../services/nodeFlow/runtime';
 import { HndFlowTemplate, buildTemplatePackage, exportFlowJson, loadHndFlowTemplates, parseFlowJson } from '../services/nodeFlow/flowIO';
 import { APP_VERSION } from '../services/templateCatalog';
 import { cutFrame } from '../services/libraryService';
 import { urlToResizedDataUrl } from '../utils/image';
-import { extractJson, getScrapeStatus, getShopLoginState, openShopLogin, scrapeProductLink } from '../services/productService';
-import { mergeProductIntoPrompt, productIdeaInstruction, shortProductName } from '../services/nodeFlow/shopeePrompt';
+import { getShopLoginState, openShopLogin } from '../services/productService';
+import { mergeProductIntoPrompt } from '../services/nodeFlow/shopeePrompt';
 import { newLibraryId } from '../types/library';
 import { GATEWAY_URL } from '../config/appConfig';
 import { backdropById } from '../data/backdropPresets';
+import { readProductFromLink } from '../services/productFromLink';
 
 interface FlowLibrary {
   workflows: FlowWorkflow[];
@@ -262,70 +263,39 @@ const ProductLinkField: React.FC<{ d: FlowNodeData; set: (p: Partial<FlowNodeDat
     if (!/^https?:\/\//i.test(link)) return setNote('Dán link sản phẩm Shopee / TikTok Shop (bắt đầu bằng https://).');
     setBusy(true);
     setNeedsLogin('');
-    setNote('Đang mở trang sản phẩm (15-40 giây)…');
-    const timer = window.setInterval(async () => {
-      try {
-        const st = await getScrapeStatus();
-        if (st.busy && st.message) setNote(st.message);
-      } catch {
-        /* Gateway cũ chưa có /status */
-      }
-    }, 1500);
     try {
-      const r = await scrapeProductLink(link);
-      if (r.needs_login && r.site) setNeedsLogin(r.site);
-      if (!r.title && !r.images.length) {
-        setNote(`⚠️ ${r.warning || 'Không đọc được trang sản phẩm.'}`);
-        return;
-      }
-      setNote('Đã đọc trang — AI đang rút điểm nổi bật & ý tưởng…');
       const prompt = String(d.prompt || '');
-      let ai: any = {};
-      try {
-        const img = r.images[0] ? [await urlToResizedDataUrl(r.images[0].url, 1024)] : [];
-        const res = await aiText(productIdeaInstruction(r.title, r.price, r.brand, r.description, r.text, prompt), img);
-        ai = extractJson(res.text) || {};
-      } catch {
-        /* AI lỗi: vẫn dùng thông tin đọc được từ trang */
-      }
-      const name = String(ai.short_name || '').trim().slice(0, 60) || shortProductName(r.title) || 'Sản phẩm';
-      const highlights: string[] = Array.isArray(ai.highlights) ? ai.highlights.map(String).slice(0, 5) : [];
+      const r = await readProductFromLink(link, { onStatus: setNote, prompt });
+      if (r.needsLogin) setNeedsLogin(r.needsLogin);
+      const { name, images, highlights } = r;
       // Lưu vào thư viện (cập nhật nếu đã có cùng link / cùng tên) → @@<tên> gửi kèm ảnh + mô tả khi render
-      const images: string[] = [];
-      for (const im of r.images.slice(0, 3)) {
-        try {
-          images.push(await urlToResizedDataUrl(im.url, 1280));
-        } catch {
-          /* bỏ ảnh lỗi */
-        }
-      }
       const old = lib.products.find((p) => (p.url && p.url === r.url) || p.name === name);
       lib.saveProduct?.({
         id: old?.id || newLibraryId('prod'),
         name,
-        price: r.price || old?.price || '',
-        url: r.url || link,
-        description: (highlights.length ? `${highlights.join('; ')}. ` : '') + (r.description || '').slice(0, 800),
-        visual: String(ai.visual || old?.visual || ''),
+        price: old?.price || '',
+        url: r.url,
+        description: r.description,
+        visual: r.visual || old?.visual || '',
         images: images.length ? images : old?.images || [],
         createdAt: old?.createdAt || Date.now(),
       });
       const merged = mergeProductIntoPrompt(
         prompt,
-        { name, url: r.url || link, price: r.price, brand: r.brand, highlights, idea: String(ai.idea || '') },
+        { name, url: r.url, brand: r.brand, highlights, idea: r.idea },
         lib.products.map((p) => p.name),
         String(d.shopeeProductName || '')
       );
       set({ prompt: merged, shopeeUrl: link, shopeeProductName: name });
       setNote(
-        `✅ ${name}${r.price ? ` — ${r.price}` : ''}: đã thêm vào prompt` +
+        `✅ ${name}: đã thêm vào prompt` +
           (lib.saveProduct ? ` và lưu vào thư viện sản phẩm (${images.length} ảnh)` : '') +
           (r.warning ? ` · ⚠️ ${r.warning}` : '')
       );
     } catch (err: any) {
-      setNote(`❌ ${err.message}`);
+      if (err?.needsLogin) setNeedsLogin(err.needsLogin);
+      setNote(`${err?.needsLogin ? '⚠️' : '❌'} ${err.message}`);
     } finally {
-      window.clearInterval(timer);
       setBusy(false);
     }
   };
@@ -397,7 +367,7 @@ export const MentionTextarea: React.FC<{ value: string; onChange: (v: string) =>
   const items = !q
     ? []
     : (q.kind === '@@'
-        ? lib.products.map((p) => ({ id: p.id, name: p.name, sub: p.price || p.description, img: p.images[0] }))
+        ? lib.products.map((p) => ({ id: p.id, name: p.name, sub: p.description, img: p.images[0] }))
         : lib.characters.map((c) => ({ id: c.id, name: c.name, sub: c.description, img: c.images[0] }))
       )
         .filter((x) => !q.text || x.name.toLowerCase().includes(q.text.toLowerCase()))

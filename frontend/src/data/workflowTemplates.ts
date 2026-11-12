@@ -187,7 +187,7 @@ export const BUILTIN_WORKFLOWS: WorkflowTemplate[] = [
     backdrop: { id: 'sieu-thi-dien-may', density: 'full', extras: true },
     extraNote:
       'Bối cảnh cửa hàng lớn sáng đèn, phía sau là kệ trưng bày đầy chính sản phẩm này. Cảnh 1 bê hộp ra quầy, cảnh 2 bóc hộp lấy sản phẩm, ' +
-      'cảnh 3 bật / dùng thử ngay tại quầy, cảnh 4 so giá cửa hàng với giá online rồi chỉ giỏ hàng góc trái. Lời thoại 20-25 từ mỗi cảnh.',
+      'cảnh 3 bật / dùng thử ngay tại quầy, cảnh 4 khen đặt online tiện, giao tận nhà, xem giá ở giỏ hàng góc trái (KHÔNG nêu con số giá). Lời thoại 20-25 từ mỗi cảnh.',
   },
   {
     ...base,

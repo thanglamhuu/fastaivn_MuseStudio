@@ -37,7 +37,7 @@ import {
   validateWorkflow,
 } from './definitions';
 import { BACKDROP_PRESETS, backdropById } from '../../data/backdropPresets';
-import { PRODUCT_PHYSICS_RULE } from '../../data/productPhysics';
+import { NO_PRICE_RULE, PRODUCT_PHYSICS_RULE } from '../../data/productPhysics';
 
 export const STOPPED_MSG = '⏹ Đã dừng theo yêu cầu';
 
@@ -257,6 +257,7 @@ const scriptInstruction = (idea: string, count: number, firstIsChar: boolean, se
     `KHUNG KỊCH TÍNH BẮT BUỘC (liền mạch giữa các cảnh, đầu cảnh sau nối tiếp tư thế cuối cảnh trước):\n${spine}\n` +
     '- Khóa cố định 1 bối cảnh xuyên suốt, giữ đồng nhất ngoại hình nhân vật (khuôn mặt, tóc, trang phục) ở MỌI cảnh.\n' +
     `- ${PRODUCT_PHYSICS_RULE}\n` +
+    `- ${NO_PRICE_RULE}\n` +
     `- Mỗi cảnh đúng ${seconds} giây, chia 3 nhịp 0-${a}s / ${a}-${b}s / ${b}-${seconds}s; lời thoại tiếng Việt tự nhiên ${syllables} âm tiết / cảnh, đặt trong ngoặc kép.\n\n` +
     (firstIsChar && count >= 2
       ? `Viết đúng ${count} đoạn, ngăn cách bằng dòng ---\n- Đoạn 1: prompt ẢNH NHÂN VẬT GỐC (1 người, 1 khung, nền studio sáng) khóa khuôn mặt, tuổi, tóc, trang phục.\n- Đoạn 2..${count}: prompt VIDEO từng cảnh 1..${scenes}.\n`

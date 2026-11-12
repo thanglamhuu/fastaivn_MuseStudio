@@ -10,6 +10,7 @@ import { fileToResizedDataUrl, urlToResizedDataUrl } from '../utils/image';
 import { generatePortrait } from '../services/libraryService';
 import { getStudioSettings, openProjectFolder } from '../services/museBatchService';
 import { GATEWAY_URL } from '../config/appConfig';
+import { LinkProduct, isProductLink, loginShop, readProductFromLink } from '../services/productFromLink';
 import {
   MaintenanceConfig,
   MaintenanceState,
@@ -359,10 +360,78 @@ const emptyProduct = (): StudioProduct => ({
   createdAt: Date.now(),
 });
 
+/** Số ảnh tối đa lấy từ trang sản phẩm khi thêm ở Cài đặt */
+const LINK_MAX_IMAGES = 6;
+
+/** Gộp thông tin đọc từ link vào sản phẩm: ô trống thì điền, overwrite = ghi đè; ảnh mới thêm sau ảnh cũ (bỏ trùng, tối đa 8). */
+const applyLinkProduct = (p: StudioProduct, r: LinkProduct, overwrite: boolean): StudioProduct => {
+  const pick = (cur: string, next: string) => (next && (overwrite || !cur.trim()) ? next : cur);
+  const images = [...p.images, ...r.images.filter((x) => !p.images.includes(x))].slice(0, 8);
+  return {
+    ...p,
+    name: pick(p.name, r.name),
+    url: r.url || p.url,
+    description: pick(p.description, r.description),
+    visual: pick(p.visual, r.visual),
+    images,
+  };
+};
+
 const ProductsSection: React.FC<{ lib: StudioLibraryState }> = ({ lib }) => {
   const { products, setProducts } = lib;
   const [selectedId, setSelectedId] = useState<string | null>(products[0]?.id ?? null);
   const selected = products.find((p) => p.id === selectedId);
+  // Đọc link Shopee / TikTok Shop (dùng chung cho "Thêm từ link" và "Lấy thông tin" của sản phẩm đang sửa)
+  const [newLink, setNewLink] = useState('');
+  const [linkBusy, setLinkBusy] = useState<'' | 'new' | 'fill'>('');
+  const [linkNote, setLinkNote] = useState('');
+  const [needsLogin, setNeedsLogin] = useState<'' | 'shopee' | 'tiktok'>('');
+  const readLink = async (link: string, mode: 'new' | 'fill') => {
+    if (!isProductLink(link)) return setLinkNote('Dán link sản phẩm Shopee / TikTok Shop (bắt đầu bằng https://).');
+    setLinkBusy(mode);
+    setNeedsLogin('');
+    try {
+      const r = await readProductFromLink(link, { onStatus: setLinkNote, maxImages: LINK_MAX_IMAGES });
+      if (r.needsLogin) setNeedsLogin(r.needsLogin);
+      const tail = `${r.images.length} ảnh${r.warning ? ` · ⚠️ ${r.warning}` : ''}`;
+      if (mode === 'fill' && selected) {
+        const filled = [selected.name, selected.description, selected.visual].some((x) => x.trim());
+        const overwrite =
+          filled && confirm(`Ghi đè tên / giá / mô tả / ngoại hình đang có của "${selected.name || 'sản phẩm'}" bằng thông tin từ link?\n\nOK = ghi đè · Hủy = chỉ điền ô còn trống (ảnh mới luôn được thêm vào sau ảnh cũ)`);
+        const id = selected.id;
+        setProducts((prev) => prev.map((p) => (p.id === id ? applyLinkProduct(p, r, overwrite) : p)));
+        setLinkNote(`✅ Đã cập nhật "${r.name}" từ link (${tail}).`);
+      } else {
+        // Đã có sản phẩm cùng link → cập nhật sản phẩm đó thay vì thêm trùng
+        const old = products.find((p) => p.url && (p.url === r.url || p.url === link.trim()));
+        if (old) {
+          setProducts((prev) => prev.map((p) => (p.id === old.id ? applyLinkProduct(p, r, true) : p)));
+          setSelectedId(old.id);
+          setLinkNote(`✅ Sản phẩm "${old.name}" đã có trong thư viện — đã cập nhật lại từ link (${tail}).`);
+        } else {
+          const item = applyLinkProduct(emptyProduct(), r, true);
+          setProducts((prev) => [...prev, item]);
+          setSelectedId(item.id);
+          setLinkNote(`✅ Đã thêm "${r.name}" vào thư viện (${tail}). Xem lại ảnh / mô tả ở khung bên phải.`);
+        }
+        setNewLink('');
+      }
+    } catch (err: any) {
+      if (err?.needsLogin) setNeedsLogin(err.needsLogin);
+      setLinkNote(`${err?.needsLogin ? '⚠️' : '❌'} ${err.message}`);
+    } finally {
+      setLinkBusy('');
+    }
+  };
+  const login = async () => {
+    if (!needsLogin) return;
+    try {
+      await loginShop(needsLogin, () => setNeedsLogin(''));
+      setLinkNote(`Đăng nhập ${needsLogin === 'shopee' ? 'Shopee' : 'TikTok'} trong cửa sổ Chrome vừa mở, xong thì ĐÓNG cửa sổ đó rồi lấy thông tin lại.`);
+    } catch (err: any) {
+      setLinkNote(`❌ ${err.message}`);
+    }
+  };
   const update = (patch: Partial<StudioProduct>) =>
     setProducts((prev) => prev.map((p) => (p.id === selectedId ? { ...p, ...patch } : p)));
   const add = () => {
@@ -379,13 +448,35 @@ const ProductsSection: React.FC<{ lib: StudioLibraryState }> = ({ lib }) => {
   return (
     <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
       <div className="xl:col-span-7 space-y-3">
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-slate-400">
-            Sản phẩm đọc từ link Shopee/TikTok ở màn hình tạo video có thể bấm “Lưu vào thư viện”.
+        <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              value={newLink}
+              onChange={(e) => setNewLink(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !linkBusy && newLink.trim() && readLink(newLink, 'new')}
+              placeholder="🔗 Dán link Shopee / TikTok Shop để thêm sản phẩm (tự lấy tên, giá, mô tả, ảnh)"
+              className={`${field} flex-1 min-w-[220px]`}
+            />
+            <button
+              onClick={() => readLink(newLink, 'new')}
+              disabled={!!linkBusy || !newLink.trim()}
+              className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 disabled:bg-slate-700 rounded-lg text-xs font-semibold text-white"
+            >
+              {linkBusy === 'new' ? 'Đang đọc…' : '＋ Thêm từ link'}
+            </button>
+            <button onClick={add} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-semibold">
+              + Thêm thủ công
+            </button>
+          </div>
+          {needsLogin && (
+            <button onClick={login} className="px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-[11px] text-white">
+              🔑 Đăng nhập {needsLogin === 'shopee' ? 'Shopee' : 'TikTok'} để đọc đủ thông tin
+            </button>
+          )}
+          <p className="text-[11px] text-slate-400">
+            {linkNote ||
+              `Gateway mở trang sản phẩm bằng Chrome (15-40 giây), AI rút tên ngắn, điểm nổi bật, ngoại hình; tải tối đa ${LINK_MAX_IMAGES} ảnh. KHÔNG lấy giá (giá đổi sau khi đăng video dễ vi phạm chính sách). Trang đòi captcha thì kéo captcha trong cửa sổ Chrome vừa mở.`}
           </p>
-          <button onClick={add} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-semibold">
-            + Thêm sản phẩm
-          </button>
         </div>
         {products.length === 0 ? (
           <div className="border border-dashed border-slate-800 rounded-xl p-10 text-center text-sm text-slate-500">
@@ -422,9 +513,30 @@ const ProductsSection: React.FC<{ lib: StudioLibraryState }> = ({ lib }) => {
                 placeholder="Tên sản phẩm"
                 className={`${field} col-span-2`}
               />
-              <input value={selected.price} onChange={(e) => update({ price: e.target.value })} placeholder="Giá" className={field} />
+              <input
+                value={selected.price}
+                onChange={(e) => update({ price: e.target.value })}
+                placeholder="Giá (ghi nhớ riêng)"
+                title="Chỉ để bạn ghi nhớ — KHÔNG đưa vào kịch bản / prompt video"
+                className={field}
+              />
             </div>
-            <input value={selected.url} onChange={(e) => update({ url: e.target.value })} placeholder="Link sản phẩm (tùy chọn)" className={field} />
+            <div className="flex gap-2">
+              <input
+                value={selected.url}
+                onChange={(e) => update({ url: e.target.value })}
+                placeholder="Link sản phẩm Shopee / TikTok Shop (tùy chọn)"
+                className={`${field} flex-1`}
+              />
+              <button
+                onClick={() => readLink(selected.url, 'fill')}
+                disabled={!!linkBusy || !isProductLink(selected.url)}
+                title="Đọc trang sản phẩm: điền tên, giá, mô tả, ngoại hình và thêm ảnh"
+                className="shrink-0 px-3 py-1.5 bg-orange-600 hover:bg-orange-500 disabled:bg-slate-700 rounded-lg text-xs font-semibold text-white"
+              >
+                {linkBusy === 'fill' ? 'Đang đọc…' : '🔗 Lấy thông tin'}
+              </button>
+            </div>
             <textarea
               rows={3}
               value={selected.description}

@@ -1,3 +1,8 @@
+/** Không nêu giá: nhà cung cấp đổi giá sau khi video đăng → video nêu giá cũ vi phạm chính sách sàn. */
+export const NO_PRICE_RULE =
+  'KHÔNG nêu GIÁ hay bất kỳ con số tiền nào (đ, k, nghìn, triệu, % giảm giá) trong lời thoại, chữ trên hình hay mô tả; ' +
+  'muốn nói về giá chỉ dùng cách nói chung chung không con số (vd. "giá tốt", "giá xưởng", "xem giá ở giỏ hàng").';
+
 // Luật CỨNG / MỀM cho AI viết kịch bản (rút từ app review tại xưởng 1.12): tự phân loại sản phẩm để mô tả thao tác
 // đúng vật lý — giảm lỗi video làm sản phẩm cứng bị méo / bóp, hoặc sản phẩm mềm cứng đơ như nhựa.
 export const PRODUCT_PHYSICS_RULE =
