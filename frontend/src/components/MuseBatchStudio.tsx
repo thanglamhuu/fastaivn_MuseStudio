@@ -760,39 +760,10 @@ export const MuseBatchStudio: React.FC<{
               </button>
             </div>
 
-            <ProductScriptPanel
-              product={product}
-              setProduct={setProduct}
-              characters={characters
-                .filter((c) => c.name.trim())
-                .map((c) => ({
-                  name: c.name.trim(),
-                  description: c.description,
-                  voice: resolveVoice(c.voicePresetId, c.museVoiceOverride, museVoiceNames).preset?.label,
-                }))}
-              references={references}
-              secondsPerScene={config.duration}
-              onUseImage={(dataUrl, role, name) =>
-                setReferences((prev) => [
-                  ...prev.filter((r) => r.role !== role),
-                  { id: `${role}_${Date.now()}`, role, dataUrl, name },
-                ])
-              }
-              onApplyScenes={(lines) => setBatchPromptText(lines.join('\n'))}
-            />
-            {product.name.trim() && !products.some((p) => p.name === product.name.trim()) && (
-              <button
-                onClick={saveProductToLibrary}
-                className="w-full -mt-2 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs text-slate-300"
-              >
-                💾 Lưu "{product.name.trim()}" vào thư viện sản phẩm
-              </button>
-            )}
-
             {/* Khối 2: Ảnh tham chiếu */}
             <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
               <h3 className="text-sm font-bold text-indigo-400">
-                2. Ảnh Tham Chiếu Cố Định (Nhân Vật • Trang Phục • Sản Phẩm)
+                2. Tham Chiếu (Nhân Vật • Trang Phục • Sản Phẩm)
               </h3>
 
               <div className="grid grid-cols-2 gap-2">
@@ -1019,10 +990,40 @@ export const MuseBatchStudio: React.FC<{
               )}
             </div>
 
-            {/* Khối 3: Danh sách Prompt */}
+            {/* Khối 3: Sản phẩm & Kịch bản (đọc link, AI viết kịch bản → điền danh sách prompt ở khối 4) */}
+            <ProductScriptPanel
+              product={product}
+              setProduct={setProduct}
+              characters={characters
+                .filter((c) => c.name.trim())
+                .map((c) => ({
+                  name: c.name.trim(),
+                  description: c.description,
+                  voice: resolveVoice(c.voicePresetId, c.museVoiceOverride, museVoiceNames).preset?.label,
+                }))}
+              references={references}
+              secondsPerScene={config.duration}
+              onUseImage={(dataUrl, role, name) =>
+                setReferences((prev) => [
+                  ...prev.filter((r) => r.role !== role),
+                  { id: `${role}_${Date.now()}`, role, dataUrl, name },
+                ])
+              }
+              onApplyScenes={(lines) => setBatchPromptText(lines.join('\n'))}
+            />
+            {product.name.trim() && !products.some((p) => p.name === product.name.trim()) && (
+              <button
+                onClick={saveProductToLibrary}
+                className="w-full -mt-2 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs text-slate-300"
+              >
+                💾 Lưu "{product.name.trim()}" vào thư viện sản phẩm
+              </button>
+            )}
+
+            {/* Khối 4: Danh sách Prompt */}
             <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-indigo-400">3. Danh sách Prompt Hàng Loạt (Mỗi dòng = 1 Video)</h3>
+                <h3 className="text-sm font-bold text-indigo-400">4. Danh sách Prompt Hàng Loạt (Mỗi dòng = 1 Video)</h3>
                 <span className="text-xs text-slate-400">
                   {batchPromptText.split('\n').filter((l) => l.trim()).length} cảnh
                 </span>

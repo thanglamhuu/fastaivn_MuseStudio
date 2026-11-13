@@ -55,3 +55,18 @@ def test_description_from_page_text():
 def test_tiktok_price_split_over_lines():
     # Chữ trang TikTok Shop thật: "₫" và số tiền nằm ở 2 dòng, giá gốc gạch ngang ở dòng sau
     assert sp.guess_price("-45%\n₫\n108.000\n198.000₫\nSách") == "108.000 ₫"
+
+
+def test_gate_url_is_unwrapped_to_the_product_link():
+    product = "https://shopee.vn/Thanh-xa-don-i.1429608147.48514676412"
+    # link sản phẩm bình thường: giữ nguyên
+    assert sp.unwrap_gate_url(product) == product
+    # trang xác minh có next=<link gốc>: lấy lại link gốc
+    gate = "https://shopee.vn/verify/captcha?anti_bot_tracking_id=abc&next=" + sp.urllib.parse.quote(product, safe="")
+    assert sp.unwrap_gate_url(gate) == product
+    # next là đường dẫn tương đối
+    assert sp.unwrap_gate_url("https://shopee.vn/buyer/login?next=%2Fproduct%2F1%2F2") == "https://shopee.vn/product/1/2"
+    # trang xác minh không kèm link gốc (đã hết hạn): không dùng được
+    assert sp.unwrap_gate_url("https://shopee.vn/verify/captcha?anti_bot_tracking_id=abc") == ""
+    # next lại trỏ về trang xác minh: không dùng
+    assert sp.unwrap_gate_url("https://shopee.vn/verify/captcha?next=https%3A%2F%2Fshopee.vn%2Fverify%2Ftraffic") == ""

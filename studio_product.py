@@ -277,6 +277,39 @@ def _is_gate(url: str) -> bool:
     return any(m in (url or "").lower() for m in _GATE_MARKERS)
 
 
+_NEXT_PARAMS = ("next", "redirect", "redirect_url", "return_url", "returnurl", "continue", "url")
+
+
+def unwrap_gate_url(url: str) -> str:
+    """Link dán vào là TRANG XÁC MINH / ĐĂNG NHẬP của sàn (vd. shopee.vn/verify/captcha?...) chứ không phải link sản phẩm.
+
+    Trang xác minh chỉ sống vài phút: mở lại sẽ báo "Lỗi hết thời gian". Nếu URL có tham số trỏ về trang gốc (next=...)
+    thì lấy link đó; không thì trả "" (người dùng phải dán lại link sản phẩm).
+    """
+    if not _is_gate(url):
+        return url
+    query = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
+    for key in _NEXT_PARAMS:
+        for value in query.get(key, []):
+            target = urllib.parse.unquote(value)
+            if target.startswith("/"):
+                target = urllib.parse.urljoin(url, target)
+            if target.startswith("http") and not _is_gate(target):
+                return target
+    return ""
+
+
+# Trang xác minh đã hết hạn / báo lỗi (Shopee: "Lỗi hết thời gian — Xác minh đã hết thời gian. Hãy thử lại sau.")
+_GATE_EXPIRED_HINTS = ("hết thời gian", "đã hết hạn", "timeout error", "verification timed out", "session expired")
+
+
+async def _gate_expired(cdp: CDPSession) -> bool:
+    with contextlib.suppress(Exception):
+        text = str(await cdp.evaluate("(document.body && document.body.innerText || '').slice(0, 600)", timeout=10) or "")
+        return any(h in text.lower() for h in _GATE_EXPIRED_HINTS)
+    return False
+
+
 async def _current_url(cdp: CDPSession) -> str:
     return str(await cdp.evaluate("location.href", timeout=10) or "")
 
@@ -361,6 +394,7 @@ async def _open_and_extract_locked(url: str, data_dir: Path, chromium_path: str)
             _set_status("Trang bán hàng yêu cầu xác minh: hãy đăng nhập / kéo captcha trong cửa sổ Chrome "
                         "vừa hiện. Xong app sẽ tự đọc tiếp (chờ tối đa 4 phút).", waiting_user=True)
             deadline = asyncio.get_running_loop().time() + USER_VERIFY_TIMEOUT_S
+            reopened = 0
             while asyncio.get_running_loop().time() < deadline:
                 await asyncio.sleep(1.5)
                 if proc.returncode is not None:
@@ -369,6 +403,17 @@ async def _open_and_extract_locked(url: str, data_dir: Path, chromium_path: str)
                     current = await _current_url(cdp)
                 if not _is_gate(current):
                     break
+                # Trang xác minh báo "Lỗi hết thời gian": mở lại link sản phẩm để sàn cấp captcha MỚI (tối đa 3 lần)
+                if reopened < 3 and await _gate_expired(cdp):
+                    reopened += 1
+                    _set_status(f"Trang xác minh đã hết hạn — đang mở lại link sản phẩm để lấy captcha mới (lần {reopened})...",
+                                waiting_user=True)
+                    with contextlib.suppress(Exception):
+                        await cdp.send("Page.navigate", {"url": url}, timeout=30)
+                        await _wait_loaded(cdp)
+                    await asyncio.sleep(4)
+                    _set_status("Trang bán hàng yêu cầu xác minh: hãy đăng nhập / kéo captcha trong cửa sổ Chrome "
+                                "vừa hiện. Xong app sẽ tự đọc tiếp (chờ tối đa 4 phút).", waiting_user=True)
             else:
                 break  # hết thời gian chờ: đọc trang hiện tại (sẽ báo needs_login)
             _set_status("Đã qua bước xác minh, đang mở lại sản phẩm...")
@@ -448,6 +493,12 @@ async def scrape_product(body: ScrapeRequest, request: Request) -> dict:
     if not m:
         raise InvalidRequest("Link không hợp lệ (cần bắt đầu bằng http:// hoặc https://)")
     url = m.group(0).rstrip(").,;")
+    # Link dán vào là trang xác minh / đăng nhập (do lần đọc trước lưu nhầm) → lấy lại link gốc, không có thì báo rõ
+    original = unwrap_gate_url(url)
+    if not original:
+        raise InvalidRequest("Link này là TRANG XÁC MINH / ĐĂNG NHẬP của sàn (đã hết hạn), không phải link sản phẩm. "
+                             "Hãy dán lại link sản phẩm gốc (vd. https://shopee.vn/...-i.123.456 hoặc link chia sẻ).")
+    url = original
     svc = request.app.state.services
     data = await _open_and_extract(url, Path(svc.settings.data_dir), svc.settings.chromium_path)
     images = await _download_images(data.get("images") or [], data.get("url") or url, svc,
@@ -464,9 +515,12 @@ async def scrape_product(body: ScrapeRequest, request: Request) -> dict:
                    f"{site.capitalize() or 'trang bán'}' một lần rồi đọc lại link, hoặc dùng 'Tự nhập SP'.")
     elif not images:
         warning = "Không tìm thấy ảnh sản phẩm trên trang. Có thể tải ảnh lên thủ công."
+    # Còn kẹt ở trang xác minh / đăng nhập thì KHÔNG trả URL trang đó (giao diện lưu lại làm link sản phẩm → lần sau
+    # mở thẳng trang xác minh đã hết hạn): giữ link người dùng dán
+    page_url = data.get("url") or url
     return {
-        "url": data.get("url") or url,
-        "title": title,
+        "url": url if _is_gate(page_url) else page_url,
+        "title": "" if _is_gate(page_url) and not images else title,
         # Không có giá trong JSON-LD / thẻ meta thì dò giá dạng ₫ trong chữ trên trang
         "price": data.get("price") or guess_price(data.get("text") or ""),
         "brand": data.get("brand") or "",

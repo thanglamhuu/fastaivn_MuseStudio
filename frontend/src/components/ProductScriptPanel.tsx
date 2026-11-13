@@ -201,7 +201,7 @@ export const ProductScriptPanel: React.FC<{
   return (
     <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-4">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-bold text-indigo-400">0. Sản phẩm & Kịch bản</h3>
+        <h3 className="text-sm font-bold text-indigo-400">3. Sản phẩm & Kịch bản</h3>
         {(product.name || product.images.length > 0) && (
           <button
             onClick={() => {
