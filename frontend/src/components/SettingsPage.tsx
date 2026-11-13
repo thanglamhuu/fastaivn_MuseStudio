@@ -12,6 +12,7 @@ import { getStudioSettings, openProjectFolder } from '../services/museBatchServi
 import { GATEWAY_URL } from '../config/appConfig';
 import { LinkProduct, isProductLink, loginShop, readProductFromLink } from '../services/productFromLink';
 import { isolateProductUnit } from '../services/productIsolate';
+import { ProductImageTool } from './ProductImageTool';
 import {
   MaintenanceConfig,
   MaintenanceState,
@@ -33,6 +34,9 @@ const readImages = async (files: FileList | null) =>
 // ---------------------------------------------------------------------------
 // Thẻ 9:16 dùng chung cho nhân vật và sản phẩm
 // ---------------------------------------------------------------------------
+/** Gửi kèm ô phong cách khi chọn Hoạt hình 3D — Gateway thấy cụm "3D CGI animated" thì đổi hẳn sang khung prompt hoạt hình */
+const PORTRAIT_3D_STYLE = '3D CGI animated Pixar / Disney style character, head to knees, whole outfit visible, NOT photorealistic.';
+
 const PortraitCard: React.FC<{
   image?: string;
   title: string;
@@ -154,6 +158,8 @@ const CharactersSection: React.FC<{ lib: StudioLibraryState }> = ({ lib }) => {
   // AI tạo chân dung: các ảnh gợi ý (URL trên Gateway, đã nằm trong Thư viện media)
   const [portraits, setPortraits] = useState<string[]>([]);
   const [portraitStyle, setPortraitStyle] = useState('');
+  /** Kiểu vẽ chân dung: người thật, hoặc nhân vật hoạt hình 3D (dùng cho mẫu Phim 3D Chuyện Đời) */
+  const [portrait3d, setPortrait3d] = useState(false);
   const [portraitBusy, setPortraitBusy] = useState(false);
   useEffect(() => setPortraits([]), [selectedId]);
 
@@ -165,7 +171,7 @@ const CharactersSection: React.FC<{ lib: StudioLibraryState }> = ({ lib }) => {
       const res = await generatePortrait({
         name: selected.name,
         description: selected.description,
-        style: portraitStyle,
+        style: [portrait3d ? PORTRAIT_3D_STYLE : '', portraitStyle].filter(Boolean).join(' '),
         n: 2,
         // Đã có ảnh mặt: tạo thêm ảnh mới giữ đúng người đó
         reference: selected.images[0],
@@ -256,6 +262,15 @@ const CharactersSection: React.FC<{ lib: StudioLibraryState }> = ({ lib }) => {
             <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3 space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] font-semibold text-slate-200">🎨 AI tạo chân dung</span>
+                <select
+                  value={portrait3d ? '3d' : ''}
+                  onChange={(e) => setPortrait3d(e.target.value === '3d')}
+                  title="Hoạt hình 3D: vẽ nhân vật kiểu Pixar / Disney, thấy cả trang phục — dùng cho mẫu Phim 3D Chuyện Đời"
+                  className={`${field} w-auto`}
+                >
+                  <option value="">Người thật</option>
+                  <option value="3d">Hoạt hình 3D (Pixar / Disney)</option>
+                </select>
                 <input
                   value={portraitStyle}
                   onChange={(e) => setPortraitStyle(e.target.value)}
@@ -450,6 +465,9 @@ const ProductsSection: React.FC<{ lib: StudioLibraryState }> = ({ lib }) => {
       setIsolating(false);
     }
   };
+  // 🛠 Cắt · nâng nét · AI mô tả chi tiết ảnh chính → ảnh mới làm ảnh chính (ảnh cũ giữ phía sau), mô tả vào ô Ngoại hình
+  const [toolOpen, setToolOpen] = useState(false);
+  useEffect(() => setToolOpen(false), [selectedId]);
   const login = async () => {
     if (!needsLogin) return;
     try {
@@ -594,6 +612,30 @@ const ProductsSection: React.FC<{ lib: StudioLibraryState }> = ({ lib }) => {
                 >
                   {isolating ? '✂️ Đang tách…' : '✂️ Ảnh chính có nhiều mẫu / có người? Tách 1 sản phẩm rõ nhất làm ảnh chính'}
                 </button>
+                <button
+                  onClick={() => setToolOpen(true)}
+                  title="Tự kéo khung cắt riêng 1 sản phẩm, nâng nét, rồi cho AI phân tích mô tả chi tiết (hình dáng, màu từng phần, chất liệu, logo) điền vào ô Ngoại hình. Dùng cho cả ảnh lấy từ link TikTok / Shopee."
+                  className="ml-1.5 px-2.5 py-1 rounded-lg bg-teal-700 hover:bg-teal-600 text-[11px] text-white"
+                >
+                  🛠 Cắt · nâng nét · AI mô tả chi tiết ảnh chính
+                </button>
+                {toolOpen && (
+                  <ProductImageTool
+                    image={selected.images[0]}
+                    name={selected.name}
+                    description={selected.visual}
+                    onClose={() => setToolOpen(false)}
+                    onApply={(r) => {
+                      const main = selected.images[0];
+                      update({
+                        ...(r.image !== main ? { images: [r.image, ...selected.images].slice(0, 8) } : {}),
+                        ...(r.description ? { visual: r.description } : {}),
+                      });
+                      setToolOpen(false);
+                      setIsolateNote('✅ Đã cập nhật ảnh chính / ô Ngoại hình. Video hàng loạt và workflow dùng sản phẩm này sẽ theo ảnh + mô tả mới.');
+                    }}
+                  />
+                )}
                 {isolateNote && <p className="text-[10px] text-slate-400">{isolateNote}</p>}
                 <p className="text-[10px] text-slate-500">
                   Sản phẩm trong video không giống ảnh? Để ảnh chính là ảnh RÕ 1 sản phẩm (nền trơn, không người, không chữ), sửa ô Ngoại hình cho

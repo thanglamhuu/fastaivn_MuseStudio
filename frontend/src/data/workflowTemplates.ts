@@ -150,6 +150,58 @@ export const BUILTIN_WORKFLOWS: WorkflowTemplate[] = [
       'mẹ chồng chê con dâu trước mặt họ hàng, không biết căn nhà đang ở do con dâu trả góp.',
   },
   {
+    // Công thức rút từ phân tích video "trọn bộ" hoạt hình 3D chuyện đời miền quê (taiLieu/PHAN_TICH_PHIM_3D_CHUYEN_DOI.md) — học CẤU TRÚC, không chép nội dung
+    ...base,
+    id: 'wf-phim-3d-chuyen-doi',
+    name: 'Phim 3D Chuyện Đời (tập 60 giây)',
+    icon: '🌾',
+    category: 'Câu chuyện',
+    description:
+      'Phim hoạt hình 3D kiểu Pixar / Disney kể chuyện đời miền quê: biến cố → hối hận → má tần tảo → vỡ lở → bao dung → bài học. ' +
+      'Chọn 3 nhân vật 3D (Con gái, Má, Người thứ ba) trong Cài đặt; mỗi tập 6 cảnh × 10 giây, ghép nhiều tập thành "trọn bộ", không bán sản phẩm.',
+    scriptMode: 'short_film',
+    noProduct: true,
+    visualStyle: '3d',
+    realismLock: false,
+    characterIds: ['', '', ''],
+    duration: 10,
+    sceneCount: 6,
+    cameraMotion: 'Medium Close-up, Slow Dolly In',
+    setting:
+      'Nếp nhà quê miền Tây Nam Bộ dựng 3D: nhà cấp bốn mái ngói cũ tường vàng nhạt, hiên có võng và bộ bàn gỗ, sân gạch đỏ phơi lúa, ' +
+      'gian bếp củi, hàng dừa và bụi chuối quanh nhà, bờ ao thả vịt, ruộng lúa sau nhà, cổng tre ra đường làng; nắng vàng ấm',
+    extraNote:
+      'CÔNG THỨC PHIM 3D CHUYỆN ĐỜI (1 tập 60 giây = 6 cảnh × 10 giây, video dọc 9:16).\n' +
+      'PHONG CÁCH: PHIM HOẠT HÌNH 3D CGI kiểu Pixar / Disney — nhân vật cách điệu mắt to biểu cảm, da mịn, tóc và vải dựng 3D chi tiết, ánh sáng điện ảnh ấm, ' +
+      'màu tươi; KHÔNG người thật, KHÔNG photorealistic. Mỗi đoạn prompt cảnh PHẢI mở đầu bằng cụm "PHIM HOẠT HÌNH 3D kiểu Pixar / Disney".\n' +
+      '- CẢNH 1 BIẾN CỐ (HOOK): mở NGAY lúc chuyện vỡ ra — người thứ ba nói một câu phũ / lật mặt, hoặc nhân vật chính phát hiện mình bị lừa, bị bỏ rơi; ' +
+      'câu nặng nhất của tập nằm trong 3 giây đầu.\n' +
+      '- CẢNH 2 HỐI HẬN: nhân vật chính MỘT MÌNH (không có ai khác trong khung), tự nói với mình: nhớ lời má dặn, trách mình dại; cho thấy MỘT đạo cụ gắn với biến cố ' +
+      '(chiếc túi rỗng, cuốn sổ, vé xe, chiếc nón lá má cho…).\n' +
+      '- CẢNH 3 MÁ TẦN TẢO: má MỘT MÌNH lam lũ ở quê (gánh lúa, lùa vịt, nhóm bếp, mò ốc, tát ao…) vừa làm vừa nói một mình thương con, chưa biết chuyện; ' +
+      'khán giả thấy sự hy sinh mà đứa con chưa thấy.\n' +
+      '- CẢNH 4 VỠ LỞ: má và con đối mặt; nhân vật chính cúi mặt thú nhận, xin lỗi má (con nói, má lặng người nghe).\n' +
+      '- CẢNH 5 BAO DUNG: má không mắng, nói câu bao dung và chỉ đường đi tiếp (má nói, con ngước lên rưng rưng); một cử chỉ ấm: nắm tay, vuốt tóc, đưa chén cơm.\n' +
+      '- CẢNH 6 BÀI HỌC + CÁNH CỬA MỞ: má (hoặc nhân vật chính) nói MỘT câu đúc kết mộc mạc, có vần điệu như lời ông bà dạy (tự đặt câu mới, không chép ca dao tục ngữ có sẵn); ' +
+      'cuối cảnh một chi tiết MỚI gắn với câu chuyện xuất hiện rõ trong khung (người gây biến cố thập thò ngoài cổng, một người lạ dắt xe tới hỏi thăm, phong thư đặt trên bàn hiên) để người xem chờ tập sau.\n' +
+      'VAI TRÒ: CON GÁI = nhân vật chính, hiền, cả tin, thương má, vấp ngã rồi đứng dậy; MÁ = người mẹ quê tần tảo, ít học nhưng từng trải, nói năng mộc mạc mà thấm, luôn bao dung; ' +
+      'NGƯỜI THỨ BA = người làm nảy sinh biến cố (kẻ dẻo miệng, người yêu bội bạc, chủ nợ, hàng xóm nhiều chuyện) HOẶC người tử tế xuất hiện giúp đỡ ở các tập sau. ' +
+      'Nhân vật phụ khác (hàng xóm, đứa trẻ, chủ trọ) chỉ tả bằng chữ, đứng xa / mờ.\n' +
+      'THOẠI: MỖI CẢNH CHỈ MỘT NGƯỜI NÓI (1-2 câu liền nhau của cùng người đó, tổng 18-24 từ); người còn lại im lặng, chỉ phản ứng bằng nét mặt. ' +
+      'Đầu mô tả mỗi cảnh ghi rõ "CHỈ @Tên nói" rồi mới tới câu thoại trong ngoặc kép; giọng đúng giới tính / tuổi — con gái nói giọng PHỤ NỮ TRẺ trưởng thành, ấm, hơi nghẹn khi xúc động (KHÔNG giọng trẻ em, KHÔNG the thé kiểu hoạt hình), má nói giọng phụ nữ trung niên trầm ấm; ' +
+      'câu thoại bắt đầu ngay trong giây đầu của cảnh; lời ăn tiếng nói miền Tây chân chất, xưng hô NHẤT QUÁN "má – con" suốt tập (KHÔNG đổi sang "mẹ"), anh – em, cô – con; câu của má chậm rãi, giàu hình ảnh ruộng đồng (con nước, hạt lúa, mái nhà); ' +
+      'KHÔNG chửi tục, KHÔNG bạo lực thể xác, KHÔNG xúc phạm vùng miền / nghề nghiệp / người nghèo, KHÔNG nhắc số tiền cụ thể.\n' +
+      'HÌNH ẢNH: mỗi nhân vật giữ NGUYÊN trang phục, kiểu tóc, tuổi và phong cách 3D như ảnh mẫu ở mọi cảnh; nhân vật người lớn có vóc dáng NGƯỜI LỚN (con gái đã trưởng thành cao gần bằng má, KHÔNG vẽ thành em bé); mỗi cảnh chỉ có đúng những nhân vật được nêu tên, mỗi người xuất hiện MỘT lần ' +
+      '(không nhân bản, không thêm người lạ), tối đa 2 người trong khung ở cảnh có thoại, ghi rõ ai đứng đâu (trái / phải); ' +
+      'trung cảnh hoặc cận cảnh ngang tầm mắt, máy tĩnh hoặc đẩy chậm vào gương mặt người đang nói; biểu cảm hoạt hình rõ nhưng TIẾT CHẾ (mắt rưng rưng vẫn MỞ, môi mím, chân mày chùng xuống; một giọt nước mắt là đủ — KHÔNG khóc òa nhăn nhúm mặt, KHÔNG nhắm nghiền mắt, KHÔNG cúi gằm hay lấy tay che mặt); gương mặt người nói luôn hướng về phía máy quay, thấy trọn khuôn mặt từ trán tới cằm (không cận sát cắt mất trán / cằm, không quay lưng); ' +
+      'mỗi cảnh ở một góc khác nhau của CÙNG nếp nhà quê (hiên, sân, bếp, bờ ao, ruộng sau nhà, cổng); đạo cụ quê (nón lá, quang gánh, rổ tre, đèn dầu) dựng 3D; ' +
+      'điện thoại / giấy tờ để nghiêng hoặc mờ, không cận cảnh chữ; không chữ, phụ đề, logo trên màn hình.\n' +
+      'THÔNG ĐIỆP: phim hư cấu, đề cao tình mẹ con và sự tử tế; người vấp ngã được bao dung và tự đứng dậy, kẻ xấu nhận hậu quả từ chính việc mình làm, không trả thù độc ác.\n' +
+      'Ý TƯỞNG trống thì tự chọn 1 chủ đề kiểu: con gái tin lời người quen đem tiền dành dụm của má góp vốn rồi bị bỏ mặc; con giấu má chuyện mất việc trên thành phố; ' +
+      'con ngại má quê mùa nên không mời má dự ngày vui của mình; con bỏ dở việc học theo lời rủ đi làm ăn xa; má lặng lẽ bán đàn vịt lo cho con mà con tưởng má dư dả; ' +
+      'hàng xóm dị nghị chuyện con về quê tay trắng, má đứng ra che chắn.',
+  },
+  {
     // Công thức rút từ phân tích 5 reel sitcom gia đình > 500k view (taiLieu/PHAN_TICH_PHIM_GIA_DINH_NHO.md) — học CẤU TRÚC, không chép nội dung
     ...base,
     id: 'wf-phim-gia-dinh-nho',

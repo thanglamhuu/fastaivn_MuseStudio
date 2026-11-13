@@ -34,6 +34,8 @@ export interface ReferencePromptInput {
   voiceInfo?: string;
   /** Khóa chân thật chống màu AI (mặc định bật) */
   realism?: boolean;
+  /** Phong cách hoạt hình 3D: bỏ khóa chân thật, thêm khóa phong cách 3D */
+  style3d?: boolean;
 }
 
 const clip = (s = '', n = 420) => {
@@ -83,6 +85,21 @@ const consistencyOf = (img: RefImageInfo, n: number) => {
   }
 };
 
+/**
+ * Khóa phong cách HOẠT HÌNH 3D (mẫu có visualStyle = '3d'): thay cho khóa chân thật — hai khóa này ngược nhau,
+ * để khóa chân thật thì muse.ai vẽ nhân vật hoạt hình thành người thật.
+ */
+export const STYLE_3D_LOCK =
+  '[KHÓA PHONG CÁCH HOẠT HÌNH 3D: toàn bộ video là phim hoạt hình 3D CGI chất lượng điện ảnh kiểu Pixar / Disney — nhân vật cách điệu ' +
+  '(mắt to long lanh biểu cảm, nét mặt mềm), da mịn có tán xạ ánh sáng dưới da, tóc và vải dựng 3D chi tiết, ánh sáng điện ảnh ấm, ' +
+  'màu sắc tươi rực rỡ, hậu cảnh 3D cùng phong cách. Giữ ĐÚNG phong cách 3D, tuổi và vóc dáng của ảnh tham chiếu ở MỌI khung hình: ' +
+  'nhân vật NGƯỜI LỚN có tỉ lệ cơ thể người lớn (cao 7 đầu, vai và chân dài của người lớn), KHÔNG vẽ thành trẻ em, KHÔNG thu nhỏ; ' +
+  'giọng nói tự nhiên như người thật đúng tuổi nhân vật (KHÔNG giọng hoạt hình the thé, người lớn KHÔNG nói giọng trẻ em). ' +
+  'KHÔNG người thật, KHÔNG photorealistic / live-action, KHÔNG tranh vẽ 2D / anime.]';
+
+/** Cảnh / ý tưởng yêu cầu phong cách hoạt hình 3D (mẫu ghi "HOẠT HÌNH 3D" trong công thức). */
+export const is3dStyle = (text: string) => /HOẠT HÌNH 3D|KHÓA PHONG CÁCH HOẠT HÌNH/i.test(text);
+
 const has = (text: string, ...markers: string[]) => markers.some((m) => text.toLowerCase().includes(m.toLowerCase()));
 
 /** Cảnh có lời thoại trong ngoặc kép → cần khóa khớp miệng. */
@@ -98,7 +115,7 @@ export const buildReferencePrompt = (input: ReferencePromptInput): string => {
   if (imgs.length && !has(scene, 'BẢNG ÁNH XẠ', 'ATTACHMENT ROLES')) {
     const summary = imgs.map((img, i) => `Image ${i + 1}: ${labelOf(img)}`).join('; ');
     const lines = imgs.map((img, i) => {
-      const d = img.description ? `: ${clip(img.description)}` : '';
+      const d = img.description ? `: ${clip(img.description, img.role === 'product' ? 800 : 420)}` : '';
       return `- Ảnh #${i + 1} (Image ${i + 1} — ${labelOf(img)})${d} (${LOCKS[img.role]}).`;
     });
     head.push(`[BẢNG ÁNH XẠ ẢNH THAM CHIẾU ĐÍNH KÈM / ATTACHMENT ROLES (${summary})]:\n${lines.join('\n')}`);
@@ -125,7 +142,9 @@ export const buildReferencePrompt = (input: ReferencePromptInput): string => {
         'giọng tự nhiên, ngắt nghỉ lấy hơi như người thật; ngoài nhịp thoại thì khép môi mỉm cười tự nhiên, không nhép môi thừa.]'
     );
   }
-  if (input.realism !== false && !has(scene, 'CHỐNG MÀU AI')) {
+  if (input.style3d) {
+    if (!has(scene, 'KHÓA PHONG CÁCH HOẠT HÌNH')) tail.push(STYLE_3D_LOCK);
+  } else if (input.realism !== false && !has(scene, 'CHỐNG MÀU AI')) {
     tail.push(
       '[KHÓA CHÂN THẬT CHỐNG MÀU AI: quay như camera iPhone 16 Pro Max / Sony FX3 4K thực tế, kết cấu da thật, ánh sáng vật lý chân thực, ' +
         'KHÔNG ám màu nhựa AI, KHÔNG làm mịn giả tạo]'

@@ -146,7 +146,7 @@ const templateToFlowLocal = async (tpl: WorkflowTemplate): Promise<{ workflow: F
       batchLabel: 'Ý tưởng / sản phẩm',
       prompt:
         (tpl.noProduct
-          ? 'Dàn nhân vật: @ (gõ @ để chọn từng nhân vật trong Cài đặt, vd. @ThuHa, @MinhKhang, @BaLien).\nTập này kể chuyện gì: (để trống thì AI tự chọn chủ đề; làm tập tiếp theo thì ghi "Tập 2 — tóm tắt tập trước: …").\n'
+          ? `Dàn nhân vật: @ (gõ @ để chọn từng nhân vật trong Cài đặt, vd. ${tpl.visualStyle === '3d' ? '@DiemMy, @MaSau, @HaiPhuc' : '@ThuHa, @MinhKhang, @BaLien'}).\nTập này kể chuyện gì: (để trống thì AI tự chọn chủ đề; làm tập tiếp theo thì ghi "Tập 2 — tóm tắt tập trước: …").\n`
           : 'Sản phẩm: @@ (gõ @@ để chọn sản phẩm) — nhân vật chính: @ (gõ @ để chọn nhân vật).\n') +
         [MODE_NOTE[tpl.scriptMode] || '', tpl.extraNote, tpl.setting ? `Bối cảnh cố định: ${tpl.setting}` : '', tpl.withDialogue ? 'Có lời thoại tiếng Việt.' : 'Không có lời thoại.']
           .filter(Boolean)
@@ -168,6 +168,7 @@ const templateToFlowLocal = async (tpl: WorkflowTemplate): Promise<{ workflow: F
       videoMode: chained ? 'frame-to-frame' : 'reference-to-video',
       ratio: tpl.aspectRatio,
       duration: tpl.duration,
+      ...(tpl.visualStyle ? { visualStyle: tpl.visualStyle } : {}),
     });
     link(s.node, s.handle, v, 'text-in');
     refs.forEach((r) => link(r, 'image-out', v, 'image-in'));

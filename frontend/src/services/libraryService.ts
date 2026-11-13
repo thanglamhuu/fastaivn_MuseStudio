@@ -71,6 +71,12 @@ export interface PostResult {
 /** Cắt 1 khung hình của video thành ảnh; `time` = giây, bỏ trống = khung cuối. */
 export const cutFrame = (media: string, time?: number) => post<PostResult>('/studio/post/frame', { media, time });
 
+/** Đưa ảnh data URL lên kho media của Gateway (để hậu kỳ: nâng nét, cắt khung…) */
+export const uploadDataUrl = (data: string, source = 'upload') => post<{ url: string; name?: string }>('/studio/media/upload', { data, source });
+
+/** URL media Gateway trả về có thể là đường dẫn tương đối → URL đầy đủ */
+export const mediaUrl = (u: string) => (u.startsWith('/') ? `${GATEWAY_URL}${u}` : u);
+
 export const upscaleMedia = (media: string, shortSide: number, sharpen = true) =>
   post<PostResult>('/studio/post/upscale', { media, short_side: shortSide, sharpen });
 

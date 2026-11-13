@@ -16,7 +16,7 @@ import {
   mergeVideos,
 } from '../museBatchService';
 import { blurRegions, cutFrame, upscaleMedia } from '../libraryService';
-import { buildReferencePrompt, RefImageInfo } from '../referencePrompt';
+import { buildReferencePrompt, is3dStyle, RefImageInfo, STYLE_3D_LOCK } from '../referencePrompt';
 import { composeSideBySide, cropCharacterSheet, upscaleIfSmall, urlToResizedDataUrl } from '../../utils/image';
 import { stripBlockUrl } from './shopeePrompt';
 import { ThumbContentType, ThumbPlacement, buildThumbnailPrompt, thumbTextInstruction } from './thumbnailPrompt';
@@ -707,7 +707,9 @@ export async function runFlow(wf: FlowWorkflow, mode: RunMode, deps: FlowRunDeps
                 /* không cắt / ghép được thì dùng ảnh gốc */
               }
             }
-            out.push({ kind: 'image', value: img, roles: rest, name, desc });
+            // Ảnh sản phẩm đã cắt / nâng nét bằng 🛠 (đè lên ảnh trong Cài đặt): vẫn mang tên + mô tả của sản phẩm đã chọn
+            const ofProduct = rest.includes('product') ? pr : undefined;
+            out.push({ kind: 'image', value: img, roles: rest, name: name || ofProduct?.name, desc: desc || ofProduct?.visual || ofProduct?.description || '' });
           } else if (desc || d.sheetPrompt) {
             deps.log(`${label(n)}: chưa có ảnh ${rest.map((x) => ROLE_VI[x]).join(' + ')} → AI (muse-image) tự tạo ảnh tham chiếu`);
             const img = await retryNoMedia((k) => withBusyRetry(() => generateMuseKeyframe({ ...DEFAULT_MUSE_CONFIG, aspectRatio: '9:16' }, autoImagePrompt(d, rest) + retryNote(k, 'ảnh'), []), {
@@ -735,6 +737,8 @@ export async function runFlow(wf: FlowWorkflow, mode: RunMode, deps: FlowRunDeps
         if (d.autoDescribe !== false && out.length) {
           const cache: Record<string, string> = { ...((d.aiDescs as Record<string, string>) || {}) };
           for (const r of out) {
+            // Mô tả CHI TIẾT do 🛠 AI phân tích (người dùng đã duyệt) tốt hơn bản tả ngắn 60 từ → giữ nguyên, không tả lại
+            if (d.detailDesc && r.roles?.includes('product') && (r.desc || '').length >= 120) continue;
             const key = `${r.value.length}:${r.value.slice(-48)}`;
             if (!cache[key]) {
               try {
@@ -1101,6 +1105,8 @@ ${got[i - 1]}` : ''),
         const men = resolveMentions(texts.join('\n').trim() || String(d.prompt || '').trim(), deps.characters, deps.products);
         let text = men.text;
         if (!text) throw new Error('Thiếu prompt (nối text-in hoặc nhập Prompt).');
+        // Phong cách hoạt hình 3D (mẫu visualStyle = '3d' hoặc cảnh tự ghi "HOẠT HÌNH 3D"): bỏ khóa chân thật, ảnh khung hình cũng vẽ 3D
+        const style3d = d.visualStyle === '3d' || is3dStyle(text);
         // Có nhắc @nhân vật / @@sản phẩm thì Text→Video cũng dùng ảnh tham chiếu
         const m = d.videoMode === 'text-to-video' && men.refs.length ? 'reference-to-video' : d.videoMode || 'text-to-video';
         let firstFrame = '';
@@ -1174,12 +1180,14 @@ ${got[i - 1]}` : ''),
           // Cảnh không có khóa nhân vật (POV chỉ thấy tay, sản phẩm) → không đòi "nhìn rõ mặt" (gây lộ mặt / môi)
           const hasPeople = kf.some((r) => r.info.role === 'character');
           const still =
-            `${NEW_REQUEST_NOTE('ảnh')} ONE SINGLE STILL PHOTO (ảnh tĩnh, KHÔNG tạo video), tỉ lệ ${ratioOf(d)}, photorealistic — khung hình MỞ ĐẦU của cảnh sau. ` +
+            `${NEW_REQUEST_NOTE('ảnh')} ONE SINGLE STILL PHOTO (ảnh tĩnh, KHÔNG tạo video), tỉ lệ ${ratioOf(d)}, ${style3d ? 'khung hình phim hoạt hình 3D CGI kiểu Pixar / Disney (KHÔNG phải ảnh người thật)' : 'photorealistic'} — khung hình MỞ ĐẦU của cảnh sau. ` +
             (hasPeople
               ? `Giữ y hệt khuôn mặt, kiểu tóc, trang phục, sản phẩm như ảnh tham chiếu (${who}). Mọi nhân vật nhìn rõ mặt, đứng / ngồi đúng vị trí đầu cảnh.\n`
               : `Giữ y hệt sản phẩm / bao bì (hình in, chữ, màu sắc thật) và bối cảnh như ảnh tham chiếu (${who}); màu sản phẩm tươi đúng ảnh, không tối, không ám màu. ` +
                 'KHÔNG có mặt người (nếu cần chỉ thấy đôi tay).\n') +
-            text;
+            text +
+            (style3d ? `
+${STYLE_3D_LOCK}` : '');
           deps.log(`${label(n)}: tạo ảnh khung hình mở đầu trước (giữ mặt / trang phục tốt hơn)…`);
           const makeKeyframe = (extra: string) =>
             retryNoMedia((k) => withBusyRetry(() => generateMuseKeyframe({ ...DEFAULT_MUSE_CONFIG, aspectRatio: ratioOf(d) }, still + extra + retryNote(k, 'ảnh'), kfRefs), {
@@ -1235,8 +1243,10 @@ ${got[i - 1]}` : ''),
         ];
         let prompt =
           refs.length && !hasMap
-            ? buildReferencePrompt({ images: mapInfos, scenePrompt: text, realism: true })
+            ? buildReferencePrompt({ images: mapInfos, scenePrompt: text, realism: true, style3d })
             : text;
+        if (style3d && !/KHÓA PHONG CÁCH HOẠT HÌNH/.test(prompt)) prompt += `
+${STYLE_3D_LOCK}`;
         // Khóa ƯU TIÊN ẢNH: prompt (nhất là prompt mẫu MV1) hay mô tả trang phục / ngoại hình khác ảnh thật
         // → model bám chữ, đổi màu áo, sai người. Nhắc lại ở CUỐI prompt: chữ khác ảnh thì theo ảnh.
         const pri = refs.filter((r) => r.info.role !== 'keyframe');

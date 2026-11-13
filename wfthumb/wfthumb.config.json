@@ -119,6 +119,18 @@
    "testClip": "../../TestWorkFlow/LamPhim/Phim Drama Gia Đình/Phim Drama Gia Đình_tap1.mp4"
   },
   {
+   "templateId": "wf-phim-3d-chuyen-doi",
+   "name": "Phim 3D Chuyện Đời (tập 60 giây)",
+   "image": "Phim 3D Chuyện Đời.jpg",
+   "video": "Phim 3D Chuyện Đời.mp4",
+   "fullVideo": "Phim 3D Chuyện Đời.mp4",
+   "flow": "Phim 3D Chuyện Đời.flow.json",
+   "youtube": "",
+   "youtubeThumbnail": "",
+   "testVersion": "tập 1 v3",
+   "testClip": "../../TestWorkFlow/LamPhim/Phim 3D Chuyện Đời/Phim 3D Chuyện Đời_tap1.mp4"
+  },
+  {
    "templateId": "wf-phim-gia-dinh-nho",
    "name": "Phim Gia Đình Nhỏ",
    "image": "Phim Gia Đình Nhỏ.jpg",

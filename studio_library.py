@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import subprocess
 import tempfile
 import time
@@ -294,7 +295,7 @@ async def blur(body: BlurRequest, request: Request) -> dict:
 class PortraitRequest(BaseModel):
     name: str = Field(default="", max_length=80)
     description: str = Field(min_length=3, max_length=1500)
-    style: str = Field(default="", max_length=300)
+    style: str = Field(default="", max_length=600)
     size: str = Field(default="9:16", max_length=10)
     n: int = Field(default=2, ge=1, le=4)
     # Ảnh tham chiếu (data URL / URL) để giữ mặt khi tạo thêm góc khác
@@ -303,6 +304,17 @@ class PortraitRequest(BaseModel):
 
 def portrait_prompt(body: PortraitRequest) -> str:
     who = f"{body.name}: {body.description}" if body.name else body.description
+    # Hoạt hình 3D (Cài đặt ➔ Nhân vật chọn "Hoạt hình 3D"): khung prompt riêng — khung "photorealistic, studio" bên dưới
+    # kéo ảnh về người thật, ngược với phong cách cần giữ cho mẫu Phim 3D Chuyện Đời.
+    if re.search(r"3D CGI animated|hoạt hình 3D|pixar", body.style or "", re.I):
+        return (
+            "Single-frame 3D CGI animated film character render, ONE character only, one single undivided frame "
+            "(no collage, no split screen, no text). Stylized appealing proportions (slightly large head, big expressive "
+            "glossy eyes, soft rounded facial features), smooth skin with subsurface scattering, detailed 3D hair and cloth, "
+            "warm cinematic lighting, vivid colors, softly blurred simple background. Front-facing, looking at the camera, "
+            "gentle expression. "
+            f"Character — {who}. {body.style}".strip()
+        )
     return (
         "Single-frame solo portrait photo, ONE person only, one single undivided frame (no collage, "
         "no split screen). Front-facing, looking at the camera, head and upper body clearly visible, "

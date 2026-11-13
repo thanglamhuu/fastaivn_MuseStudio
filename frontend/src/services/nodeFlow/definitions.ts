@@ -101,6 +101,10 @@ export interface FlowNodeData {
   qcKeyframe?: boolean;
   /** Generate Video: tự đo giọng của clip, sai giới tính so với giọng người nói (Cài đặt ➔ Nhân vật) thì tạo lại cảnh (mặc định bật) */
   qcVoice?: boolean;
+  /** Upload Image: ô mô tả là bản CHI TIẾT do 🛠 AI phân tích ảnh sản phẩm (giữ nguyên, không để AI tả ngắn lại lúc chạy) */
+  detailDesc?: boolean;
+  /** Generate Video: phong cách hình ảnh — '3d' = hoạt hình 3D kiểu Pixar / Disney (bỏ khóa chân thật); trống = người thật */
+  visualStyle?: string;
   /** Kết quả chấm điểm lượt chạy gần nhất (không xuất ra file sơ đồ) */
   qc?: { keyframe?: { name: string; best: number | null }[]; keyframeScore?: number; keyframeTries?: number };
   /** Generate Video: tạo ảnh khung hình trước (muse-image + tham chiếu) làm khung mở đầu (mặc định bật) */
@@ -441,6 +445,12 @@ export const NODE_DEFS: Record<NodeType, NodeDef> = {
         label: '😀 Tự chấm mặt ảnh khung hình, lệch thì tạo lại ảnh (tối đa 2 lần) trước khi tạo video',
         type: 'checkbox',
         when: (d) => d.keyframeFirst !== false && (d.videoMode || 'text-to-video') !== 'text-to-video',
+      },
+      {
+        key: 'visualStyle',
+        label: '🎨 Phong cách hình ảnh',
+        type: 'select',
+        options: [['', 'Người thật (chân thật như quay phim)'], ['3d', 'Hoạt hình 3D kiểu Pixar / Disney']],
       },
       {
         key: 'qcVoice',

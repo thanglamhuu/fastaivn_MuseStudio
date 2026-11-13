@@ -37,6 +37,7 @@ import { onStudioMessage } from '../utils/studioBus';
 import { multiVoiceInfo, speakerCount, splitDialogueText } from '../utils/dialogue';
 import { BACKDROP_GROUPS, BACKDROP_PRESETS, backdropForScene, backdropRotation, backdropTag } from '../data/backdropPresets';
 import { isolateProductUnit } from '../services/productIsolate';
+import { ProductImageTool } from './ProductImageTool';
 
 const DEFAULT_PROMPTS =
   'Nhân vật mỉm cười tự nhiên trước ống kính, tay nâng sản phẩm lên ngang ngực, ánh sáng studio ấm áp\nNhân vật xoay nhẹ góc nghiêng 45 độ, chỉ tay vào chi tiết trên sản phẩm, chuyển động mượt mà\nCận cảnh sản phẩm trên tay nhân vật, camera đẩy nhẹ vào, giữ nguyên trang phục và khuôn mặt';
@@ -142,6 +143,8 @@ export const MuseBatchStudio: React.FC<{
   const [isolating, setIsolating] = useState(false);
   const [isolateNote, setIsolateNote] = useState('');
   const [productOriginal, setProductOriginal] = useState<ReferenceImage | null>(null);
+  /** 🛠 Cắt · nâng nét · AI mô tả chi tiết ảnh sản phẩm của lượt này */
+  const [toolOpen, setToolOpen] = useState(false);
   const isolateProduct = async () => {
     const cur = references.find((r) => r.role === 'product');
     if (!cur || isolating) return;
@@ -889,6 +892,38 @@ export const MuseBatchStudio: React.FC<{
                     >
                       {isolating ? '✂️ Đang tách…' : '✂️ Ảnh ghép nhiều mẫu? Tách 1 sản phẩm rõ nhất'}
                     </button>
+                    <button
+                      onClick={() => setToolOpen(true)}
+                      title="Tự kéo khung cắt riêng 1 sản phẩm, nâng nét, rồi cho AI phân tích mô tả chi tiết điền vào ô Ngoại hình sản phẩm"
+                      className="px-2.5 py-1 rounded-lg bg-teal-700 hover:bg-teal-600 text-[11px] text-white"
+                    >
+                      🛠 Cắt · nâng nét · AI mô tả chi tiết
+                    </button>
+                    {toolOpen &&
+                      (() => {
+                        const cur = references.find((r) => r.role === 'product');
+                        if (!cur) return null;
+                        return (
+                          <ProductImageTool
+                            image={cur.dataUrl}
+                            name={product.name}
+                            description={product.visual}
+                            onClose={() => setToolOpen(false)}
+                            onApply={(r) => {
+                              if (r.image !== cur.dataUrl) {
+                                if (!productOriginal) setProductOriginal(cur);
+                                setReferences((prev) => [
+                                  ...prev.filter((x) => x.role !== 'product'),
+                                  { id: `product_${Date.now()}`, role: 'product', dataUrl: r.image, name: `${cur.name.replace(/ \((tách|đã chỉnh)[^)]*\)$/, '')} (đã chỉnh)` },
+                                ]);
+                              }
+                              if (r.description) setProduct((p) => ({ ...p, visual: r.description }));
+                              setToolOpen(false);
+                              setIsolateNote('✅ Đã dùng ảnh sản phẩm đã chỉnh' + (r.description ? ' và điền mô tả chi tiết vào Ngoại hình sản phẩm.' : '.'));
+                            }}
+                          />
+                        );
+                      })()}
                     {productOriginal && (
                       <button
                         onClick={() => {

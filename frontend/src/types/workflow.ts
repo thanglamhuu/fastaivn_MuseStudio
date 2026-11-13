@@ -59,6 +59,11 @@ export interface WorkflowTemplate {
    * mật độ sản phẩm bày trong bối cảnh — ảnh này khóa bối cảnh cho mọi cảnh.
    */
   backdrop?: { id: string; density?: 'none' | 'few' | 'full' | 'massive'; extras?: boolean };
+  /**
+   * Phong cách hình ảnh: '3d' = phim hoạt hình 3D kiểu Pixar / Disney (bỏ khóa chân thật, thêm khóa phong cách 3D vào mọi cảnh
+   * và ảnh khung hình). Trống = người thật.
+   */
+  visualStyle?: '3d';
   /** Khóa chân thật chống "màu nhựa AI" (mặc định bật) */
   realismLock?: boolean;
   /** Prompt cảnh nhập tay: có thì bỏ qua AI viết kịch bản */

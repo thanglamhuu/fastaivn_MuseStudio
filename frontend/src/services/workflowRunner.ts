@@ -492,6 +492,7 @@ async function renderOneScene(rowId: string, i: number, tpl: WorkflowTemplate, d
           cameraMotion: tpl.cameraMotion,
           voiceInfo: [voiceInfo, dialogueVoices].filter(Boolean).join(' '),
           realism: tpl.realismLock !== false,
+          style3d: tpl.visualStyle === '3d',
         });
       } else {
         // Cách cũ: ảnh đầu (nhân vật) làm khung mở đầu video
