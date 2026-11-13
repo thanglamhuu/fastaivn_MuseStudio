@@ -38,6 +38,12 @@ export interface MuseConfig {
   autoExport: boolean;
   /** Xong cả lô thì tự ghép các cảnh thành 1 video */
   autoMerge: boolean;
+  /** Bối cảnh từ thư viện (data/backdropPresets): '' = không ép bối cảnh */
+  backdropId: string;
+  /** Xoay vòng bối cảnh: mỗi dòng (mỗi clip) 1 bối cảnh khác trong các nhóm đã tích */
+  backdropRotate: boolean;
+  /** Nhóm bối cảnh tham gia xoay vòng (trống = nhóm của bối cảnh đang chọn / mọi nhóm) */
+  backdropGroups: string[];
 }
 
 export const DEFAULT_MUSE_CONFIG: MuseConfig = {
@@ -56,6 +62,9 @@ export const DEFAULT_MUSE_CONFIG: MuseConfig = {
   projectName: 'MuseStudio',
   autoExport: true,
   autoMerge: false,
+  backdropId: '',
+  backdropRotate: false,
+  backdropGroups: [],
 };
 
 export interface ReferenceImage {
@@ -77,6 +86,8 @@ export interface BatchSceneItem {
   id: string;
   index: number;
   rawPrompt: string;
+  /** Bối cảnh áp cho cảnh này ở lượt chạy gần nhất (thư viện bối cảnh / ảnh riêng) */
+  backdropName?: string;
   status: SceneStatus;
   keyframeUrl?: string;
   videoTaskId?: string;
@@ -523,7 +534,7 @@ export interface ProductContext {
 }
 
 /** Vai trò của từng ảnh gửi kèm 1 cảnh (thứ tự = thứ tự ảnh trong tin nhắn gửi muse.ai). */
-export type ImageRole = ReferenceImage['role'] | 'keyframe' | 'endframe' | 'shotref';
+export type ImageRole = ReferenceImage['role'] | 'keyframe' | 'endframe' | 'shotref' | 'scene';
 
 const ROLE_LABEL: Record<ReferenceImage['role'], string> = {
   character: 'the character (face, hair, body)',
@@ -545,7 +556,9 @@ export const buildLockedPrompt = (
   refs: ReferenceImage[],
   cameraMotion = '',
   product: ProductContext = {},
-  imageRoles: ImageRole[] = []
+  imageRoles: ImageRole[] = [],
+  /** Thẻ khóa bối cảnh (backdropTag) — đặt trước prompt của người dùng */
+  backdrop = ''
 ): string => {
   const parts: string[] = [];
   if (imageRoles.length > 0) {
@@ -557,7 +570,9 @@ export const buildLockedPrompt = (
             ? `image ${i + 1} = the closing frame: the shot must end exactly on this image`
             : role === 'shotref'
               ? `image ${i + 1} = a reference for this shot (follow its outfit, product and look)`
-              : `image ${i + 1} = ${ROLE_LABEL[role]}`
+              : role === 'scene'
+                ? `image ${i + 1} = the BACKGROUND LOCATION: the shot takes place in exactly this place (same room, shelves, lighting); do not copy any person from it`
+                : `image ${i + 1} = ${ROLE_LABEL[role]}`
       )
       .join('; ');
     parts.push(`[ATTACHED IMAGES: ${desc}]`);
@@ -572,6 +587,7 @@ export const buildLockedPrompt = (
     );
   }
   if (cameraMotion) parts.push(`[CAMERA: ${cameraMotion}, steady cinematic movement]`);
+  if (backdrop) parts.push(backdrop);
   parts.push(userPrompt.trim());
   return parts.join(' ');
 };
@@ -596,15 +612,19 @@ const blobToDataUrl = (blob: Blob): Promise<string> =>
 export const generateMuseKeyframe = async (
   config: MuseConfig,
   prompt: string,
-  refs: ReferenceImage[]
+  refs: ReferenceImage[],
+  /** Bối cảnh: thẻ khóa (chữ) + ảnh bối cảnh gửi kèm sau các ảnh tham chiếu */
+  backdrop: { tag?: string; image?: string } = {}
 ): Promise<string> => {
   const res = await gatewayFetch('/v1/images/generations', {
     method: 'POST',
     body: JSON.stringify({
       model: 'muse-image',
-      prompt: buildLockedPrompt(prompt, refs),
+      prompt:
+        buildLockedPrompt(prompt, refs, '', {}, [], backdrop.tag || '') +
+        (backdrop.image ? ' [The LAST attached image is the BACKGROUND LOCATION: place the scene in exactly this place; do not copy any person from it.]' : ''),
       size: config.aspectRatio,
-      image: refs.slice(0, 4).map((r) => r.dataUrl),
+      image: [...refs.slice(0, backdrop.image ? 3 : 4).map((r) => r.dataUrl), ...(backdrop.image ? [backdrop.image] : [])],
       // Lấy base64 thay vì URL: URL media của Gateway là 127.0.0.1, khi gửi lại làm
       // first-frame cho /v1/videos sẽ bị lớp chặn SSRF của muse2api từ chối.
       response_format: 'b64_json',

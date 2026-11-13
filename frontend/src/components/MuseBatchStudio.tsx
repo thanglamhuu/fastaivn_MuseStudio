@@ -35,6 +35,7 @@ import { aspectClass, sceneGridClass } from '../utils/image';
 import { urlToDataUrl } from '../services/productService';
 import { onStudioMessage } from '../utils/studioBus';
 import { multiVoiceInfo, speakerCount, splitDialogueText } from '../utils/dialogue';
+import { BACKDROP_GROUPS, BACKDROP_PRESETS, backdropForScene, backdropRotation, backdropTag } from '../data/backdropPresets';
 
 const DEFAULT_PROMPTS =
   'Nhân vật mỉm cười tự nhiên trước ống kính, tay nâng sản phẩm lên ngang ngực, ánh sáng studio ấm áp\nNhân vật xoay nhẹ góc nghiêng 45 độ, chỉ tay vào chi tiết trên sản phẩm, chuyển động mượt mà\nCận cảnh sản phẩm trên tay nhân vật, camera đẩy nhẹ vào, giữ nguyên trang phục và khuôn mặt';
@@ -130,6 +131,12 @@ export const MuseBatchStudio: React.FC<{
   );
   const startFramesRef = useRef(startFrames);
   startFramesRef.current = startFrames;
+  /** Ảnh bối cảnh riêng (kho / xưởng / cửa hàng thật của bạn): gửi kèm mọi cảnh để khóa đúng nơi này */
+  const [backdropImage, setBackdropImage] = usePersistentState<{ dataUrl: string; name: string } | null>('backdropImage.v1', null, {
+    server: true,
+  });
+  const backdropImageRef = useRef(backdropImage);
+  backdropImageRef.current = backdropImage;
 
   // Nhận ảnh / khung hình gửi sang từ tab Thư viện media
   useEffect(
@@ -328,6 +335,14 @@ export const MuseBatchStudio: React.FC<{
     refs = refsForScene(refs, sceneCharacter);
     const pool = refPoolRef.current;
     const sceneNo = scene.index - 1;
+    // Bối cảnh của dòng này: xoay vòng → mỗi dòng 1 bối cảnh khác; ảnh bối cảnh riêng chỉ dùng khi KHÔNG xoay vòng
+    const sceneBackdrop = backdropForScene(cfg, sceneNo);
+    const sceneBackdropImage = cfg.backdropRotate ? undefined : backdropImageRef.current?.dataUrl;
+    const sceneBackdropTag = sceneBackdrop
+      ? backdropTag(sceneBackdrop)
+      : sceneBackdropImage
+        ? '[BACKDROP — the whole shot takes place in the location shown in the background image; keep this same place for the entire shot.]'
+        : '';
     if (cfg.refMode === 'rotate' && pool.length) {
       // Khóa người mẫu, xoay vòng sản phẩm / trang phục: cảnh i dùng ảnh thứ i trong kho
       const item = pool[sceneNo % pool.length];
@@ -344,6 +359,7 @@ export const MuseBatchStudio: React.FC<{
         ].slice(-10)
       : current.history;
     updateScene(scene.id, {
+      backdropName: sceneBackdrop?.name || (sceneBackdropImage ? 'ảnh bối cảnh riêng' : undefined),
       status: 'queued',
       error: undefined,
       progress: undefined,
@@ -378,6 +394,12 @@ export const MuseBatchStudio: React.FC<{
         const last = pool[sceneNo + 1] ? [{ url: pool[sceneNo + 1].dataUrl, role: 'endframe' as const }] : [];
         items = [first, ...last, ...items];
       }
+      // Ảnh bối cảnh riêng: đặt ngay sau nhân vật + sản phẩm (trước trang phục) để không bị cắt khi quá 4 ảnh
+      if (sceneBackdropImage) {
+        const at = items.findIndex((it) => it.role === 'outfit');
+        const sc = { url: sceneBackdropImage, role: 'scene' as const };
+        items = at < 0 ? [...items, sc] : [...items.slice(0, at), sc, ...items.slice(at)];
+      }
       if (!items.length) throw new Error('Cảnh này không có ảnh tham chiếu nào (thêm ảnh ở khối 2).');
 
       let generatedFrame: string | null = null;
@@ -393,7 +415,7 @@ export const MuseBatchStudio: React.FC<{
         generatedFrame = ownStart;
       } else if (cfg.useTwoStepKeyframe && refs.length > 1) {
         updateScene(scene.id, { status: 'generating_keyframe' });
-        generatedFrame = await generateMuseKeyframe(cfg, rawPrompt, refs);
+        generatedFrame = await generateMuseKeyframe(cfg, rawPrompt, refs, { tag: sceneBackdropTag, image: sceneBackdropImage });
         updateScene(scene.id, { keyframeUrl: generatedFrame });
       }
       if (generatedFrame) {
@@ -427,7 +449,8 @@ export const MuseBatchStudio: React.FC<{
         refs,
         cfg.cameraMotion,
         { name: prod.name, visual: prod.visual },
-        imageRoles
+        imageRoles,
+        sceneBackdropTag
       );
       const videoUrl = await createAndPollMuseVideo(
         // Gateway đặt giọng gốc Muse của cảnh cho tài khoản trước khi tạo video
@@ -1121,6 +1144,107 @@ export const MuseBatchStudio: React.FC<{
                 </p>
               </div>
 
+              <div className="border border-slate-800 rounded-lg p-2.5 space-y-2">
+                <label className="block text-[11px] text-slate-400">🏭 Bối cảnh (kho, xưởng, cửa hàng lớn… — thêm vào mọi prompt)</label>
+                <select
+                  value={config.backdropId || ''}
+                  onChange={(e) => setConfig({ ...config, backdropId: e.target.value })}
+                  className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-xs"
+                >
+                  <option value="">— Không ép bối cảnh (theo prompt) —</option>
+                  {BACKDROP_GROUPS.map((g) => (
+                    <optgroup key={g} label={g}>
+                      {BACKDROP_PRESETS.filter((b) => b.group === g).map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+                <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!config.backdropRotate}
+                    onChange={(e) => setConfig({ ...config, backdropRotate: e.target.checked })}
+                  />
+                  🔁 Xoay vòng bối cảnh — mỗi dòng (mỗi clip) một bối cảnh khác
+                </label>
+                {config.backdropRotate && (
+                  <>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-300">
+                      {BACKDROP_GROUPS.map((g) => {
+                        const on = (config.backdropGroups || []).includes(g);
+                        return (
+                          <label key={g} className="flex items-center gap-1 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={on}
+                              onChange={() =>
+                                setConfig({
+                                  ...config,
+                                  backdropGroups: on
+                                    ? (config.backdropGroups || []).filter((x) => x !== g)
+                                    : [...(config.backdropGroups || []), g],
+                                })
+                              }
+                            />
+                            {g} ({BACKDROP_PRESETS.filter((b) => b.group === g).length})
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-slate-500">
+                      {(() => {
+                        const list = backdropRotation(config);
+                        const lines = batchPromptText.split('\n').filter((l) => l.trim()).length || 1;
+                        const show = Array.from({ length: Math.min(lines, 4) }, (_, i) => `Dòng ${i + 1}: ${list[i % list.length].name}`);
+                        return `${list.length} bối cảnh tham gia${(config.backdropGroups || []).length ? '' : ' (chưa tích nhóm → dùng nhóm của bối cảnh đang chọn, không chọn thì mọi nhóm)'}. ${show.join(' · ')}${lines > 4 ? ' · …' : ''}${lines > list.length ? ` · hết ${list.length} bối cảnh thì quay lại từ đầu` : ''}`;
+                      })()}
+                    </p>
+                  </>
+                )}
+                <div className="flex items-center gap-2">
+                  {backdropImage ? (
+                    <>
+                      <img src={backdropImage.dataUrl} alt="bối cảnh" className="w-9 h-16 object-cover rounded border border-slate-700" />
+                      <span className="flex-1 text-[11px] text-slate-300 truncate" title={backdropImage.name}>
+                        🖼 {backdropImage.name}
+                      </span>
+                      <button onClick={() => setBackdropImage(null)} className="text-[11px] text-red-400 hover:text-red-300">
+                        Bỏ ảnh
+                      </button>
+                    </>
+                  ) : (
+                    <label className="text-[11px] text-indigo-300 hover:text-white cursor-pointer">
+                      🖼 + Ảnh bối cảnh riêng (kho / xưởng / cửa hàng thật của bạn — tùy chọn)
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = '';
+                          if (!file) return;
+                          try {
+                            setBackdropImage({ dataUrl: await fileToResizedDataUrl(file, 1280), name: file.name });
+                          } catch (err: any) {
+                            alert(`Không đọc được ảnh: ${err.message}`);
+                          }
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+                {backdropImage && (
+                  <p className={`text-[10px] ${config.backdropRotate ? 'text-amber-300' : 'text-slate-500'}`}>
+                    {config.backdropRotate
+                      ? '⚠ Đang xoay vòng bối cảnh nên ảnh bối cảnh riêng KHÔNG được dùng (ảnh chỉ khóa 1 nơi). Tắt xoay vòng để dùng ảnh.'
+                      : 'Ảnh này gửi kèm mọi cảnh để khóa đúng nơi chốn (muse.ai nhận tối đa 4 ảnh / cảnh: khung đầu + nhân vật + sản phẩm + bối cảnh).'}
+                  </p>
+                )}
+              </div>
+
               <div>
                 <label className="block text-[11px] text-slate-400 mb-1">
                   Giọng đọc mặc định (cảnh không gắn nhân vật trong thư viện)
@@ -1136,7 +1260,7 @@ export const MuseBatchStudio: React.FC<{
                     Đang dùng giọng gốc Muse đã chọn trước đây: {museVoiceNames[config.voice] || config.voice}
                   </p>
                 )}
-                {mixedVoices && (
+                {mixedVoices > 0 && (
                   <p className="text-[10px] text-amber-300 mt-1">
                     ⚠ Lô này dùng {mixedVoices} giọng khác nhau. Muse đặt giọng theo tài khoản, nên khi trộn giọng
                     hãy để 1 luồng / tài khoản (Cài đặt ➔ Tài khoản) để giọng không bị lẫn giữa các cảnh.
@@ -1320,6 +1444,11 @@ export const MuseBatchStudio: React.FC<{
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-indigo-400">Cảnh #{scene.index}</span>
+                      {scene.backdropName && (
+                        <span className="text-[10px] text-teal-300 truncate max-w-[9rem]" title={`Bối cảnh: ${scene.backdropName}`}>
+                          🏭 {scene.backdropName}
+                        </span>
+                      )}
                       <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">
                         {scene.status === 'queued' && '⏸ Đang chờ luồng'}
                         {scene.status === 'generating_keyframe' && '🎨 Đang ghép Keyframe...'}

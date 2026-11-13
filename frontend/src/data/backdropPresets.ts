@@ -257,6 +257,39 @@ export const BACKDROP_PRESETS: BackdropPreset[] = [
 
 export const backdropById = (id?: string) => BACKDROP_PRESETS.find((b) => b.id === id);
 
+/** Cấu hình bối cảnh của màn Tạo video hàng loạt */
+export interface BackdropPick {
+  /** Bối cảnh cố định ('' = không ép) */
+  backdropId?: string;
+  /** Xoay vòng: mỗi dòng (mỗi clip) 1 bối cảnh khác trong các nhóm đã tích */
+  backdropRotate?: boolean;
+  backdropGroups?: string[];
+}
+
+/** Danh sách bối cảnh tham gia xoay vòng: các nhóm đã tích; chưa tích nhóm nào → nhóm của bối cảnh đang chọn, không thì mọi nhóm. */
+export const backdropRotation = (cfg: BackdropPick): BackdropPreset[] => {
+  const groups = (cfg.backdropGroups || []).filter((g) => BACKDROP_PRESETS.some((b) => b.group === g));
+  const base = backdropById(cfg.backdropId);
+  const use = groups.length ? groups : base ? [base.group] : [];
+  const list = use.length ? BACKDROP_PRESETS.filter((b) => use.includes(b.group)) : BACKDROP_PRESETS;
+  // Bắt đầu từ bối cảnh đang chọn (nếu nó nằm trong danh sách)
+  const at = base ? list.findIndex((b) => b.id === base.id) : -1;
+  return at > 0 ? [...list.slice(at), ...list.slice(0, at)] : list;
+};
+
+/** Bối cảnh của dòng thứ sceneNo (từ 0): xoay vòng → lần lượt trong danh sách; không → bối cảnh cố định (hoặc không có). */
+export const backdropForScene = (cfg: BackdropPick, sceneNo: number): BackdropPreset | undefined => {
+  if (cfg.backdropRotate) {
+    const list = backdropRotation(cfg);
+    return list.length ? list[((sceneNo % list.length) + list.length) % list.length] : undefined;
+  }
+  return backdropById(cfg.backdropId);
+};
+
+/** Thẻ khóa bối cảnh chèn vào prompt video / ảnh khung hình */
+export const backdropTag = (b: BackdropPreset): string =>
+  `[BACKDROP — the whole shot takes place here: ${b.en}. Bối cảnh: ${b.vi}. Keep this same location for the entire shot; the product may also appear stocked in the background.]`;
+
 /** Lựa chọn cho ô select: "Nhóm · Tên" */
 export const BACKDROP_OPTIONS: [string, string][] = BACKDROP_PRESETS.map((b) => [b.id, `${b.group} · ${b.name}`]);
 
