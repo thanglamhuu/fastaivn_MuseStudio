@@ -37,7 +37,7 @@ import {
   validateWorkflow,
 } from './definitions';
 import { BACKDROP_PRESETS, backdropById } from '../../data/backdropPresets';
-import { NO_PRICE_RULE, PRODUCT_PHYSICS_RULE } from '../../data/productPhysics';
+import { NO_PRICE_RULE, PRODUCT_PHYSICS_RULE, PRODUCT_SCENE_RULE } from '../../data/productPhysics';
 
 export const STOPPED_MSG = '⏹ Đã dừng theo yêu cầu';
 
@@ -258,6 +258,7 @@ const scriptInstruction = (idea: string, count: number, firstIsChar: boolean, se
     '- Khóa cố định 1 bối cảnh xuyên suốt, giữ đồng nhất ngoại hình nhân vật (khuôn mặt, tóc, trang phục) ở MỌI cảnh.\n' +
     `- ${PRODUCT_PHYSICS_RULE}\n` +
     `- ${NO_PRICE_RULE}\n` +
+    `- ${PRODUCT_SCENE_RULE.replace(/"product\.visual"/g, 'mô tả sản phẩm ở trên').replace(/trong "prompt"/, 'trong mọi đoạn')}\n` +
     `- Mỗi cảnh đúng ${seconds} giây, chia 3 nhịp 0-${a}s / ${a}-${b}s / ${b}-${seconds}s; lời thoại tiếng Việt tự nhiên ${syllables} âm tiết / cảnh, đặt trong ngoặc kép.\n\n` +
     (firstIsChar && count >= 2
       ? `Viết đúng ${count} đoạn, ngăn cách bằng dòng ---\n- Đoạn 1: prompt ẢNH NHÂN VẬT GỐC (1 người, 1 khung, nền studio sáng) khóa khuôn mặt, tuổi, tóc, trang phục.\n- Đoạn 2..${count}: prompt VIDEO từng cảnh 1..${scenes}.\n`
@@ -933,7 +934,7 @@ ${got[i - 1]}` : ''),
               ? 'Chỉ có vài người (công nhân / nhân viên / khách) NHỎ, MỜ ở rất xa phía sau, không ai ở tiền cảnh, không ai nhìn camera.\n'
               : 'KHÔNG CÓ NGƯỜI trong ảnh.\n') +
             'Chừa khoảng trống ở tiền cảnh / giữa khung hình cho người dẫn đứng vào sau. Ánh sáng tự nhiên đúng nơi chốn, chi tiết sắc nét, ' +
-            'không chữ lớn, không logo lạ, không watermark.' +
+            'không chữ lớn, không logo lạ, không watermark. KHÔNG có bảng giá, tem giảm giá, số tiền hay % khuyến mãi ở bất kỳ đâu.' +
             (men.text ? `\nYêu cầu thêm: ${men.text}` : '') +
             (d.rerun ? `\n[Lần tạo lại #${d.rerun}: tạo bản MỚI]` : '');
           const img = await retryNoMedia(

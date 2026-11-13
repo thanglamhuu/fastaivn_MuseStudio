@@ -127,8 +127,8 @@ export const BACKDROP_PRESETS: BackdropPreset[] = [
     group: 'Cửa hàng lớn',
     name: 'Siêu thị điện máy',
     vi: 'Siêu thị điện máy lớn, dãy kệ trưng bày sáng đèn, biển giá khuyến mãi, sàn bóng',
-    en: 'large electronics & appliance megastore, long brightly lit display aisles, promotional price signs, glossy floor',
-    stock: 'a full display wall of the product with price tags',
+    en: 'large electronics & appliance megastore, long brightly lit display aisles, hanging category banners, glossy floor',
+    stock: 'a full display wall of the product, neatly aligned',
   },
   {
     id: 'showroom-gia-dung',
@@ -288,7 +288,7 @@ export const backdropForScene = (cfg: BackdropPick, sceneNo: number): BackdropPr
 
 /** Thẻ khóa bối cảnh chèn vào prompt video / ảnh khung hình */
 export const backdropTag = (b: BackdropPreset): string =>
-  `[BACKDROP — the whole shot takes place here: ${b.en}. Bối cảnh: ${b.vi}. Keep this same location for the entire shot; the product may also appear stocked in the background.]`;
+  `[BACKDROP — the whole shot takes place here: ${b.en}. Bối cảnh: ${b.vi}. Keep this same location for the entire shot; the product may also appear stocked in the background. No price tags, no discount stickers, no numbers of money anywhere.]`;
 
 /** Lựa chọn cho ô select: "Nhóm · Tên" */
 export const BACKDROP_OPTIONS: [string, string][] = BACKDROP_PRESETS.map((b) => [b.id, `${b.group} · ${b.name}`]);

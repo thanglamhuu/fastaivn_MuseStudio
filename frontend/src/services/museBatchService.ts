@@ -524,7 +524,10 @@ const LOCK_TAGS = {
   character:
     '[IDENTITY LOCK: Keep exact facial features, bone structure, skin tone, and hair from character reference]',
   outfit: '[OUTFIT LOCK: Maintain 100% identical clothing design, color palette, and fabric texture]',
-  product: '[PRODUCT LOCK: Zero warping, preserve exact product geometry, proportions, and surface details]',
+  product:
+    '[PRODUCT LOCK: Copy the product EXACTLY from the product image — same silhouette, parts, proportions, hole / rib / surface pattern, ' +
+    'logo and color. Zero warping, no redesign, no added or missing details. If the product image shows several units or color variants, ' +
+    'they are ONE identical model: every unit in the video has that same shape; use only colors that appear in the image.]',
 } as const;
 
 /** Bộ khóa Prompt (Identity + Outfit + Product Lock) và góc máy tùy chọn. */
@@ -581,9 +584,15 @@ export const buildLockedPrompt = (
     if (refs.some((r) => r.role === role)) parts.push(LOCK_TAGS[role]);
   });
   if (product.name || product.visual) {
-    const what = [product.name, product.visual].filter(Boolean).join(' — ');
+    // Ngoại hình (tả cái nhìn thấy) đứng trước; tên thương mại chỉ là NHÃN — tên dân gian dễ làm AI vẽ theo nghĩa đen
+    // (lỗi thật: "dép tổ ong" → vẽ hoa văn lục giác tổ ong, lệch hẳn ảnh mẫu)
+    // → đã có mô tả ngoại hình thì KHÔNG gửi tên thương mại; chưa có thì gửi tên kèm lời dặn tên chỉ là nhãn
+    const visual = (product.visual || '').trim().replace(/[.\s]+$/, '');
+    const what = visual
+      ? `${visual}.`
+      : `"${product.name}" (commercial name, a LABEL only — never draw what the name literally suggests; follow the product image).`;
     parts.push(
-      `[PRODUCT: ${what}. The product in the video must be exactly this item as shown in the product image; never replace it with a different product.]`
+      `[PRODUCT: ${what.trim()} The product in the video must be exactly this item as shown in the product image, kept identical in every frame; never replace or restyle it.]`
     );
   }
   if (cameraMotion) parts.push(`[CAMERA: ${cameraMotion}, steady cinematic movement]`);

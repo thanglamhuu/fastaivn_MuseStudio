@@ -36,6 +36,7 @@ import { urlToDataUrl } from '../services/productService';
 import { onStudioMessage } from '../utils/studioBus';
 import { multiVoiceInfo, speakerCount, splitDialogueText } from '../utils/dialogue';
 import { BACKDROP_GROUPS, BACKDROP_PRESETS, backdropForScene, backdropRotation, backdropTag } from '../data/backdropPresets';
+import { isolateProductUnit } from '../services/productIsolate';
 
 const DEFAULT_PROMPTS =
   'Nhân vật mỉm cười tự nhiên trước ống kính, tay nâng sản phẩm lên ngang ngực, ánh sáng studio ấm áp\nNhân vật xoay nhẹ góc nghiêng 45 độ, chỉ tay vào chi tiết trên sản phẩm, chuyển động mượt mà\nCận cảnh sản phẩm trên tay nhân vật, camera đẩy nhẹ vào, giữ nguyên trang phục và khuôn mặt';
@@ -137,6 +138,36 @@ export const MuseBatchStudio: React.FC<{
   });
   const backdropImageRef = useRef(backdropImage);
   backdropImageRef.current = backdropImage;
+  /** ✂️ Tách 1 sản phẩm rõ nhất khỏi ảnh ghép nhiều mẫu (giữ ảnh gốc để hoàn tác) */
+  const [isolating, setIsolating] = useState(false);
+  const [isolateNote, setIsolateNote] = useState('');
+  const [productOriginal, setProductOriginal] = useState<ReferenceImage | null>(null);
+  const isolateProduct = async () => {
+    const cur = references.find((r) => r.role === 'product');
+    if (!cur || isolating) return;
+    setIsolating(true);
+    setIsolateNote('AI đang tìm 1 sản phẩm rõ nhất trong ảnh…');
+    try {
+      const r = await isolateProductUnit(cur.dataUrl);
+      if (r.dataUrl === cur.dataUrl) {
+        setIsolateNote('Ảnh này chỉ có 1 sản phẩm và đã đủ lớn — không cần tách.');
+        return;
+      }
+      setProductOriginal(cur);
+      setReferences((prev) => [
+        ...prev.filter((x) => x.role !== 'product'),
+        { id: `product_${Date.now()}`, role: 'product', dataUrl: r.dataUrl, name: `${cur.name} (tách: ${r.label || '1 sản phẩm'})` },
+      ]);
+      setIsolateNote(
+        `✅ Ảnh gốc có ${r.count} sản phẩm — đã tách riêng "${r.label || '1 sản phẩm'}" và phóng to làm ảnh tham chiếu. ` +
+          'Nên viết lại kịch bản để các cảnh cận dùng đúng màu này.'
+      );
+    } catch (err: any) {
+      setIsolateNote(`❌ ${err.message}`);
+    } finally {
+      setIsolating(false);
+    }
+  };
 
   // Nhận ảnh / khung hình gửi sang từ tab Thư viện media
   useEffect(
@@ -847,6 +878,34 @@ export const MuseBatchStudio: React.FC<{
                 })}
               </div>
 
+              {references.some((r) => r.role === 'product') && (
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={isolateProduct}
+                      disabled={isolating}
+                      title="Ảnh bìa xếp nhiều mẫu / nhiều màu làm mỗi mẫu quá nhỏ, muse.ai không thấy rõ chi tiết → vẽ lệch. AI tìm 1 mẫu rõ nhất, cắt riêng và phóng to."
+                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-[11px] text-slate-200"
+                    >
+                      {isolating ? '✂️ Đang tách…' : '✂️ Ảnh ghép nhiều mẫu? Tách 1 sản phẩm rõ nhất'}
+                    </button>
+                    {productOriginal && (
+                      <button
+                        onClick={() => {
+                          setReferences((prev) => [...prev.filter((x) => x.role !== 'product'), productOriginal]);
+                          setProductOriginal(null);
+                          setIsolateNote('Đã trả lại ảnh sản phẩm gốc.');
+                        }}
+                        className="text-[11px] text-slate-400 hover:text-white"
+                      >
+                        ↺ Dùng lại ảnh gốc
+                      </button>
+                    )}
+                  </div>
+                  {isolateNote && <p className="text-[10px] text-slate-400">{isolateNote}</p>}
+                </div>
+              )}
+
               <div className="space-y-1.5 pt-1">
                 <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
                   <input
@@ -1001,6 +1060,7 @@ export const MuseBatchStudio: React.FC<{
                   description: c.description,
                   voice: resolveVoice(c.voicePresetId, c.museVoiceOverride, museVoiceNames).preset?.label,
                 }))}
+              mainCharacter={characters.find((c) => c.id === config.characterId)?.name.trim()}
               references={references}
               secondsPerScene={config.duration}
               onUseImage={(dataUrl, role, name) =>

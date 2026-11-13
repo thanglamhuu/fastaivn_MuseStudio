@@ -3,6 +3,7 @@
 // Prompt mẫu (chuyển từ mẫu workflow) thường có chỗ trống "Sản phẩm: @@ (gõ @@ để chọn sản phẩm)" và các yêu cầu kịch bản.
 // Khi lấy link: điền chỗ trống thành "@@<Tên>" (sản phẩm được lưu vào thư viện Cài đặt để @@ gửi kèm ảnh khi render),
 // giữ nguyên mọi câu khác, và thêm 1 khối "SẢN PHẨM TỪ LINK" ở cuối. Lấy lại link khác chỉ thay khối đó.
+import { PRODUCT_VISUAL_SPEC } from '../../data/productPhysics';
 
 export const BLOCK_START = '[SẢN PHẨM TỪ LINK';
 export const BLOCK_END = '[/SẢN PHẨM TỪ LINK]';
@@ -102,7 +103,7 @@ export const productIdeaInstruction = (title: string, price: string, brand: stri
   '{"short_name": "tên sản phẩm ngắn gọn, tự nhiên, tối đa 6 từ, không nhồi từ khóa", ' +
   '"highlights": ["3-5 điểm nổi bật / tính năng thật của sản phẩm, mỗi ý ≤ 12 từ"], ' +
   '"idea": "1-2 câu ý tưởng video phù hợp YÊU CẦU CÓ SẴN bên dưới (không thay đổi kiểu kịch bản / số cảnh người dùng đã ghi)", ' +
-  '"visual": "mô tả ngoại hình sản phẩm (hình dáng, màu, chất liệu, bao bì) để giữ đúng sản phẩm khi tạo video, ≤ 40 từ"}\n' +
+  `"visual": "${PRODUCT_VISUAL_SPEC.replace(/"/g, "'")}"}\n` +
   'Chỉ dùng thông tin có trên trang, không bịa thông số. Bỏ qua chữ khuyến mãi / mã giảm giá / phí ship. ' +
   'KHÔNG nhắc GIÁ / số tiền ở bất kỳ trường nào (giá có thể thay đổi sau khi đăng video).\n\n' +
   `Tên trên trang: ${title}${price ? '' : ''}\nThương hiệu: ${brand || '(không rõ)'}\n` +

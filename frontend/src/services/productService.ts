@@ -1,7 +1,7 @@
 // Sản phẩm (đọc từ link Shopee/TikTok hoặc tự nhập) và AI viết kịch bản theo sản phẩm.
 import { GATEWAY_URL, MUSE_API_KEY } from '../config/appConfig';
 import { ScriptTemplate } from '../data/scriptTemplates';
-import { NO_PRICE_RULE, PRODUCT_PHYSICS_RULE } from '../data/productPhysics';
+import { NO_PRICE_RULE, PRODUCT_PHYSICS_RULE, PRODUCT_SCENE_RULE, PRODUCT_VISUAL_SPEC } from '../data/productPhysics';
 
 export interface ProductInfo {
   url: string;
@@ -249,6 +249,8 @@ export interface ScriptRequest {
   /** Ảnh sản phẩm (data URL) để AI nhìn thấy sản phẩm thật */
   productImages: string[];
   extraNote: string;
+  /** Nhân vật chính (người dẫn) đang chọn ở màn hình — kịch bản dùng người này, không tự chọn người khác trong thư viện */
+  mainCharacter?: string;
 }
 
 /** Nhờ muse-chat (qua Gateway) viết kịch bản chia cảnh theo sản phẩm + mẫu đã chọn. */
@@ -276,7 +278,12 @@ export const generateScript = async (req: ScriptRequest): Promise<GeneratedScrip
     req.mode !== 'pov_aff' && req.characters.length
       ? `NHÂN VẬT CÓ SẴN (dùng ĐÚNG tên này trong "prompt" mỗi khi nhân vật xuất hiện, để app tự gửi ảnh và giọng của họ):\n${req.characters
           .map((c) => `- ${c.name}${c.description ? `: ${c.description}` : ''}${c.voice ? ` (giọng: ${c.voice})` : ''}`)
-          .join('\n')}`
+          .join('\n')}${
+          req.mainCharacter && req.characters.some((c) => c.name === req.mainCharacter)
+            ? `\nNHÂN VẬT CHÍNH (người dẫn) của video này là ${req.mainCharacter}: mọi cảnh có người dẫn đều là ${req.mainCharacter}; ` +
+              'chỉ dùng thêm nhân vật khác khi mẫu kịch bản cần nhiều người.'
+            : ''
+        }`
       : '';
   const instruction = `Bạn là biên kịch video bán hàng ngắn (TikTok/Reels, khung dọc) tiếng Việt.
 Ảnh đính kèm là ẢNH THẬT của sản phẩm cần bán. Hãy nhìn kỹ ảnh để biết đúng sản phẩm là gì (loại, màu, chất liệu, hình dáng). TUYỆT ĐỐI không đổi sang sản phẩm khác.
@@ -290,9 +297,10 @@ ${req.extraNote ? `Yêu cầu thêm: ${req.extraNote}` : ''}
 
 YÊU CẦU:
 - Chia thành đúng ${req.sceneCount} cảnh, mỗi cảnh ${req.secondsPerScene} giây, nối liền thành một câu chuyện theo mẫu.
-- "voiceover": ${req.withDialogue ? `lời thoại tiếng Việt tự nhiên, đời thường, tối đa ${wordsPerScene} chữ mỗi cảnh` : 'để trống "" (video không lời thoại, chỉ nhạc nền/ASMR)'}.
-- "prompt": mô tả hình ảnh cho AI tạo video của cảnh đó (tiếng Việt): bối cảnh, hành động của nhân vật với sản phẩm, góc máy, ánh sáng. Luôn gọi đúng tên/loại sản phẩm và mô tả đúng ngoại hình như trong ảnh.
-- "product.visual": 1 câu mô tả ngoại hình sản phẩm thật trong ảnh (loại, màu, chất liệu, chi tiết nổi bật).
+- "voiceover": ${req.withDialogue ? `lời NHÂN VẬT NÓI TRỰC TIẾP với người xem (ngôi thứ nhất: em / mình / bên em…), tiếng Việt tự nhiên, đời thường, tối đa ${wordsPerScene} chữ mỗi cảnh; KHÔNG phải lời dẫn tả hành động, KHÔNG chứa tên nhân vật (sai: "Lan hào hứng mở hộp…"; đúng: "Hàng mới về rồi cả nhà ơi…")` : 'để trống "" (video không lời thoại, chỉ nhạc nền/ASMR)'}.
+- "prompt": mô tả hình ảnh cho AI tạo video của cảnh đó (tiếng Việt): bối cảnh, hành động của nhân vật với sản phẩm, góc máy, ánh sáng.
+- ${PRODUCT_SCENE_RULE}
+- "product.visual": ${PRODUCT_VISUAL_SPEC}.
 - ${PRODUCT_PHYSICS_RULE}
 - ${NO_PRICE_RULE}
 

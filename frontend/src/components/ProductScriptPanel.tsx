@@ -35,7 +35,9 @@ export const ProductScriptPanel: React.FC<{
   onApplyScenes: (lines: string[]) => void;
   /** Nhân vật trong thư viện (Cài đặt) để kịch bản dùng đúng tên */
   characters?: { name: string; description: string; voice?: string }[];
-}> = ({ product, setProduct, references, onUseImage, secondsPerScene, onApplyScenes, characters = [] }) => {
+  /** Tên nhân vật chính đang chọn (khối 2) — kịch bản dùng người này làm người dẫn */
+  mainCharacter?: string;
+}> = ({ product, setProduct, references, onUseImage, secondsPerScene, onApplyScenes, characters = [], mainCharacter }) => {
   const [scriptMode, setScriptMode] = usePersistentState<ScriptMode>('script.mode.v1', 'template');
   const [link, setLink] = useState(product.url);
   const [scraping, setScraping] = useState(false);
@@ -173,6 +175,7 @@ export const ProductScriptPanel: React.FC<{
         template,
         mode: scriptMode,
         characters,
+        mainCharacter,
         sceneCount,
         secondsPerScene,
         withDialogue: withDialogue && true,
@@ -183,7 +186,8 @@ export const ProductScriptPanel: React.FC<{
       setProduct((prev) => ({
         ...prev,
         name: prev.name || result.product.name || '',
-        visual: result.product.visual || prev.visual,
+        // Ô ngoại hình đang trống / quá ngắn thì lấy bản AI vừa tả kỹ; người dùng đã tự viết dài thì giữ
+        visual: (prev.visual || '').trim().length >= 60 ? prev.visual : result.product.visual || prev.visual,
       }));
       onApplyScenes(result.scenes.map(sceneToPromptLine));
       setScriptNote(

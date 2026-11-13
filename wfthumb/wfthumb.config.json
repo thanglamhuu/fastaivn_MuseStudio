@@ -117,6 +117,30 @@
    "youtubeThumbnail": ""
   },
   {
+   "templateId": "wf-xuong-review-4",
+   "name": "Review tại xưởng 4 cảnh",
+   "image": "Review tại xưởng 4 cảnh.jpg",
+   "video": "Review tại xưởng 4 cảnh.mp4",
+   "fullVideo": "Review tại xưởng 4 cảnh.mp4",
+   "flow": "",
+   "youtube": "",
+   "youtubeThumbnail": "",
+   "testVersion": "v1",
+   "testClip": "../../TestWorkFlow/23 Review tại xưởng 4 cảnh/Review tại xưởng 4 cảnh_v1.mp4"
+  },
+  {
+   "templateId": "wf-xuong-cua-hang-lon",
+   "name": "Đập hộp tại cửa hàng lớn",
+   "image": "Đập hộp tại cửa hàng lớn.jpg",
+   "video": "Đập hộp tại cửa hàng lớn.mp4",
+   "fullVideo": "Đập hộp tại cửa hàng lớn.mp4",
+   "flow": "",
+   "youtube": "",
+   "youtubeThumbnail": "",
+   "testVersion": "v2",
+   "testClip": "../../TestWorkFlow/24 Đập hộp tại cửa hàng lớn/Đập hộp tại cửa hàng lớn_v2.mp4"
+  },
+  {
    "templateId": "wf-review-7-ngay",
    "name": "Review sau 7 ngày dùng",
    "image": "Review sau 7 ngày dùng.jpg",

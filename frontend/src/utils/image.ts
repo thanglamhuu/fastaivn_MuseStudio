@@ -144,3 +144,29 @@ export const upscaleIfSmall = async (src: string, minSide = 1024, target = 1280)
     return src;
   }
 };
+
+/**
+ * Cắt 1 vùng của ảnh (toạ độ 0..1) rồi phóng lên `target` px cạnh dài — dùng để tách 1 sản phẩm khỏi ảnh ghép nhiều mẫu
+ * (mỗi mẫu trong ảnh ghép quá nhỏ nên Muse không thấy rõ chi tiết). Nền trắng, giữ pixel thật của ảnh gốc.
+ */
+export const cropBoxDataUrl = async (
+  src: string,
+  box: { x0: number; y0: number; x1: number; y1: number },
+  target = 1280
+): Promise<string> => {
+  const img = await loadImage(src);
+  const sx = Math.max(0, Math.round(box.x0 * img.width));
+  const sy = Math.max(0, Math.round(box.y0 * img.height));
+  const sw = Math.min(img.width - sx, Math.round((box.x1 - box.x0) * img.width));
+  const sh = Math.min(img.height - sy, Math.round((box.y1 - box.y0) * img.height));
+  if (sw < 16 || sh < 16) throw new Error('Vùng cắt quá nhỏ.');
+  const c = document.createElement('canvas');
+  c.width = sw;
+  c.height = sh;
+  const ctx = c.getContext('2d');
+  if (!ctx) throw new Error('Trình duyệt không hỗ trợ canvas.');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, sw, sh);
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+  return upscaleIfSmall(c.toDataURL('image/jpeg', 0.95), target, target);
+};
