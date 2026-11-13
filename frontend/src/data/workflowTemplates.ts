@@ -164,12 +164,11 @@ export const BUILTIN_WORKFLOWS: WorkflowTemplate[] = [
       'Dẫn người xem đi một vòng: cửa kho → dây chuyền → khu kiểm định → bàn đóng gói, mỗi cảnh một khu, kết ở sản phẩm chính và giá xuất xưởng.',
     scriptMode: 'short_film',
     sceneCount: 4,
-    chainEndFrame: true,
     cameraMotion: 'Tracking shot, walking forward, Gentle Handheld Movement',
     extraNote:
       'Video đi một vòng xưởng / kho, máy đi theo người dẫn: CẢNH 1 ở cửa kho tổng hàng chất cao ("vào xưởng em xem tận gốc"); CẢNH 2 dây chuyền / khu sản xuất đang chạy; ' +
-      'CẢNH 3 khu kiểm định cầm sản phẩm kiểm tra chi tiết; CẢNH 4 bàn đóng gói đơn, giơ sản phẩm chốt giá xuất xưởng + giỏ hàng góc trái. ' +
-      'Mỗi cảnh nối tiếp bước chân cảnh trước, lời thoại 20-25 từ, giọng chủ xưởng dân dã.',
+      'CẢNH 3 khu kiểm định cầm sản phẩm kiểm tra chi tiết; CẢNH 4 bàn đóng gói đơn, giơ sản phẩm, mời xem giỏ hàng (chỉ tay về góc trái). ' +
+      'Cả 4 cảnh cầm CÙNG MỘT sản phẩm, cùng một màu như ảnh mẫu. Mỗi cảnh bắt đầu khi người dẫn vừa bước tới khu đó, lời thoại 20-25 từ, giọng chủ xưởng dân dã.',
   },
   {
     ...base,

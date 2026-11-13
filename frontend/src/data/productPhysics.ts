@@ -33,4 +33,4 @@ export const PRODUCT_SCENE_RULE =
   'tên thương mại dễ làm AI vẽ sai hình (vd. viết "dép nhựa quai ngang đục lỗ vuông nhỏ", không viết "dép tổ ong"); ' +
   'mỗi cảnh tối đa 1-2 chiếc / đôi sản phẩm ở tiền cảnh, màu phải là màu CÓ trong ảnh mẫu, ghi rõ màu nào; sản phẩm luôn nhìn rõ, đủ sáng, ' +
   'không bị tay che quá nửa; ưu tiên hành động cầm, xoay chậm, lật, đưa sát camera, đặt lên bàn; hạn chế cảnh sản phẩm rất nhỏ ở xa ' +
-  'hoặc bị bóp / uốn; KHÔNG yêu cầu chữ, phụ đề, nhãn dán, biểu tượng hiện trên màn hình; thùng / hộp đựng (nếu có) là hộp TRƠN, không in thông số, giá hay % giảm giá.';
+  'hoặc bị bóp / uốn; KHÔNG yêu cầu chữ, phụ đề, nhãn dán, biểu tượng hiện trên màn hình (kêu gọi xem giỏ hàng thì nhân vật chỉ tay về góc trái và NÓI, không vẽ biểu tượng giỏ hàng / nút bấm); sản phẩm người dẫn cầm ở mọi cảnh là CÙNG MỘT chiếc, cùng màu, trừ khi yêu cầu khoe nhiều màu; thùng / hộp đựng (nếu có) là hộp TRƠN, không in thông số, giá hay % giảm giá.';

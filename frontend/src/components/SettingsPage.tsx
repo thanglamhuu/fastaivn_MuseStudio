@@ -11,6 +11,7 @@ import { generatePortrait } from '../services/libraryService';
 import { getStudioSettings, openProjectFolder } from '../services/museBatchService';
 import { GATEWAY_URL } from '../config/appConfig';
 import { LinkProduct, isProductLink, loginShop, readProductFromLink } from '../services/productFromLink';
+import { isolateProductUnit } from '../services/productIsolate';
 import {
   MaintenanceConfig,
   MaintenanceState,
@@ -423,6 +424,32 @@ const ProductsSection: React.FC<{ lib: StudioLibraryState }> = ({ lib }) => {
       setLinkBusy('');
     }
   };
+  // ✂️ Tách 1 sản phẩm rõ nhất khỏi ảnh chính (ảnh ghép nhiều mẫu / có người mẫu) → đặt làm ảnh chính
+  const [isolating, setIsolating] = useState(false);
+  const [isolateNote, setIsolateNote] = useState('');
+  useEffect(() => setIsolateNote(''), [selectedId]);
+  const isolateMain = async () => {
+    if (!selected?.images[0] || isolating) return;
+    const id = selected.id;
+    const main = selected.images[0];
+    setIsolating(true);
+    setIsolateNote('AI đang tìm 1 sản phẩm rõ nhất trong ảnh chính…');
+    try {
+      const r = await isolateProductUnit(main);
+      if (r.dataUrl === main) {
+        setIsolateNote('Ảnh chính chỉ có 1 sản phẩm và đã đủ lớn — không cần tách.');
+        return;
+      }
+      setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, images: [r.dataUrl, ...p.images].slice(0, 8) } : p)));
+      setIsolateNote(
+        `✅ Ảnh chính có ${r.count} sản phẩm — đã tách "${r.label || '1 sản phẩm'}" làm ảnh chính mới. Nên sửa ô Ngoại hình cho đúng màu / mẫu này.`
+      );
+    } catch (err: any) {
+      setIsolateNote(`❌ ${err.message}`);
+    } finally {
+      setIsolating(false);
+    }
+  };
   const login = async () => {
     if (!needsLogin) return;
     try {
@@ -552,11 +579,28 @@ const ProductsSection: React.FC<{ lib: StudioLibraryState }> = ({ lib }) => {
               className={field}
             />
             <ImageStrip
-              label="Ảnh sản phẩm (ảnh chính gửi cho muse.ai)"
+              label="Ảnh sản phẩm (ảnh ĐẦU TIÊN là ảnh chính gửi cho muse.ai)"
               images={selected.images}
               onChange={(images) => update({ images })}
               fit="contain"
             />
+            {selected.images.length > 0 && (
+              <div className="space-y-1">
+                <button
+                  onClick={isolateMain}
+                  disabled={isolating}
+                  title="Ảnh chính xếp nhiều mẫu / nhiều màu hoặc có người mẫu đứng cạnh làm muse.ai vẽ lệch sản phẩm. AI tìm 1 sản phẩm rõ nhất trong ảnh chính, cắt riêng, phóng to và đặt làm ảnh chính (ảnh cũ vẫn giữ phía sau)."
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-[11px] text-slate-200"
+                >
+                  {isolating ? '✂️ Đang tách…' : '✂️ Ảnh chính có nhiều mẫu / có người? Tách 1 sản phẩm rõ nhất làm ảnh chính'}
+                </button>
+                {isolateNote && <p className="text-[10px] text-slate-400">{isolateNote}</p>}
+                <p className="text-[10px] text-slate-500">
+                  Sản phẩm trong video không giống ảnh? Để ảnh chính là ảnh RÕ 1 sản phẩm (nền trơn, không người, không chữ), sửa ô Ngoại hình cho
+                  đúng 1 màu / 1 mẫu đó, rồi chạy lại cảnh bị lệch.
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="border border-dashed border-slate-800 rounded-xl p-10 text-center text-sm text-slate-500">

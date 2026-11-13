@@ -91,8 +91,8 @@
    "flow": "Đi bộ tạo dáng Street Look.flow.json",
    "youtube": "",
    "youtubeThumbnail": "",
-   "testVersion": "v1",
-   "testClip": "../../TestWorkFlow/07 Đi bộ tạo dáng Street Look/Đi bộ tạo dáng Street Look_v1.mp4"
+   "testVersion": "khăn lụa 12/11",
+   "testClip": "../../TestWorkFlow/07 Đi bộ tạo dáng Street Look/Đi bộ tạo dáng Street Look_khanlua_20261112.mp4"
   },
   {
    "templateId": "wf-gia-dinh",
@@ -129,6 +129,18 @@
    "testClip": "../../TestWorkFlow/23 Review tại xưởng 4 cảnh/Review tại xưởng 4 cảnh_v1.mp4"
   },
   {
+   "templateId": "wf-xuong-vong-kho",
+   "name": "Đi một vòng kho / xưởng",
+   "image": "Đi một vòng kho - xưởng.jpg",
+   "video": "Đi một vòng kho - xưởng.mp4",
+   "fullVideo": "Đi một vòng kho - xưởng.mp4",
+   "flow": "",
+   "youtube": "",
+   "youtubeThumbnail": "",
+   "testVersion": "v2",
+   "testClip": "../../TestWorkFlow/25 Đi một vòng kho - xưởng/Đi một vòng kho - xưởng_v2.mp4"
+  },
+  {
    "templateId": "wf-xuong-cua-hang-lon",
    "name": "Đập hộp tại cửa hàng lớn",
    "image": "Đập hộp tại cửa hàng lớn.jpg",
@@ -139,6 +151,18 @@
    "youtubeThumbnail": "",
    "testVersion": "v2",
    "testClip": "../../TestWorkFlow/24 Đập hộp tại cửa hàng lớn/Đập hộp tại cửa hàng lớn_v2.mp4"
+  },
+  {
+   "templateId": "wf-xuong-don-hang",
+   "name": "Đơn hàng hôm nay tại bàn đóng gói",
+   "image": "Đơn hàng hôm nay tại bàn đóng gói.jpg",
+   "video": "Đơn hàng hôm nay tại bàn đóng gói.mp4",
+   "fullVideo": "Đơn hàng hôm nay tại bàn đóng gói.mp4",
+   "flow": "",
+   "youtube": "",
+   "youtubeThumbnail": "",
+   "testVersion": "v2",
+   "testClip": "../../TestWorkFlow/26 Đơn hàng hôm nay tại bàn đóng gói/Đơn hàng hôm nay tại bàn đóng gói_v2.mp4"
   },
   {
    "templateId": "wf-review-7-ngay",
