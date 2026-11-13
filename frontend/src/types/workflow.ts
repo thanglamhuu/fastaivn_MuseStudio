@@ -50,6 +50,8 @@ export interface WorkflowTemplate {
    * - firstframe: ảnh đầu (nhân vật) làm khung mở đầu video (cách cũ)
    */
   refMode?: 'reference' | 'firstframe';
+  /** Mẫu phim / câu chuyện không bán sản phẩm: mở trong Sơ đồ khối thì KHÔNG tạo khối 📦 Sản phẩm */
+  noProduct?: boolean;
   /** Bối cảnh cố định chèn vào mọi cảnh để các cảnh render song song vẫn khớp nhau */
   setting?: string;
   /**

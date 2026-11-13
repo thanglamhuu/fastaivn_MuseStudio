@@ -111,7 +111,7 @@ const templateToFlowLocal = async (tpl: WorkflowTemplate): Promise<{ workflow: F
       );
       y += 200;
     }
-  } else {
+  } else if (!tpl.noProduct) {
     refs.push(add('upload-image', 0, y, { refRoles: ['product'], productId: '', batchLabel: '📦 Sản phẩm (chọn trong Cài đặt)', prompt: '' }));
     y += 260;
   }
@@ -145,7 +145,9 @@ const templateToFlowLocal = async (tpl: WorkflowTemplate): Promise<{ workflow: F
     const idea = add('prompt', 330, 0, {
       batchLabel: 'Ý tưởng / sản phẩm',
       prompt:
-        'Sản phẩm: @@ (gõ @@ để chọn sản phẩm) — nhân vật chính: @ (gõ @ để chọn nhân vật).\n' +
+        (tpl.noProduct
+          ? 'Dàn nhân vật: @ (gõ @ để chọn từng nhân vật trong Cài đặt, vd. @ThuHa, @MinhKhang, @BaLien).\nTập này kể chuyện gì: (để trống thì AI tự chọn chủ đề; làm tập tiếp theo thì ghi "Tập 2 — tóm tắt tập trước: …").\n'
+          : 'Sản phẩm: @@ (gõ @@ để chọn sản phẩm) — nhân vật chính: @ (gõ @ để chọn nhân vật).\n') +
         [MODE_NOTE[tpl.scriptMode] || '', tpl.extraNote, tpl.setting ? `Bối cảnh cố định: ${tpl.setting}` : '', tpl.withDialogue ? 'Có lời thoại tiếng Việt.' : 'Không có lời thoại.']
           .filter(Boolean)
           .join('\n'),

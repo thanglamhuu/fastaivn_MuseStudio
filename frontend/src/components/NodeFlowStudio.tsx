@@ -579,7 +579,7 @@ const FieldInput: React.FC<{ f: FieldDef; d: FlowNodeData; set: (p: Partial<Flow
           {/* Khóa ưu tiên ảnh / khóa bối cảnh: runtime coi "chưa đặt" là BẬT → ô tích hiện khớp với node cũ */}
           <input
             type="checkbox"
-            checked={v === undefined && (f.key === 'imagePriority' || f.key === 'lockSetting' || f.key === 'qcKeyframe' || f.key === 'autoText') ? true : !!v}
+            checked={v === undefined && (f.key === 'imagePriority' || f.key === 'lockSetting' || f.key === 'qcKeyframe' || f.key === 'qcVoice' || f.key === 'autoText') ? true : !!v}
             onChange={(e) => set({ [f.key]: e.target.checked })}
           />
           {f.label}

@@ -108,6 +108,48 @@ export const BUILTIN_WORKFLOWS: WorkflowTemplate[] = [
     sceneCount: 5,
   },
   {
+    // Công thức rút từ phân tích kênh phim drama gia đình nhiều tập (taiLieu/PHAN_TICH_PHIM_DRAMA_GIA_DINH.md) — học CẤU TRÚC, không chép nội dung
+    ...base,
+    id: 'wf-phim-drama-gia-dinh',
+    name: 'Phim Drama Gia Đình (tập 60 giây)',
+    icon: '🎭',
+    category: 'Câu chuyện',
+    description:
+      'Phim drama gia đình nhiều tập kiểu mẹ chồng – nàng dâu: mở giữa xung đột → dồn nén → sự thật → giọt nước tràn ly → phản đòn → kết treo. ' +
+      'Chọn 3 nhân vật (Con dâu, Chồng, Mẹ chồng) trong Cài đặt; mỗi tập 6 cảnh × 10 giây, không bán sản phẩm.',
+    scriptMode: 'short_film',
+    noProduct: true,
+    characterIds: ['', '', ''],
+    duration: 10,
+    sceneCount: 6,
+    cameraMotion: 'Medium Close-up, Slow Dolly In',
+    setting:
+      'Biệt thự gia đình Việt Nam sang trọng tông gỗ ấm (phòng khách có đèn chùm pha lê và sofa da, bếp lớn mặt đá cẩm thạch, phòng làm việc có kệ sách gỗ), buổi tối, ánh đèn vàng ấm kiểu phim truyền hình',
+    extraNote:
+      'CÔNG THỨC PHIM DRAMA GIA ĐÌNH (1 tập 60 giây = 6 cảnh × 10 giây, video dọc 9:16, hình ảnh như phim truyền hình Việt Nam, điện ảnh, chân thật):\n' +
+      '- CẢNH 1 HOOK: mở NGAY giữa xung đột — nhân vật chính bị coi thường / xúc phạm trước mặt người khác; câu thoại gây sốc nhất của tập nằm trong 3 giây đầu.\n' +
+      '- CẢNH 2 DỒN NÉN: người thứ ba (mẹ chồng) nói thêm một câu đổ dầu vào lửa; nhân vật chính nhịn, chỉ đáp ngắn, mặt kìm nén.\n' +
+      '- CẢNH 3 SỰ THẬT: cho khán giả THẤY công sức / sự hy sinh thầm lặng của nhân vật chính bằng hành động + MỘT đạo cụ (laptop, sổ chi tiêu, mâm cơm, tập hồ sơ…).\n' +
+      '- CẢNH 4 GIỌT NƯỚC TRÀN LY: thêm một yêu cầu vô lý → nhân vật chính lần đầu nhìn thẳng và nói "không".\n' +
+      '- CẢNH 5 PHẢN ĐÒN: nhân vật chính đưa ra bằng chứng hoặc một quyết định dứt khoát; phía bên kia sững sờ, không nói được.\n' +
+      '- CẢNH 6 KẾT TREO: một chi tiết MỚI mở ra (điện thoại rung, tin nhắn, người xuất hiện ở cửa, tờ giấy trên bàn) rồi dừng ở cận mặt; KHÔNG giải quyết hết để người xem chờ tập sau.\n' +
+      'VAI TRÒ: CON DÂU = nhân vật chính, hiền, giỏi, bị xem nhẹ, điềm tĩnh rồi cứng rắn dần; CHỒNG = thành đạt, vô tâm, quen được phục vụ, sĩ diện; ' +
+      'MẸ CHỒNG = gia trưởng, bênh con trai, lời nói sắc. Nhân vật phụ khác (bố chồng, đồng nghiệp, bạn thân) chỉ tả bằng chữ, đứng xa / mờ.\n' +
+      'THOẠI: MỖI CẢNH CHỈ MỘT NGƯỜI NÓI (1-2 câu liền nhau của cùng người đó, tổng 15-22 từ); những người còn lại im lặng, chỉ phản ứng bằng nét mặt. ' +
+      'Đầu mô tả mỗi cảnh ghi rõ "CHỈ @Tên nói" rồi mới tới câu thoại trong ngoặc kép; người nói đổi qua từng cảnh theo nhịp đối đáp ' +
+      '(vd. cảnh 1 @MinhKhang, cảnh 2 @BaLien, cảnh 3 @ThuHa, cảnh 4 @MinhKhang, cảnh 5 @ThuHa, cảnh 6 @ThuHa hoặc không thoại); giọng đúng giới tính / tuổi; ' +
+      'câu ngắn, sắc, đời thường, đúng xưng hô gia đình Việt (mẹ – con, anh – em); KHÔNG chửi tục, KHÔNG bạo lực thể xác, KHÔNG xúc phạm vùng miền / nghề nghiệp.\n' +
+      'HÌNH ẢNH: mỗi nhân vật giữ NGUYÊN trang phục và kiểu tóc như ảnh mẫu ở mọi cảnh; mỗi cảnh chỉ có đúng những nhân vật được nêu tên, mỗi người xuất hiện MỘT lần ' +
+      '(không nhân bản, không thêm người lạ, không người đứng sau lưng), tối đa 3 người trong khung, ghi rõ ai đứng đâu (trái / giữa / phải); ' +
+      'màn hình laptop / điện thoại quay chéo hoặc để mờ, KHÔNG cận cảnh chữ trên màn hình hay giấy tờ, thiết bị trơn không logo thương hiệu; ' +
+      'trung cảnh hoặc cận cảnh ngang tầm mắt, máy tĩnh hoặc đẩy chậm vào gương mặt người đang nói; biểu cảm rõ (kìm nén, khinh khỉnh, sững sờ); ' +
+      'các cảnh ở những phòng khác nhau của CÙNG một ngôi nhà; không chữ, phụ đề, logo trên màn hình.\n' +
+      'THÔNG ĐIỆP: phim hư cấu, hướng tới sự tôn trọng trong gia đình; người bị coi thường giành lại tiếng nói bằng năng lực, không trả thù độc ác.\n' +
+      'Ý TƯỞNG trống thì tự chọn 1 chủ đề kiểu: con dâu thức đêm làm hộ báo cáo, chồng nhận hết công trước cả nhà; mẹ chồng đòi giữ thẻ lương của con dâu; ' +
+      'mâm cỗ con dâu nấu cả ngày nhưng không được ngồi cùng bàn; chồng lén đem tiền tiết kiệm chung cho em trai vay; con dâu bị bắt nghỉ việc đúng ngày được thăng chức; ' +
+      'mẹ chồng chê con dâu trước mặt họ hàng, không biết căn nhà đang ở do con dâu trả góp.',
+  },
+  {
     // Công thức rút từ phân tích 5 reel sitcom gia đình > 500k view (taiLieu/PHAN_TICH_PHIM_GIA_DINH_NHO.md) — học CẤU TRÚC, không chép nội dung
     ...base,
     id: 'wf-phim-gia-dinh-nho',

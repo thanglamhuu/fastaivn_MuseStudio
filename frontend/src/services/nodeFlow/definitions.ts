@@ -99,6 +99,8 @@ export interface FlowNodeData {
   lockSetting?: boolean;
   /** Tự chấm mặt ảnh khung hình mở đầu (QC), lệch thì tạo lại ảnh — mặc định bật */
   qcKeyframe?: boolean;
+  /** Generate Video: tự đo giọng của clip, sai giới tính so với giọng người nói (Cài đặt ➔ Nhân vật) thì tạo lại cảnh (mặc định bật) */
+  qcVoice?: boolean;
   /** Kết quả chấm điểm lượt chạy gần nhất (không xuất ra file sơ đồ) */
   qc?: { keyframe?: { name: string; best: number | null }[]; keyframeScore?: number; keyframeTries?: number };
   /** Generate Video: tạo ảnh khung hình trước (muse-image + tham chiếu) làm khung mở đầu (mặc định bật) */
@@ -441,13 +443,18 @@ export const NODE_DEFS: Record<NodeType, NodeDef> = {
         when: (d) => d.keyframeFirst !== false && (d.videoMode || 'text-to-video') !== 'text-to-video',
       },
       {
+        key: 'qcVoice',
+        label: '🎙 Tự kiểm giọng: người nói là nam / nữ mà clip đọc sai giới tính thì tạo lại cảnh (tối đa 2 lần)',
+        type: 'checkbox',
+      },
+      {
         key: 'keyframeFirst',
         label: '🖼 Tạo ảnh khung hình trước rồi mới tạo video (mặt giống hơn nhiều, thêm ~1 phút / cảnh)',
         type: 'checkbox',
         when: (d) => (d.videoMode || 'text-to-video') !== 'text-to-video',
       },
     ],
-    defaults: { videoMode: 'reference-to-video', ratio: '9:16', duration: 10, prompt: '', imagePriority: true, keyframeFirst: true, lockSetting: true, qcKeyframe: true },
+    defaults: { videoMode: 'reference-to-video', ratio: '9:16', duration: 10, prompt: '', imagePriority: true, keyframeFirst: true, lockSetting: true, qcKeyframe: true, qcVoice: true },
   },
   'upscale-image': {
     label: 'Upscale Image (2K/4K)',

@@ -107,6 +107,18 @@
    "testClip": "../../TestWorkFlow/08 Tiểu phẩm gia đình hài/Tiểu phẩm gia đình hài_v4.mp4"
   },
   {
+   "templateId": "wf-phim-drama-gia-dinh",
+   "name": "Phim Drama Gia Đình (tập 60 giây)",
+   "image": "Phim Drama Gia Đình.jpg",
+   "video": "Phim Drama Gia Đình.mp4",
+   "fullVideo": "Phim Drama Gia Đình.mp4",
+   "flow": "Phim Drama Gia Đình.flow.json",
+   "youtube": "",
+   "youtubeThumbnail": "",
+   "testVersion": "tập 1 v2",
+   "testClip": "../../TestWorkFlow/LamPhim/Phim Drama Gia Đình/Phim Drama Gia Đình_tap1.mp4"
+  },
+  {
    "templateId": "wf-phim-gia-dinh-nho",
    "name": "Phim Gia Đình Nhỏ",
    "image": "Phim Gia Đình Nhỏ.jpg",

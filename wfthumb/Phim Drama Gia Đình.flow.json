@@ -1,0 +1,480 @@
+{
+  "kind": "flow-workflow",
+  "schemaVersion": 1,
+  "name": "Phim Drama Gia Đình (tập 60 giây)",
+  "description": "Phim drama gia đình nhiều tập kiểu mẹ chồng – nàng dâu: mở giữa xung đột → dồn nén → sự thật → giọt nước tràn ly → phản đòn → kết treo. Chọn 3 nhân vật (Con dâu, Chồng, Mẹ chồng) trong Cài đặt; mỗi tập 6 cảnh × 10 giây, không bán sản phẩm.",
+  "nodes": [
+    {
+      "id": "node-mweogb7u1amme",
+      "type": "upload-image",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "refRoles": [
+          "character"
+        ],
+        "characterName": "",
+        "prompt": "",
+        "autoDescribe": true,
+        "characterId": "char_drama_thuha",
+        "batchLabel": "👤 Nhân vật 1"
+      }
+    },
+    {
+      "id": "node-mweogb7u2ft8p",
+      "type": "upload-image",
+      "position": {
+        "x": 0,
+        "y": 260
+      },
+      "data": {
+        "refRoles": [
+          "character"
+        ],
+        "characterName": "",
+        "prompt": "",
+        "autoDescribe": true,
+        "characterId": "char_drama_minhkhang",
+        "batchLabel": "👤 Nhân vật 2"
+      }
+    },
+    {
+      "id": "node-mweogb7u3gq1i",
+      "type": "upload-image",
+      "position": {
+        "x": 0,
+        "y": 520
+      },
+      "data": {
+        "refRoles": [
+          "character"
+        ],
+        "characterName": "",
+        "prompt": "",
+        "autoDescribe": true,
+        "characterId": "char_drama_balien",
+        "batchLabel": "👤 Nhân vật 3"
+      }
+    },
+    {
+      "id": "node-mweogb7u4h5p9",
+      "type": "prompt",
+      "position": {
+        "x": 330,
+        "y": 0
+      },
+      "data": {
+        "prompt": "Dàn nhân vật: @ThuHa (con dâu, nhân vật chính), @MinhKhang (chồng), @BaLien (mẹ chồng).\nTập này kể chuyện gì: (để trống thì AI tự chọn chủ đề; làm tập tiếp theo thì ghi \"Tập 2 — tóm tắt tập trước: …\").\nPhim ngắn / cốt truyện liền mạch giữa các cảnh, đối thoại tự nhiên.\nCÔNG THỨC PHIM DRAMA GIA ĐÌNH (1 tập 60 giây = 6 cảnh × 10 giây, video dọc 9:16, hình ảnh như phim truyền hình Việt Nam, điện ảnh, chân thật):\n- CẢNH 1 HOOK: mở NGAY giữa xung đột — nhân vật chính bị coi thường / xúc phạm trước mặt người khác; câu thoại gây sốc nhất của tập nằm trong 3 giây đầu.\n- CẢNH 2 DỒN NÉN: người thứ ba (mẹ chồng) nói thêm một câu đổ dầu vào lửa; nhân vật chính nhịn, chỉ đáp ngắn, mặt kìm nén.\n- CẢNH 3 SỰ THẬT: cho khán giả THẤY công sức / sự hy sinh thầm lặng của nhân vật chính bằng hành động + MỘT đạo cụ (laptop, sổ chi tiêu, mâm cơm, tập hồ sơ…).\n- CẢNH 4 GIỌT NƯỚC TRÀN LY: thêm một yêu cầu vô lý → nhân vật chính lần đầu nhìn thẳng và nói \"không\".\n- CẢNH 5 PHẢN ĐÒN: nhân vật chính đưa ra bằng chứng hoặc một quyết định dứt khoát; phía bên kia sững sờ, không nói được.\n- CẢNH 6 KẾT TREO: một chi tiết MỚI mở ra (điện thoại rung, tin nhắn, người xuất hiện ở cửa, tờ giấy trên bàn) rồi dừng ở cận mặt; KHÔNG giải quyết hết để người xem chờ tập sau.\nVAI TRÒ: CON DÂU = nhân vật chính, hiền, giỏi, bị xem nhẹ, điềm tĩnh rồi cứng rắn dần; CHỒNG = thành đạt, vô tâm, quen được phục vụ, sĩ diện; MẸ CHỒNG = gia trưởng, bênh con trai, lời nói sắc. Nhân vật phụ khác (bố chồng, đồng nghiệp, bạn thân) chỉ tả bằng chữ, đứng xa / mờ.\nTHOẠI: MỖI CẢNH CHỈ MỘT NGƯỜI NÓI (1-2 câu liền nhau của cùng người đó, tổng 15-22 từ); những người còn lại im lặng, chỉ phản ứng bằng nét mặt. Đầu mô tả mỗi cảnh ghi rõ \"CHỈ @Tên nói\" rồi mới tới câu thoại trong ngoặc kép; người nói đổi qua từng cảnh theo nhịp đối đáp (vd. cảnh 1 @MinhKhang, cảnh 2 @BaLien, cảnh 3 @ThuHa, cảnh 4 @MinhKhang, cảnh 5 @ThuHa, cảnh 6 @ThuHa hoặc không thoại); giọng đúng giới tính / tuổi; câu ngắn, sắc, đời thường, đúng xưng hô gia đình Việt (mẹ – con, anh – em); KHÔNG chửi tục, KHÔNG bạo lực thể xác, KHÔNG xúc phạm vùng miền / nghề nghiệp.\nHÌNH ẢNH: mỗi nhân vật giữ NGUYÊN trang phục và kiểu tóc như ảnh mẫu ở mọi cảnh; mỗi cảnh chỉ có đúng những nhân vật được nêu tên, mỗi người xuất hiện MỘT lần (không nhân bản, không thêm người lạ, không người đứng sau lưng), tối đa 3 người trong khung, ghi rõ ai đứng đâu (trái / giữa / phải); màn hình laptop / điện thoại quay chéo hoặc để mờ, KHÔNG cận cảnh chữ trên màn hình hay giấy tờ, thiết bị trơn không logo thương hiệu; trung cảnh hoặc cận cảnh ngang tầm mắt, máy tĩnh hoặc đẩy chậm vào gương mặt người đang nói; biểu cảm rõ (kìm nén, khinh khỉnh, sững sờ); các cảnh ở những phòng khác nhau của CÙNG một ngôi nhà; không chữ, phụ đề, logo trên màn hình.\nTHÔNG ĐIỆP: phim hư cấu, hướng tới sự tôn trọng trong gia đình; người bị coi thường giành lại tiếng nói bằng năng lực, không trả thù độc ác.\nÝ TƯỞNG trống thì tự chọn 1 chủ đề kiểu: con dâu thức đêm làm hộ báo cáo, chồng nhận hết công trước cả nhà; mẹ chồng đòi giữ thẻ lương của con dâu; mâm cỗ con dâu nấu cả ngày nhưng không được ngồi cùng bàn; chồng lén đem tiền tiết kiệm chung cho em trai vay; con dâu bị bắt nghỉ việc đúng ngày được thăng chức; mẹ chồng chê con dâu trước mặt họ hàng, không biết căn nhà đang ở do con dâu trả góp.\nBối cảnh cố định: Biệt thự gia đình Việt Nam sang trọng tông gỗ ấm (phòng khách có đèn chùm pha lê và sofa da, bếp lớn mặt đá cẩm thạch, phòng làm việc có kệ sách gỗ), buổi tối, ánh đèn vàng ấm kiểu phim truyền hình\nCó lời thoại tiếng Việt.",
+        "batchLabel": "Ý tưởng / sản phẩm"
+      }
+    },
+    {
+      "id": "node-mweogb7u572e7",
+      "type": "gemini-script",
+      "position": {
+        "x": 330,
+        "y": 300
+      },
+      "data": {
+        "prompt": "",
+        "outputCount": 6,
+        "sceneSeconds": 10,
+        "firstOutputIsCharacter": false,
+        "batchLabel": "AI viết kịch bản"
+      }
+    },
+    {
+      "id": "node-mweogb7uaj33p",
+      "type": "generate-video",
+      "position": {
+        "x": 700,
+        "y": 0
+      },
+      "data": {
+        "videoMode": "reference-to-video",
+        "ratio": "9:16",
+        "duration": 10,
+        "prompt": "",
+        "imagePriority": true,
+        "keyframeFirst": true,
+        "lockSetting": true,
+        "qcKeyframe": true,
+        "qcVoice": true,
+        "batchLabel": "Cảnh 1"
+      }
+    },
+    {
+      "id": "node-mweogb7ufcnxd",
+      "type": "generate-video",
+      "position": {
+        "x": 700,
+        "y": 230
+      },
+      "data": {
+        "videoMode": "reference-to-video",
+        "ratio": "9:16",
+        "duration": 10,
+        "prompt": "",
+        "imagePriority": true,
+        "keyframeFirst": true,
+        "lockSetting": true,
+        "qcKeyframe": true,
+        "qcVoice": true,
+        "batchLabel": "Cảnh 2"
+      }
+    },
+    {
+      "id": "node-mweogb7uk4q2o",
+      "type": "generate-video",
+      "position": {
+        "x": 700,
+        "y": 460
+      },
+      "data": {
+        "videoMode": "reference-to-video",
+        "ratio": "9:16",
+        "duration": 10,
+        "prompt": "",
+        "imagePriority": true,
+        "keyframeFirst": true,
+        "lockSetting": true,
+        "qcKeyframe": true,
+        "qcVoice": true,
+        "batchLabel": "Cảnh 3"
+      }
+    },
+    {
+      "id": "node-mweogb7upwsgl",
+      "type": "generate-video",
+      "position": {
+        "x": 700,
+        "y": 690
+      },
+      "data": {
+        "videoMode": "reference-to-video",
+        "ratio": "9:16",
+        "duration": 10,
+        "prompt": "",
+        "imagePriority": true,
+        "keyframeFirst": true,
+        "lockSetting": true,
+        "qcKeyframe": true,
+        "qcVoice": true,
+        "batchLabel": "Cảnh 4"
+      }
+    },
+    {
+      "id": "node-mweogb7uuk4gd",
+      "type": "generate-video",
+      "position": {
+        "x": 700,
+        "y": 920
+      },
+      "data": {
+        "videoMode": "reference-to-video",
+        "ratio": "9:16",
+        "duration": 10,
+        "prompt": "",
+        "imagePriority": true,
+        "keyframeFirst": true,
+        "lockSetting": true,
+        "qcKeyframe": true,
+        "qcVoice": true,
+        "batchLabel": "Cảnh 5"
+      }
+    },
+    {
+      "id": "node-mweogb7uzy6p2",
+      "type": "generate-video",
+      "position": {
+        "x": 700,
+        "y": 1150
+      },
+      "data": {
+        "videoMode": "reference-to-video",
+        "ratio": "9:16",
+        "duration": 10,
+        "prompt": "",
+        "imagePriority": true,
+        "keyframeFirst": true,
+        "lockSetting": true,
+        "qcKeyframe": true,
+        "qcVoice": true,
+        "batchLabel": "Cảnh 6"
+      }
+    },
+    {
+      "id": "node-mweogb7u14v8wf",
+      "type": "merge-video",
+      "position": {
+        "x": 1300,
+        "y": 100
+      },
+      "data": {
+        "portCount": 6,
+        "batchLabel": "Ghép 6 cảnh"
+      }
+    },
+    {
+      "id": "node-mweogb7u1buvv3",
+      "type": "result",
+      "position": {
+        "x": 1600,
+        "y": 100
+      },
+      "data": {}
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-mweogb7u619jk",
+      "source": "node-mweogb7u4h5p9",
+      "sourceHandle": "text-out",
+      "target": "node-mweogb7u572e7",
+      "targetHandle": "text-in"
+    },
+    {
+      "id": "edge-mweogb7u78i7y",
+      "source": "node-mweogb7u1amme",
+      "sourceHandle": "image-out",
+      "target": "node-mweogb7u572e7",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "edge-mweogb7u8tz64",
+      "source": "node-mweogb7u2ft8p",
+      "sourceHandle": "image-out",
+      "target": "node-mweogb7u572e7",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "edge-mweogb7u9ru18",
+      "source": "node-mweogb7u3gq1i",
+      "sourceHandle": "image-out",
+      "target": "node-mweogb7u572e7",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "edge-mweogb7ubxixm",
+      "source": "node-mweogb7u572e7",
+      "sourceHandle": "text-out-0",
+      "target": "node-mweogb7uaj33p",
+      "targetHandle": "text-in"
+    },
+    {
+      "id": "edge-mweogb7ucqaqo",
+      "source": "node-mweogb7u1amme",
+      "sourceHandle": "image-out",
+      "target": "node-mweogb7uaj33p",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "edge-mweogb7udru5y",
+      "source": "node-mweogb7u2ft8p",
+      "sourceHandle": "image-out",
+      "target": "node-mweogb7uaj33p",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "edge-mweogb7uex12d",
+      "source": "node-mweogb7u3gq1i",
+      "sourceHandle": "image-out",
+      "target": "node-mweogb7uaj33p",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "edge-mweogb7ughr35",
+      "source": "node-mweogb7u572e7",
+      "sourceHandle": "text-out-1",
+      "target": "node-mweogb7ufcnxd",
+      "targetHandle": "text-in"
+    },
+    {
+      "id": "edge-mweogb7uh6vpm",
+      "source": "node-mweogb7u1amme",
+      "sourceHandle": "image-out",
+      "target": "node-mweogb7ufcnxd",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "edge-mweogb7ui4l5y",
+      "source": "node-mweogb7u2ft8p",
+      "sourceHandle": "image-out",
+      "target": "node-mweogb7ufcnxd",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "edge-mweogb7ujy0n3",
+      "source": "node-mweogb7u3gq1i",
+      "sourceHandle": "image-out",
+      "target": "node-mweogb7ufcnxd",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "edge-mweogb7uly5b9",
+      "source": "node-mweogb7u572e7",
+      "sourceHandle": "text-out-2",
+      "target": "node-mweogb7uk4q2o",
+      "targetHandle": "text-in"
+    },
+    {
+      "id": "edge-mweogb7um54sq",
+      "source": "node-mweogb7u1amme",
+      "sourceHandle": "image-out",
+      "target": "node-mweogb7uk4q2o",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "edge-mweogb7unncf6",
+      "source": "node-mweogb7u2ft8p",
+      "sourceHandle": "image-out",
+      "target": "node-mweogb7uk4q2o",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "edge-mweogb7uocncy",
+      "source": "node-mweogb7u3gq1i",
+      "sourceHandle": "image-out",
+      "target": "node-mweogb7uk4q2o",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "edge-mweogb7uq6gzk",
+      "source": "node-mweogb7u572e7",
+      "sourceHandle": "text-out-3",
+      "target": "node-mweogb7upwsgl",
+      "targetHandle": "text-in"
+    },
+    {
+      "id": "edge-mweogb7uruttu",
+      "source": "node-mweogb7u1amme",
+      "sourceHandle": "image-out",
+      "target": "node-mweogb7upwsgl",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "edge-mweogb7usfko0",
+      "source": "node-mweogb7u2ft8p",
+      "sourceHandle": "image-out",
+      "target": "node-mweogb7upwsgl",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "edge-mweogb7utfmi2",
+      "source": "node-mweogb7u3gq1i",
+      "sourceHandle": "image-out",
+      "target": "node-mweogb7upwsgl",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "edge-mweogb7uvbssf",
+      "source": "node-mweogb7u572e7",
+      "sourceHandle": "text-out-4",
+      "target": "node-mweogb7uuk4gd",
+      "targetHandle": "text-in"
+    },
+    {
+      "id": "edge-mweogb7uwq4td",
+      "source": "node-mweogb7u1amme",
+      "sourceHandle": "image-out",
+      "target": "node-mweogb7uuk4gd",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "edge-mweogb7uxt958",
+      "source": "node-mweogb7u2ft8p",
+      "sourceHandle": "image-out",
+      "target": "node-mweogb7uuk4gd",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "edge-mweogb7uywb23",
+      "source": "node-mweogb7u3gq1i",
+      "sourceHandle": "image-out",
+      "target": "node-mweogb7uuk4gd",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "edge-mweogb7u10aftt",
+      "source": "node-mweogb7u572e7",
+      "sourceHandle": "text-out-5",
+      "target": "node-mweogb7uzy6p2",
+      "targetHandle": "text-in"
+    },
+    {
+      "id": "edge-mweogb7u115kdp",
+      "source": "node-mweogb7u1amme",
+      "sourceHandle": "image-out",
+      "target": "node-mweogb7uzy6p2",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "edge-mweogb7u124vzq",
+      "source": "node-mweogb7u2ft8p",
+      "sourceHandle": "image-out",
+      "target": "node-mweogb7uzy6p2",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "edge-mweogb7u13ddr4",
+      "source": "node-mweogb7u3gq1i",
+      "sourceHandle": "image-out",
+      "target": "node-mweogb7uzy6p2",
+      "targetHandle": "image-in"
+    },
+    {
+      "id": "edge-mweogb7u15zrg2",
+      "source": "node-mweogb7uaj33p",
+      "sourceHandle": "video-out",
+      "target": "node-mweogb7u14v8wf",
+      "targetHandle": "video-in-0"
+    },
+    {
+      "id": "edge-mweogb7u16gkb5",
+      "source": "node-mweogb7ufcnxd",
+      "sourceHandle": "video-out",
+      "target": "node-mweogb7u14v8wf",
+      "targetHandle": "video-in-1"
+    },
+    {
+      "id": "edge-mweogb7u176xrs",
+      "source": "node-mweogb7uk4q2o",
+      "sourceHandle": "video-out",
+      "target": "node-mweogb7u14v8wf",
+      "targetHandle": "video-in-2"
+    },
+    {
+      "id": "edge-mweogb7u18qwjp",
+      "source": "node-mweogb7upwsgl",
+      "sourceHandle": "video-out",
+      "target": "node-mweogb7u14v8wf",
+      "targetHandle": "video-in-3"
+    },
+    {
+      "id": "edge-mweogb7u19n3jx",
+      "source": "node-mweogb7uuk4gd",
+      "sourceHandle": "video-out",
+      "target": "node-mweogb7u14v8wf",
+      "targetHandle": "video-in-4"
+    },
+    {
+      "id": "edge-mweogb7u1a8wz4",
+      "source": "node-mweogb7uzy6p2",
+      "sourceHandle": "video-out",
+      "target": "node-mweogb7u14v8wf",
+      "targetHandle": "video-in-5"
+    },
+    {
+      "id": "edge-mweogb7u1c83zd",
+      "source": "node-mweogb7u14v8wf",
+      "sourceHandle": "video-out",
+      "target": "node-mweogb7u1buvv3",
+      "targetHandle": "video-in"
+    }
+  ],
+  "updatedAt": 1794556243146,
+  "category": "Câu chuyện",
+  "exportedAt": "2026-11-13T07:50:43.147Z"
+}

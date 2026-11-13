@@ -38,6 +38,7 @@ import {
 } from './definitions';
 import { BACKDROP_PRESETS, backdropById } from '../../data/backdropPresets';
 import { NO_PRICE_RULE, PRODUCT_PHYSICS_RULE, PRODUCT_SCENE_RULE } from '../../data/productPhysics';
+import { buildVoiceInfo, resolveVoice } from '../../data/voicePresets';
 
 export const STOPPED_MSG = '⏹ Đã dừng theo yêu cầu';
 
@@ -245,16 +246,42 @@ export const dramaticRole = (i: number, total: number): string => {
   return 'DIỄN BIẾN — phát triển tình huống, chi tiết & trải nghiệm';
 };
 
+/**
+ * Người NÓI của cảnh: tên nhân vật thư viện đứng ngay trước động từ nói ("@ThuHa nói:", "CHỈ @BaLien nói", "MinhKhang quát…").
+ * Không thấy mẫu câu đó mà cảnh chỉ nhắc đúng 1 nhân vật thư viện thì lấy người đó. Nhiều người nói → người nói ĐẦU TIÊN.
+ */
+export const speakerOf = (text: string, characters: StudioCharacter[]): StudioCharacter | undefined => {
+  const named = characters.filter((c) => c.name.trim());
+  if (!named.length || !text) return undefined;
+  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const VERB = '(?:nói|hỏi|đáp|trả lời|quát|gằn giọng|thì thầm|lên tiếng|cất lời|bảo|thốt lên|kêu lên|mỉa mai|ra lệnh)';
+  let best: { at: number; c: StudioCharacter } | undefined;
+  for (const c of named) {
+    const m = new RegExp(`@?${esc(c.name.trim())}(?:\\s*\\([^)]{0,60}\\))?\\s*${VERB}`, 'i').exec(text);
+    if (m && (!best || m.index < best.at)) best = { at: m.index, c };
+  }
+  if (best) return best.c;
+  const mentioned = named.filter((c) => new RegExp(`@?${esc(c.name.trim())}(?![\\p{L}\\p{N}])`, 'iu').test(text));
+  return mentioned.length === 1 && /["“”']/.test(text) ? mentioned[0] : undefined;
+};
+
 const scriptInstruction = (idea: string, count: number, firstIsChar: boolean, seconds = 10) => {
   const a = (seconds * 0.35).toFixed(1);
   const b = (seconds * 0.7).toFixed(1);
   const syllables = `${Math.round(seconds * 2.2)}-${Math.round(seconds * 2.8)}`;
   const scenes = firstIsChar && count >= 2 ? count - 1 : count;
   const spine = Array.from({ length: scenes }, (_, i) => `  + Cảnh ${i + 1}/${scenes}: ${dramaticRole(i, scenes)}`).join('\n');
+  // Mẫu đã có CÔNG THỨC riêng cho từng cảnh ("CẢNH 1 …", "CẢNH 2 …") thì theo công thức đó — khung chung (cảnh 1 = giới thiệu,
+  // cảnh cuối = hạ màn) từng đè lên công thức drama: cảnh 1 thành cảnh chào hỏi vui vẻ, mất hook và mất kết treo (lỗi thật 13/11).
+  const ownFormula = (idea.match(/CẢNH\s*\d+\b/g) || []).length >= Math.min(3, scenes) && /CÔNG THỨC/i.test(idea);
   return (
     'Bạn là đạo diễn hình ảnh & biên kịch AI cho Muse Studio (video dọc TikTok, tiếng Việt).\n' +
     `Yêu cầu gốc:\n${idea}\n\n` +
-    `KHUNG KỊCH TÍNH BẮT BUỘC (liền mạch giữa các cảnh, đầu cảnh sau nối tiếp tư thế cuối cảnh trước):\n${spine}\n` +
+    (ownFormula
+      ? `KHUNG KỊCH TÍNH BẮT BUỘC: viết ĐÚNG theo CÔNG THỨC từng cảnh trong yêu cầu gốc (CẢNH 1 → CẢNH ${scenes}), đúng vai trò và thứ tự của từng cảnh; ` +
+        'cảnh 1 phải mở đúng như công thức ghi (không thêm cảnh giới thiệu / chào hỏi), cảnh cuối kết đúng như công thức ghi. ' +
+        'Các cảnh liền mạch: đầu cảnh sau nối tiếp tình huống cuối cảnh trước.\n'
+      : `KHUNG KỊCH TÍNH BẮT BUỘC (liền mạch giữa các cảnh, đầu cảnh sau nối tiếp tư thế cuối cảnh trước):\n${spine}\n`) +
     '- Khóa cố định 1 bối cảnh xuyên suốt, giữ đồng nhất ngoại hình nhân vật (khuôn mặt, tóc, trang phục) ở MỌI cảnh.\n' +
     `- ${PRODUCT_PHYSICS_RULE}\n` +
     `- ${NO_PRICE_RULE}\n` +
@@ -1082,7 +1109,19 @@ ${got[i - 1]}` : ''),
           const start = images.find((i) => i.handle === 'image-in-start');
           const end = images.find((i) => i.handle === 'image-in-end');
           const direct = images.filter((i) => i.handle === 'image-in');
-          const ups = collectRefs(n.id, men.refs);
+          // Chỉ gửi ảnh những NHÂN VẬT CÓ MẶT trong cảnh (được nhắc tên trong prompt cảnh). Gửi đủ cả dàn cho mọi cảnh thì người
+          // không có trong cảnh vẫn bị vẽ vào khung và có khi nói thay người khác (lỗi thật 13/11: cảnh chồng nói ra giọng mẹ chồng).
+          const allUps = collectRefs(n.id, men.refs);
+          const castRefs = allUps.filter((u) => u.roles[0] === 'character' && u.name);
+          const inScene = castRefs.filter((u) =>
+            new RegExp(`@?${String(u.name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}\\p{N}])`, 'iu').test(text)
+          );
+          const ups =
+            castRefs.length >= 2 && inScene.length >= 1 && inScene.length < castRefs.length
+              ? allUps.filter((u) => u.roles[0] !== 'character' || !u.name || inScene.includes(u))
+              : allUps;
+          if (ups.length < allUps.length)
+            deps.log(`${label(n)}: 👥 cảnh chỉ có ${inScene.map((u) => '@' + u.name).join(', ')} → không gửi ảnh ${castRefs.filter((u) => !inScene.includes(u)).map((u) => '@' + u.name).join(', ')}`);
           const upVals = new Set(ups.map((u) => u.value));
           // Khung mở đầu = ảnh nối thẳng vào image-in mà KHÔNG phải ảnh khóa (Upload Image),
           // vd. ảnh khung hình do Generate Image tạo — dù ảnh khóa nối vào trước
@@ -1220,6 +1259,13 @@ ${got[i - 1]}` : ''),
               : '') +
             ']';
         }
+        // Giọng của cảnh = giọng đã chọn ở Cài đặt cho NGƯỜI NÓI của cảnh (muse.ai đặt 1 giọng cho cả cảnh)
+        const speaker = speakerOf(text, deps.characters || []);
+        const sceneVoice = speaker ? resolveVoice(speaker.voicePresetId, speaker.museVoiceOverride) : undefined;
+        if (speaker && sceneVoice && (sceneVoice.preset || sceneVoice.museVoiceId)) {
+          prompt = `${buildVoiceInfo(sceneVoice, { emotion: speaker.emotion, characterName: speaker.name })} ${prompt}`;
+          deps.log(`${label(n)}: 🎙 người nói @${speaker.name} → giọng ${sceneVoice.preset?.label || sceneVoice.museVoiceName || sceneVoice.museVoiceId}`);
+        }
         // muse.ai nhớ việc cũ theo tài khoản: gặp yêu cầu giống trước nó gửi lại đúng file cũ (đo được: video trùng từng byte)
         prompt += `\n${NEW_REQUEST_NOTE('video')}`;
         const ff = firstFrame ? await toDataUrl(firstFrame) : '';
@@ -1241,7 +1287,7 @@ ${got[i - 1]}` : ''),
         const createOnce = (p: string) => withBusyRetry(
           () =>
             createAndPollMuseVideo(
-              { ...DEFAULT_MUSE_CONFIG, aspectRatio: ratioOf(d), duration: durationOf(d), voice: String(d.voice || '') },
+              { ...DEFAULT_MUSE_CONFIG, aspectRatio: ratioOf(d), duration: durationOf(d), voice: String(d.voice || sceneVoice?.museVoiceId || '') },
               p,
               ff,
               (taskId) => deps.patchNode(n.id, { taskId }),
@@ -1254,7 +1300,30 @@ ${got[i - 1]}` : ''),
             ),
           { shouldStop: deps.shouldStop, log: deps.log, what: label(n) }
         );
-        const url = await createVideo();
+        let url = await createVideo();
+        // TỰ KIỂM GIỌNG: người nói có giọng nam / nữ đã chọn ở Cài đặt mà muse.ai đọc sai giới tính (lỗi thật 13/11: cảnh chồng nói
+        // ra giọng nữ) → tạo lại cảnh, tối đa 2 lần. Gateway cũ / clip không tiếng → bỏ qua.
+        const expectGender = sceneVoice?.preset?.gender;
+        if (speaker && expectGender && d.qcVoice !== false) {
+          for (let attempt = 1; attempt <= 2; attempt++) {
+            let q: { pitch_hz: number | null; gender: string; verdict: string } | null = null;
+            try {
+              q = await gw('/studio/qc/voice', { media: await toGatewayMedia(url), expect: expectGender });
+            } catch {
+              q = null;
+            }
+            if (!q || q.verdict !== 'fail') {
+              if (q?.pitch_hz) deps.log(`${label(n)}: 🎙 giọng @${speaker.name} ${q.pitch_hz} Hz (${q.gender}) → đạt`);
+              break;
+            }
+            stop();
+            deps.log(`${label(n)}: 🎙 giọng @${speaker.name} ${q.pitch_hz} Hz (${q.gender}) SAI giới tính, cần ${expectGender} → tạo lại cảnh (lần ${attempt + 1})`);
+            prompt +=
+              `\n[LẦN TẠO LẠI ${attempt}: bản trước @${speaker.name} bị đọc sai giọng. Lời thoại của cảnh này BẮT BUỘC do @${speaker.name} nói bằng giọng ` +
+              `${expectGender === 'male' ? 'NAM trưởng thành, trầm, rõ' : 'NỮ trưởng thành'}; không nhân vật nào khác mở miệng.]`;
+            url = await createVideo();
+          }
+        }
         let path: string | undefined;
         try {
           path = (await exportVideo(url, deps.project, `${stamp()}_${label(n).replace(/[^\p{L}\p{N}]+/gu, '_').slice(0, 40)}`)).path;
