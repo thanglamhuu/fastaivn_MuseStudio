@@ -134,11 +134,13 @@
    "templateId": "wf-phim-gia-dinh-nho",
    "name": "Phim Gia Đình Nhỏ",
    "image": "Phim Gia Đình Nhỏ.jpg",
-   "video": "",
-   "fullVideo": "",
-   "flow": "",
+   "video": "Phim Gia Đình Nhỏ.mp4",
+   "fullVideo": "Phim Gia Đình Nhỏ.mp4",
+   "flow": "Phim Gia Đình Nhỏ.flow.json",
    "youtube": "",
-   "youtubeThumbnail": ""
+   "youtubeThumbnail": "",
+   "testVersion": "chạy 12/11",
+   "testClip": "../../TestWorkFlow/thumFull/Phim Gia Đình Nhỏ.mp4"
   },
   {
    "templateId": "wf-xuong-review-4",
